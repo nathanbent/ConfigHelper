@@ -119,7 +119,7 @@
       if (dev.snmp.versions.includes('v2c') && !dev.snmp.versions.includes('v3')) {
         add('snmpv2', 'info', 'SNMP uses community strings only (no v3)', 'SNMP v1/v2c sends the community string and all data in clear text.', []);
       }
-      if (dev.other['HTTP server'] === 'enabled' || dev.other['Web management'] === 'enabled') {
+      if (dev.other['HTTP server'] === 'enabled' || /^(enabled|http)$/.test(dev.other['Web management'] || '')) {
         add('http', 'warn', 'Management over plain HTTP is enabled', 'Logins to the web interface cross the network unencrypted. Disable the HTTP server and keep HTTPS.', []);
       }
       if (dev.other.Telnet === 'enabled' || /\b(telnet|all)\b/.test(dev.other['VTY access'] || '')) {
