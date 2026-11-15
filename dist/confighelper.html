@@ -130,6 +130,13 @@ td.mono { font-family: var(--mono); font-size: 12.5px; }
 .tokens { font-size: 12.5px; color: var(--muted); margin: 0 0 12px; }
 .tokens code { font-family: var(--mono); background: var(--row); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; color: var(--ink); }
 .labelprev td.line { font-weight: 600; }
+td.edited { box-shadow: inset 3px 0 0 var(--accent); }
+td.editcell { padding: 3px 6px; min-width: 180px; }
+td.editcell input { width: 100%; min-height: 26px; padding: 2px 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); color: var(--ink); }
+td.editcell.edited input { border-color: var(--accent); }
+tr.excluded td { opacity: .45; }
+tr.excluded td:first-child { opacity: 1; }
+.edithint { margin: 0 0 10px; }
 details.cols .pop.right { left: auto; right: 0; grid-template-columns: 1fr; width: 280px; gap: 8px; }
 details.cols .pop.right label select { width: 100%; }
 details.cols summary.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
@@ -358,7 +365,8 @@ A whole terminal session works too, for example:
       ports: [],
       other: {},          // free-form "Label" -> "value"
       sources: [],        // what was pasted in, for the record (names only)
-      unparsed: []        // {ctx, text, count, inner}: input the parser did not use
+      unparsed: [],       // {ctx, text, count, inner}: input the parser did not use
+      edits: {}           // port key -> {description, neighbor, ..., excluded}: manual changes, kept apart from parsed data
     };
   };
 
@@ -410,6 +418,52 @@ A whole terminal session works too, for example:
     const cur = dev.other[key] ? dev.other[key].split(', ') : [];
     if (!cur.includes(val)) cur.push(val);
     dev.other[key] = cur.join(', ');
+  };
+
+  // ------------------------------------------------------------ manual edits
+  // Parsed values are never overwritten: edits live in dev.edits and are laid over the ports
+  // whenever they are shown or exported, so re-pasting a config keeps them.
+  NP.editable = ['description', 'neighbor', 'neighborPort', 'notes'];
+  NP.eports = function (dev, withExcluded) {
+    const ed = dev.edits || {};
+    const out = [];
+    dev.ports.forEach(function (p) {
+      const e = ed[p.key];
+      if (!e) { out.push(p); return; }
+      if (e.excluded && !withExcluded) return;
+      const q = Object.assign({}, p);
+      q.edited = {};                       // field -> the parsed value it replaces
+      NP.editable.forEach(function (f) {
+        if (e[f] !== undefined && e[f] !== p[f]) { q.edited[f] = p[f]; q[f] = e[f]; }
+      });
+      q.excluded = !!e.excluded;
+      out.push(q);
+    });
+    return out;
+  };
+  NP.setEdit = function (dev, key, field, value) {
+    const p = dev.ports.find(function (x) { return x.key === key; });
+    if (!p) return;
+    dev.edits = dev.edits || {};
+    const e = dev.edits[key] = dev.edits[key] || {};
+    if (field === 'excluded') { if (value) e.excluded = true; else delete e.excluded; }
+    else if (NP.editable.includes(field)) {
+      value = String(value == null ? '' : value).trim();
+      if (value === p[field]) delete e[field]; else e[field] = value;
+    }
+    if (!Object.keys(e).length) delete dev.edits[key];
+  };
+  NP.editCount = function (dev) {
+    const live = {};
+    dev.ports.forEach(function (p) { live[p.key] = p; });
+    let n = 0, excluded = 0;
+    Object.keys(dev.edits || {}).forEach(function (k) {
+      const e = dev.edits[k], p = live[k];
+      if (!p) return;
+      if (e.excluded) excluded++;
+      NP.editable.forEach(function (f) { if (e[f] !== undefined && e[f] !== p[f]) n++; });
+    });
+    return { fields: n, excluded: excluded, total: n + excluded };
   };
 
   // ---------------------------------------------------- "not parsed" tracking
@@ -3802,7 +3856,7 @@ set enabled=yes location="Workshop cabinet"
     const cols = NP.columns.filter(function (c) { return !colIds || colIds.includes(c.id); });
     const rows = [['Device'].concat(cols.map(function (c) { return c.label; }))];
     devs.forEach(function (dev) {
-      dev.ports.filter(filter || function () { return true; }).forEach(function (p) {
+      NP.eports(dev).filter(filter || function () { return true; }).forEach(function (p) {
         rows.push([dev.hostname].concat(cols.map(function (c) { return c.get(p); })));
       });
     });
@@ -3975,7 +4029,7 @@ set enabled=yes location="Workshop cabinet"
     };
     devs.forEach(function (dev) {
       if (perDevice) add(dev, NP.newPort(''));
-      else dev.ports.filter(keep).forEach(function (p) { add(dev, p); });
+      else NP.eports(dev).filter(keep).forEach(function (p) { add(dev, p); });
     });
     return rows;
   };
@@ -4059,6 +4113,7 @@ set enabled=yes location="Workshop cabinet"
     devices: [], current: null, tab: 'ports',
     cols: NP.columns.filter(function (c) { return c.on; }).map(function (c) { return c.id; }),
     search: '', physOnly: false, hideDown: false, sort: null,
+    editing: false,
     exp: { fmt: 'csv', cols: 'shown', rows: 'shown', devs: 'device' },
     label: { preset: 'port', per: 'port', lines: NP.labelPresets.port.lines.slice(), scope: 'device',
       physicalOnly: true, upOnly: false, describedOnly: false, skipDisabled: true,
@@ -4318,7 +4373,7 @@ set enabled=yes location="Workshop cabinet"
     };
   }
   function visiblePorts(dev) {
-    let list = dev.ports.filter(portPredicate());
+    let list = NP.eports(dev, state.editing).filter(portPredicate());
     if (state.sort) {
       const col = NP.columns.find(function (c) { return c.id === state.sort.id; });
       if (col) {
@@ -4350,7 +4405,8 @@ set enabled=yes location="Workshop cabinet"
     const pred = portPredicate();
     const rows = [['Device'].concat(cols.map(function (c) { return c.label; }))];
     devs.forEach(function (d) {
-      const ports = E.rows === 'all' ? d.ports : d === dev ? list : d.ports.filter(pred);
+      const all = NP.eports(d);                     // manual edits applied, excluded ports left out
+      const ports = E.rows === 'all' ? all : d === dev ? list.filter(function (p) { return !p.excluded; }) : all.filter(pred);
       ports.forEach(function (p) { rows.push([d.hostname].concat(cols.map(function (c) { return c.get(p); }))); });
     });
     return rows;
@@ -4396,11 +4452,23 @@ set enabled=yes location="Workshop cabinet"
           h('button', { title: 'Copy in the chosen format', onclick: function (e) {
             copyText(NP.formatRows(exportRows(dev, list), E.fmt).replace(/^﻿/, ''), e.target, 'Copy');
           } }, 'Copy'))));
+    const ec = NP.editCount(dev);
+    const editBtn = h('button', { class: state.editing ? 'primary' : '', 'aria-pressed': String(state.editing),
+      title: 'Change descriptions, neighbors and notes, or leave ports out of exports and labels',
+      onclick: function () { state.editing = !state.editing; render(); } }, state.editing ? 'Done editing' : 'Edit');
+    const resetBtn = state.editing && ec.total ? h('button', { class: 'danger', onclick: function () {
+      if (!confirm('Discard ' + ec.total + ' manual change(s) on ' + (dev.hostname || 'this device') + ' and go back to the parsed values?')) return;
+      dev.edits = {}; save(); render();
+    } }, 'Reset edits (' + ec.total + ')') : null;
     const toolbar = h('div', { class: 'toolbar' }, search, check('Physical only', 'physOnly'), check('Link up only', 'hideDown'),
-      colPicker, h('span', { class: 'count', text: list.length + ' of ' + dev.ports.length + ' shown' }), h('span', { class: 'spacer' }),
-      expMenu, h('button', { onclick: function () { window.print(); } }, 'Print'));
+      colPicker, h('span', { class: 'count', text: list.length + ' of ' + dev.ports.length + ' shown' +
+        (ec.fields ? ', ' + ec.fields + ' edited' : '') + (ec.excluded ? ', ' + ec.excluded + ' excluded' : '') }), h('span', { class: 'spacer' }),
+      editBtn, resetBtn, expMenu, h('button', { onclick: function () { window.print(); } }, 'Print'));
+    const editHint = state.editing ? h('p', { class: 'hint edithint', text: 'Type in the outlined cells (' +
+      NP.columns.filter(function (c) { return NP.editable.includes(c.id); }).map(function (c) { return c.label; }).join(', ') +
+      ') and untick a port to leave it out of exports and labels. Changes are kept when you paste newer output for this device; the parsed value is shown when you hover an edited cell.' }) : null;
 
-    const thead = h('thead', {}, h('tr', {}, cols.map(function (c) {
+    const thead = h('thead', {}, h('tr', {}, state.editing ? h('th', { class: 'nosort', scope: 'col', text: 'Include' }) : null, cols.map(function (c) {
       const s = state.sort && state.sort.id === c.id ? (state.sort.dir > 0 ? 'ascending' : 'descending') : null;
       return h('th', { 'aria-sort': s, scope: 'col', onclick: function () {
         if (!state.sort || state.sort.id !== c.id) state.sort = { id: c.id, dir: 1 };
@@ -4410,15 +4478,29 @@ set enabled=yes location="Workshop cabinet"
       } }, c.label);
     })));
     const tbody = h('tbody', {}, list.map(function (p) {
-      return h('tr', {}, cols.map(function (c) {
+      const edited = p.edited || {};
+      return h('tr', { class: p.excluded ? 'excluded' : '' }, state.editing ? h('td', {},
+        h('input', { type: 'checkbox', checked: !p.excluded, 'aria-label': 'Include ' + p.short + ' in exports',
+          onchange: function (e) { NP.setEdit(dev, p.key, 'excluded', !e.target.checked); save(); render(); } })) : null,
+      cols.map(function (c) {
         const v = c.get(p);
+        const was = edited[c.id];
+        if (NP.editable.includes(c.id)) {
+          const title = was !== undefined ? 'Parsed value: ' + (was || '(empty)') : null;
+          if (state.editing) {
+            return h('td', { class: 'editcell' + (was !== undefined ? ' edited' : '') },
+              h('input', { type: 'text', value: v || '', title: title, 'aria-label': c.label + ' for ' + p.short,
+                onchange: function (e) { NP.setEdit(dev, p.key, c.id, e.target.value); save(); render(); } }));
+          }
+          if (was !== undefined) return h('td', { class: 'wrap edited', title: title, text: v == null ? '' : String(v) });
+        }
         if (c.id === 'link' || c.id === 'admin' || c.id === 'poeStatus') return h('td', {}, pill(v));
         const cls = c.id === 'description' || c.id === 'notes' || c.id === 'stp' ? 'wrap'
           : c.id === 'name' || c.id === 'short' || c.id === 'ip' || c.id === 'tagged' ? 'mono' : '';
         return h('td', { class: cls, text: v == null ? '' : String(v) });
       }));
     }));
-    view.appendChild(h('section', { class: 'card' }, toolbar,
+    view.appendChild(h('section', { class: 'card' }, toolbar, editHint,
       list.length ? h('div', { class: 'tablewrap' }, h('table', {}, thead, tbody))
         : h('p', { class: 'empty', text: 'No ports match.' })));
   }

@@ -123,6 +123,13 @@ td.mono { font-family: var(--mono); font-size: 12.5px; }
 .tokens { font-size: 12.5px; color: var(--muted); margin: 0 0 12px; }
 .tokens code { font-family: var(--mono); background: var(--row); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; color: var(--ink); }
 .labelprev td.line { font-weight: 600; }
+td.edited { box-shadow: inset 3px 0 0 var(--accent); }
+td.editcell { padding: 3px 6px; min-width: 180px; }
+td.editcell input { width: 100%; min-height: 26px; padding: 2px 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); color: var(--ink); }
+td.editcell.edited input { border-color: var(--accent); }
+tr.excluded td { opacity: .45; }
+tr.excluded td:first-child { opacity: 1; }
+.edithint { margin: 0 0 10px; }
 details.cols .pop.right { left: auto; right: 0; grid-template-columns: 1fr; width: 280px; gap: 8px; }
 details.cols .pop.right label select { width: 100%; }
 details.cols summary.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }

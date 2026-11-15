@@ -9,6 +9,7 @@
     devices: [], current: null, tab: 'ports',
     cols: NP.columns.filter(function (c) { return c.on; }).map(function (c) { return c.id; }),
     search: '', physOnly: false, hideDown: false, sort: null,
+    editing: false,
     exp: { fmt: 'csv', cols: 'shown', rows: 'shown', devs: 'device' },
     label: { preset: 'port', per: 'port', lines: NP.labelPresets.port.lines.slice(), scope: 'device',
       physicalOnly: true, upOnly: false, describedOnly: false, skipDisabled: true,
@@ -268,7 +269,7 @@
     };
   }
   function visiblePorts(dev) {
-    let list = dev.ports.filter(portPredicate());
+    let list = NP.eports(dev, state.editing).filter(portPredicate());
     if (state.sort) {
       const col = NP.columns.find(function (c) { return c.id === state.sort.id; });
       if (col) {
@@ -300,7 +301,8 @@
     const pred = portPredicate();
     const rows = [['Device'].concat(cols.map(function (c) { return c.label; }))];
     devs.forEach(function (d) {
-      const ports = E.rows === 'all' ? d.ports : d === dev ? list : d.ports.filter(pred);
+      const all = NP.eports(d);                     // manual edits applied, excluded ports left out
+      const ports = E.rows === 'all' ? all : d === dev ? list.filter(function (p) { return !p.excluded; }) : all.filter(pred);
       ports.forEach(function (p) { rows.push([d.hostname].concat(cols.map(function (c) { return c.get(p); }))); });
     });
     return rows;
@@ -346,11 +348,23 @@
           h('button', { title: 'Copy in the chosen format', onclick: function (e) {
             copyText(NP.formatRows(exportRows(dev, list), E.fmt).replace(/^﻿/, ''), e.target, 'Copy');
           } }, 'Copy'))));
+    const ec = NP.editCount(dev);
+    const editBtn = h('button', { class: state.editing ? 'primary' : '', 'aria-pressed': String(state.editing),
+      title: 'Change descriptions, neighbors and notes, or leave ports out of exports and labels',
+      onclick: function () { state.editing = !state.editing; render(); } }, state.editing ? 'Done editing' : 'Edit');
+    const resetBtn = state.editing && ec.total ? h('button', { class: 'danger', onclick: function () {
+      if (!confirm('Discard ' + ec.total + ' manual change(s) on ' + (dev.hostname || 'this device') + ' and go back to the parsed values?')) return;
+      dev.edits = {}; save(); render();
+    } }, 'Reset edits (' + ec.total + ')') : null;
     const toolbar = h('div', { class: 'toolbar' }, search, check('Physical only', 'physOnly'), check('Link up only', 'hideDown'),
-      colPicker, h('span', { class: 'count', text: list.length + ' of ' + dev.ports.length + ' shown' }), h('span', { class: 'spacer' }),
-      expMenu, h('button', { onclick: function () { window.print(); } }, 'Print'));
+      colPicker, h('span', { class: 'count', text: list.length + ' of ' + dev.ports.length + ' shown' +
+        (ec.fields ? ', ' + ec.fields + ' edited' : '') + (ec.excluded ? ', ' + ec.excluded + ' excluded' : '') }), h('span', { class: 'spacer' }),
+      editBtn, resetBtn, expMenu, h('button', { onclick: function () { window.print(); } }, 'Print'));
+    const editHint = state.editing ? h('p', { class: 'hint edithint', text: 'Type in the outlined cells (' +
+      NP.columns.filter(function (c) { return NP.editable.includes(c.id); }).map(function (c) { return c.label; }).join(', ') +
+      ') and untick a port to leave it out of exports and labels. Changes are kept when you paste newer output for this device; the parsed value is shown when you hover an edited cell.' }) : null;
 
-    const thead = h('thead', {}, h('tr', {}, cols.map(function (c) {
+    const thead = h('thead', {}, h('tr', {}, state.editing ? h('th', { class: 'nosort', scope: 'col', text: 'Include' }) : null, cols.map(function (c) {
       const s = state.sort && state.sort.id === c.id ? (state.sort.dir > 0 ? 'ascending' : 'descending') : null;
       return h('th', { 'aria-sort': s, scope: 'col', onclick: function () {
         if (!state.sort || state.sort.id !== c.id) state.sort = { id: c.id, dir: 1 };
@@ -360,15 +374,29 @@
       } }, c.label);
     })));
     const tbody = h('tbody', {}, list.map(function (p) {
-      return h('tr', {}, cols.map(function (c) {
+      const edited = p.edited || {};
+      return h('tr', { class: p.excluded ? 'excluded' : '' }, state.editing ? h('td', {},
+        h('input', { type: 'checkbox', checked: !p.excluded, 'aria-label': 'Include ' + p.short + ' in exports',
+          onchange: function (e) { NP.setEdit(dev, p.key, 'excluded', !e.target.checked); save(); render(); } })) : null,
+      cols.map(function (c) {
         const v = c.get(p);
+        const was = edited[c.id];
+        if (NP.editable.includes(c.id)) {
+          const title = was !== undefined ? 'Parsed value: ' + (was || '(empty)') : null;
+          if (state.editing) {
+            return h('td', { class: 'editcell' + (was !== undefined ? ' edited' : '') },
+              h('input', { type: 'text', value: v || '', title: title, 'aria-label': c.label + ' for ' + p.short,
+                onchange: function (e) { NP.setEdit(dev, p.key, c.id, e.target.value); save(); render(); } }));
+          }
+          if (was !== undefined) return h('td', { class: 'wrap edited', title: title, text: v == null ? '' : String(v) });
+        }
         if (c.id === 'link' || c.id === 'admin' || c.id === 'poeStatus') return h('td', {}, pill(v));
         const cls = c.id === 'description' || c.id === 'notes' || c.id === 'stp' ? 'wrap'
           : c.id === 'name' || c.id === 'short' || c.id === 'ip' || c.id === 'tagged' ? 'mono' : '';
         return h('td', { class: cls, text: v == null ? '' : String(v) });
       }));
     }));
-    view.appendChild(h('section', { class: 'card' }, toolbar,
+    view.appendChild(h('section', { class: 'card' }, toolbar, editHint,
       list.length ? h('div', { class: 'tablewrap' }, h('table', {}, thead, tbody))
         : h('p', { class: 'empty', text: 'No ports match.' })));
   }

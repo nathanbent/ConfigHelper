@@ -407,6 +407,39 @@ test('not parsed: Fortinet reports setting names and whole sections, never value
   assert.ok(!JSON.stringify(d.unparsed).includes('abc123') && !JSON.stringify(d.unparsed).includes('secret-policy'));
 });
 
+test('manual edits: laid over parsed data, used by exports and labels, kept across re-paste and backup', () => {
+  const devices = [];
+  const d = NP.ingest(NP.samples.ios.text, { devices }).dev;
+  devices.push(d);
+  NP.setEdit(d, NP.portId('Gi1/0/2').key, 'description', 'AP Lobby (ceiling)');
+  NP.setEdit(d, NP.portId('Gi1/0/3').key, 'excluded', true);
+  NP.setEdit(d, NP.portId('Gi1/0/1').key, 'neighbor', 'PHONE-1');
+  assert.equal(port(d, 'Gi1/0/2').description, 'AP-Lobby');                    // parsed value untouched
+  assert.deepEqual(NP.editCount(d), { fields: 2, excluded: 1, total: 3 });
+  const view = NP.eports(d);
+  assert.equal(view.length, d.ports.length - 1);
+  const e2 = view.find(p => p.short === 'Gi1/0/2');
+  assert.deepEqual([e2.description, e2.edited.description], ['AP Lobby (ceiling)', 'AP-Lobby']);
+  assert.equal(NP.eports(d, true).find(p => p.short === 'Gi1/0/3').excluded, true);
+  const rows = NP.portRows([d], ['name', 'description']);
+  assert.ok(rows.some(r => r[2] === 'AP Lobby (ceiling)'));
+  assert.ok(!rows.some(r => r[1] === 'GigabitEthernet1/0/3'));
+  const lab = NP.labelRows([d], { lines: ['{port}', '{desc}', '{neighbor}'], physicalOnly: true });
+  assert.deepEqual(lab.slice(1, 3), [['Gi1/0/1', 'Reception PC + phone', 'PHONE-1'], ['Gi1/0/2', 'AP Lobby (ceiling)', 'AP-Lobby']]);
+  assert.ok(!lab.some(r => r[0] === 'Gi1/0/3'));
+  // re-pasting the device output keeps the edits
+  assert.equal(NP.ingest(NP.samples.ios.text, { devices }).dev, d);
+  assert.equal(NP.eports(d).find(p => p.short === 'Gi1/0/2').description, 'AP Lobby (ceiling)');
+  // so does a backup round-trip
+  const back = NP.restore(NP.backup([d]))[0];
+  assert.deepEqual(NP.editCount(back), { fields: 2, excluded: 1, total: 3 });
+  // typing the parsed value back, or re-including, removes the edit
+  NP.setEdit(d, NP.portId('Gi1/0/2').key, 'description', 'AP-Lobby');
+  NP.setEdit(d, NP.portId('Gi1/0/3').key, 'excluded', false);
+  NP.setEdit(d, NP.portId('Gi1/0/1').key, 'neighbor', '');
+  assert.deepEqual(d.edits, {});
+});
+
 test('forcing a vendor and unknown input', () => {
   assert.throws(() => NP.ingest('hello world\nnothing here', { devices: [] }), /vendor/);
   assert.throws(() => NP.ingest('hello world', { vendor: 'ios', devices: [] }), /Nothing recognisable/);

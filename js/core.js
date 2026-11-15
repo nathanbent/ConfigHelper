@@ -154,7 +154,8 @@
       ports: [],
       other: {},          // free-form "Label" -> "value"
       sources: [],        // what was pasted in, for the record (names only)
-      unparsed: []        // {ctx, text, count, inner}: input the parser did not use
+      unparsed: [],       // {ctx, text, count, inner}: input the parser did not use
+      edits: {}           // port key -> {description, neighbor, ..., excluded}: manual changes, kept apart from parsed data
     };
   };
 
@@ -206,6 +207,52 @@
     const cur = dev.other[key] ? dev.other[key].split(', ') : [];
     if (!cur.includes(val)) cur.push(val);
     dev.other[key] = cur.join(', ');
+  };
+
+  // ------------------------------------------------------------ manual edits
+  // Parsed values are never overwritten: edits live in dev.edits and are laid over the ports
+  // whenever they are shown or exported, so re-pasting a config keeps them.
+  NP.editable = ['description', 'neighbor', 'neighborPort', 'notes'];
+  NP.eports = function (dev, withExcluded) {
+    const ed = dev.edits || {};
+    const out = [];
+    dev.ports.forEach(function (p) {
+      const e = ed[p.key];
+      if (!e) { out.push(p); return; }
+      if (e.excluded && !withExcluded) return;
+      const q = Object.assign({}, p);
+      q.edited = {};                       // field -> the parsed value it replaces
+      NP.editable.forEach(function (f) {
+        if (e[f] !== undefined && e[f] !== p[f]) { q.edited[f] = p[f]; q[f] = e[f]; }
+      });
+      q.excluded = !!e.excluded;
+      out.push(q);
+    });
+    return out;
+  };
+  NP.setEdit = function (dev, key, field, value) {
+    const p = dev.ports.find(function (x) { return x.key === key; });
+    if (!p) return;
+    dev.edits = dev.edits || {};
+    const e = dev.edits[key] = dev.edits[key] || {};
+    if (field === 'excluded') { if (value) e.excluded = true; else delete e.excluded; }
+    else if (NP.editable.includes(field)) {
+      value = String(value == null ? '' : value).trim();
+      if (value === p[field]) delete e[field]; else e[field] = value;
+    }
+    if (!Object.keys(e).length) delete dev.edits[key];
+  };
+  NP.editCount = function (dev) {
+    const live = {};
+    dev.ports.forEach(function (p) { live[p.key] = p; });
+    let n = 0, excluded = 0;
+    Object.keys(dev.edits || {}).forEach(function (k) {
+      const e = dev.edits[k], p = live[k];
+      if (!p) return;
+      if (e.excluded) excluded++;
+      NP.editable.forEach(function (f) { if (e[f] !== undefined && e[f] !== p[f]) n++; });
+    });
+    return { fields: n, excluded: excluded, total: n + excluded };
   };
 
   // ---------------------------------------------------- "not parsed" tracking

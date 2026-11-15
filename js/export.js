@@ -103,7 +103,7 @@
     const cols = NP.columns.filter(function (c) { return !colIds || colIds.includes(c.id); });
     const rows = [['Device'].concat(cols.map(function (c) { return c.label; }))];
     devs.forEach(function (dev) {
-      dev.ports.filter(filter || function () { return true; }).forEach(function (p) {
+      NP.eports(dev).filter(filter || function () { return true; }).forEach(function (p) {
         rows.push([dev.hostname].concat(cols.map(function (c) { return c.get(p); })));
       });
     });
@@ -276,7 +276,7 @@
     };
     devs.forEach(function (dev) {
       if (perDevice) add(dev, NP.newPort(''));
-      else dev.ports.filter(keep).forEach(function (p) { add(dev, p); });
+      else NP.eports(dev).filter(keep).forEach(function (p) { add(dev, p); });
     });
     return rows;
   };

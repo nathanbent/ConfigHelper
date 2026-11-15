@@ -20,6 +20,10 @@ Offline: Open `dist/confighelper.html` in a browser. That single file is the who
 3. Paste more output for the same device later; it merges by hostname (taken from the config or the CLI prompt). If the paste has no hostname, it goes into the selected device.
 4. Use the **Ports** tab to filter, sort, pick columns and export. Use **Labels** to build label rows.
 
+**Edit** on the Ports tab lets you change descriptions, neighbors and notes, and untick ports to leave them out
+of exports and labels. Edits are stored separately from the parsed data, so pasting newer output for the same
+device keeps them, and **Reset edits** returns to what was parsed.
+
 The **Not parsed** tab on each device lists the config lines and command output the parser saw but did not use
 (with known noise left out and passwords and keys replaced by `***`). Use it to spot gaps on a new device; the
 **Copy list** button gives you something to paste into a bug report.
