@@ -1211,6 +1211,229 @@ MED type codes:
   port23      Up      CORE-01              120   BR          -         Te1/0/45
 `};
 
+  S.paloalto = { label: 'Palo Alto PAN-OS (set format)', text: String.raw`admin@PA-EDGE-01# show
+set deviceconfig system hostname PA-EDGE-01
+set deviceconfig system ip-address 10.98.99.5
+set deviceconfig system netmask 255.255.255.0
+set deviceconfig system default-gateway 10.98.99.1
+set deviceconfig system domain edge.example.org
+set deviceconfig system dns-setting servers primary 10.98.0.53
+set deviceconfig system dns-setting servers secondary 9.9.9.9
+set deviceconfig system ntp-servers primary-ntp-server ntp-server-address 10.98.0.1
+set deviceconfig system timezone US/Central
+set deviceconfig system service disable-telnet yes
+set deviceconfig system service disable-http yes
+set deviceconfig system snmp-setting snmp-system location "Edge rack 2"
+set deviceconfig system snmp-setting access-setting version v3 users monitor view all
+set mgt-config users admin phash $1$abcdefgh$ijklmnopqrstuvwx
+set mgt-config users netops permissions role-based superuser yes
+set network profiles interface-management-profile allow-ping ping yes
+set network profiles interface-management-profile allow-mgmt https yes
+set network profiles interface-management-profile allow-mgmt ssh yes
+set network profiles interface-management-profile allow-mgmt ping yes
+set network interface ethernet ethernet1/1 layer3 ip 203.0.113.2/30
+set network interface ethernet ethernet1/1 layer3 interface-management-profile allow-ping
+set network interface ethernet ethernet1/1 comment "ISP fibre"
+set network interface ethernet ethernet1/2 layer3 units ethernet1/2.10 tag 10
+set network interface ethernet ethernet1/2 layer3 units ethernet1/2.10 ip 10.98.10.1/24
+set network interface ethernet ethernet1/2 layer3 units ethernet1/2.10 comment "Staff"
+set network interface ethernet ethernet1/2 layer3 units ethernet1/2.10 interface-management-profile allow-mgmt
+set network interface ethernet ethernet1/2 layer3 units ethernet1/2.20 tag 20
+set network interface ethernet ethernet1/2 layer3 units ethernet1/2.20 ip 10.98.20.1/24
+set network interface ethernet ethernet1/2 layer3 units ethernet1/2.20 comment "Guest wifi"
+set network interface ethernet ethernet1/2 comment "LAN trunk to core"
+set network interface ethernet ethernet1/3 link-state down
+set network interface ethernet ethernet1/3 tap
+set network interface ethernet ethernet1/5 aggregate-group ae1
+set network interface ethernet ethernet1/6 aggregate-group ae1
+set network interface aggregate-ethernet ae1 layer3 ip 10.98.30.1/24
+set network interface aggregate-ethernet ae1 comment "DMZ switch"
+set network interface loopback units loopback.1 ip 10.255.98.1/32
+set network virtual-router default interface [ ethernet1/1 ethernet1/2.10 ethernet1/2.20 ae1 loopback.1 ]
+set network virtual-router default routing-table ip static-route default-route destination 0.0.0.0/0
+set network virtual-router default routing-table ip static-route default-route nexthop ip-address 203.0.113.1
+set zone untrust network layer3 ethernet1/1
+set zone trust network layer3 ethernet1/2.10
+set zone guest network layer3 ethernet1/2.20
+set zone dmz network layer3 [ ae1 ]
+set shared log-settings syslog central server srv1 server 10.98.0.60
+set rulebase security rules allow-out from trust
+set rulebase security rules allow-out to untrust
+set rulebase security rules allow-out action allow
+set address web-server ip-netmask 10.98.30.10
+admin@PA-EDGE-01> show system info
+
+hostname: PA-EDGE-01
+ip-address: 10.98.99.5
+model: PA-440
+serial: 000000000001
+sw-version: 10.2.4-h4
+
+admin@PA-EDGE-01> show interface all
+
+total configured hardware interfaces: 6
+
+name                    id    speed/duplex/state            mac address
+--------------------------------------------------------------------------------
+ethernet1/1             16    1000/full/up                  00:00:5e:00:53:10
+ethernet1/2             17    1000/full/up                  00:00:5e:00:53:11
+ethernet1/3             18    ukn/ukn/down(power-down)      00:00:5e:00:53:12
+ethernet1/5             20    10000/full/up                 00:00:5e:00:53:14
+ethernet1/6             21    ukn/ukn/down(autoneg)         00:00:5e:00:53:15
+ae1                     48    10000/full/up                 00:00:5e:00:53:30
+
+aggregation groups: 1
+ae1 members:
+  ethernet1/5 ethernet1/6
+
+total configured logical interfaces: 5
+
+name                id    vsys zone             forwarding               tag    address
+------------------- ----- ---- ---------------- ------------------------ ------ ------------------
+ethernet1/1         16    1    untrust          vr:default               0      203.0.113.2/30
+ethernet1/2.10      256   1    trust            vr:default               10     10.98.10.1/24
+ethernet1/2.20      257   1    guest            vr:default               20     10.98.20.1/24
+ae1                 48    1    dmz              vr:default               0      10.98.30.1/24
+loopback.1          3     1                     vr:default               0      10.255.98.1/32
+`};
+
+  S.pfsense = { label: 'pfSense (config.xml)', text: String.raw`<?xml version="1.0"?>
+<pfsense>
+	<version>22.9</version>
+	<system>
+		<hostname>fw-shop</hostname>
+		<domain>shop.example.net</domain>
+		<dnsserver>1.1.1.1</dnsserver>
+		<dnsserver>9.9.9.9</dnsserver>
+		<timezone>America/Chicago</timezone>
+		<timeservers>2.pfsense.pool.ntp.org time.example.net</timeservers>
+		<webgui>
+			<protocol>https</protocol>
+			<port>8443</port>
+		</webgui>
+		<ssh>
+			<enable>enabled</enable>
+		</ssh>
+		<user>
+			<name>admin</name>
+			<bcrypt-hash>$2y$10$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012</bcrypt-hash>
+		</user>
+		<user>
+			<name>shopkeeper</name>
+			<bcrypt-hash>$2y$10$zyxwvutsrqponmlkjihgfedcbaZYXWVUTSRQPONMLKJIHGFEDCBA987</bcrypt-hash>
+		</user>
+	</system>
+	<interfaces>
+		<wan>
+			<enable></enable>
+			<if>igb0</if>
+			<descr><![CDATA[WAN]]></descr>
+			<ipaddr>dhcp</ipaddr>
+			<blockpriv></blockpriv>
+		</wan>
+		<lan>
+			<enable></enable>
+			<if>igb1</if>
+			<descr><![CDATA[LAN]]></descr>
+			<ipaddr>192.168.40.1</ipaddr>
+			<subnet>24</subnet>
+		</lan>
+		<opt1>
+			<enable></enable>
+			<if>igb1.20</if>
+			<descr><![CDATA[GUESTWIFI]]></descr>
+			<ipaddr>192.168.41.1</ipaddr>
+			<subnet>24</subnet>
+		</opt1>
+		<opt2>
+			<if>lagg0</if>
+			<descr><![CDATA[NASLINK]]></descr>
+			<ipaddr>192.168.42.1</ipaddr>
+			<subnet>24</subnet>
+		</opt2>
+	</interfaces>
+	<vlans>
+		<vlan>
+			<if>igb1</if>
+			<tag>20</tag>
+			<descr><![CDATA[Guest wifi]]></descr>
+			<vlanif>igb1.20</vlanif>
+		</vlan>
+	</vlans>
+	<laggs>
+		<lagg>
+			<members>igb2,igb3</members>
+			<descr><![CDATA[To NAS]]></descr>
+			<laggif>lagg0</laggif>
+			<proto>lacp</proto>
+		</lagg>
+	</laggs>
+	<gateways>
+		<gateway_item>
+			<interface>wan</interface>
+			<gateway>203.0.113.1</gateway>
+			<name>WANGW</name>
+		</gateway_item>
+		<defaultgw4>WANGW</defaultgw4>
+	</gateways>
+	<syslog>
+		<enable></enable>
+		<remoteserver>192.168.40.60</remoteserver>
+	</syslog>
+	<snmpd>
+		<syslocation>Back office</syslocation>
+		<rocommunity>shopmon</rocommunity>
+		<enable></enable>
+	</snmpd>
+	<dhcpd>
+		<lan>
+			<enable></enable>
+			<range><from>192.168.40.100</from><to>192.168.40.199</to></range>
+		</lan>
+	</dhcpd>
+	<filter>
+		<rule><type>pass</type><interface>lan</interface><descr><![CDATA[Default allow LAN]]></descr></rule>
+		<rule><type>block</type><interface>opt1</interface><descr><![CDATA[Guests cannot reach LAN]]></descr></rule>
+	</filter>
+</pfsense>
+`};
+
+  S.unifi = { label: 'Ubiquiti UniFi (controller JSON)', text: String.raw`{"meta":{"rc":"ok"},"data":[
+ {"_id":"n0","name":"Default","purpose":"corporate"},
+ {"_id":"n10","name":"Staff","purpose":"corporate","vlan_enabled":true,"vlan":10},
+ {"_id":"n20","name":"Cameras","purpose":"vlan-only","vlan_enabled":true,"vlan":20},
+ {"_id":"n30","name":"Guest","purpose":"guest","vlan_enabled":true,"vlan":30}
+]}
+{"meta":{"rc":"ok"},"data":[
+ {"_id":"d1","mac":"00:00:5e:00:53:a1","type":"usw","model":"US24P250","model_display":"US-24-250W","name":"UNIFI-IDF1","version":"6.6.65.15248","serial":"0000000000A1",
+  "ip":"10.44.0.11","adopted":true,"stp_version":"rstp","stp_priority":"8192","x_authkey":"0123456789abcdef0123456789abcdef",
+  "config_network":{"type":"dhcp"},
+  "port_overrides":[
+   {"port_idx":1,"name":"AP hallway","native_networkconf_id":"n0","tagged_vlan_mgmt":"auto"},
+   {"port_idx":2,"name":"Camera dock","native_networkconf_id":"n20","tagged_vlan_mgmt":"block_all","poe_mode":"auto"},
+   {"port_idx":3,"name":"Till 1","native_networkconf_id":"n10","tagged_vlan_mgmt":"custom","excluded_networkconf_ids":["n0","n20"],"poe_mode":"off"},
+   {"port_idx":4,"forward":"disabled"}
+  ],
+  "port_table":[
+   {"port_idx":1,"name":"AP hallway","media":"GE","port_poe":true,"up":true,"enable":true,"speed":1000,"full_duplex":true,"poe_enable":true,"poe_mode":"auto","poe_good":true,"poe_power":"7.42","poe_class":"Class 4","stp_state":"forwarding"},
+   {"port_idx":2,"name":"Camera dock","media":"GE","port_poe":true,"up":true,"enable":true,"speed":100,"full_duplex":true,"poe_enable":true,"poe_mode":"auto","poe_good":true,"poe_power":"3.10","poe_class":"Class 2","stp_state":"forwarding"},
+   {"port_idx":3,"name":"Till 1","media":"GE","port_poe":true,"up":false,"enable":true,"speed":0,"poe_enable":false,"poe_mode":"off","poe_power":"0.00","stp_state":"disabled"},
+   {"port_idx":4,"name":"Port 4","media":"GE","port_poe":true,"up":false,"enable":true,"speed":0,"poe_power":"0.00"},
+   {"port_idx":25,"name":"SFP 1","media":"SFP","port_poe":false,"up":true,"enable":true,"speed":1000,"full_duplex":true,"is_uplink":true,"stp_state":"forwarding"}
+  ],
+  "lldp_table":[
+   {"local_port_idx":1,"chassis_id":"00:00:5e:00:53:c1","port_id":"eth0","lldp_system_name":"AP-Hallway"},
+   {"local_port_idx":25,"chassis_id":"00:00:5e:00:53:b1","port_id":"Port 8"}
+  ]},
+ {"_id":"d2","mac":"00:00:5e:00:53:b1","type":"usw","model":"US8P60","model_display":"US-8-60W","name":"UNIFI-CORE","version":"6.6.65.15248","serial":"0000000000B1","ip":"10.44.0.10",
+  "port_table":[
+   {"port_idx":8,"name":"To IDF1","media":"GE","up":true,"enable":true,"speed":1000,"full_duplex":true,"stp_state":"forwarding"}
+  ],
+  "lldp_table":[{"local_port_idx":8,"chassis_id":"00:00:5e:00:53:a1","port_id":"Port 25"}]},
+ {"_id":"d3","mac":"00:00:5e:00:53:c1","type":"uap","model":"U6LR","name":"AP-Hallway","port_table":[{"port_idx":1,"up":true,"speed":1000}]}
+]}
+`};
+
   S.mikrotik = { label: 'MikroTik RouterOS (/export)', text: String.raw`# 2025-03-02 10:11:12 by RouterOS 7.14.2
 # software id = ABCD-1234
 #

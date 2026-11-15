@@ -377,6 +377,185 @@ test('Fortinet FortiSwitch', () => {
   assert.equal(port(d, 'internal').kind, 'svi');
 });
 
+test('Palo Alto PAN-OS (set format + show commands)', () => {
+  const d = run('paloalto').dev;
+  assert.deepEqual([d.hostname, d.model, d.version, d.serial], ['PA-EDGE-01', 'PA-440', '10.2.4-h4', '000000000001']);
+  assert.deepEqual([d.domain, d.dns.join(), d.ntp.join(), d.syslog.join(), d.gateway], ['edge.example.org', '10.98.0.53,9.9.9.9', '10.98.0.1', '10.98.0.60', '10.98.99.1 (mgmt)']);
+  assert.match(d.mgmtIp, /^10\.98\.99\.5\/24 \(mgmt\)/);
+  assert.deepEqual([d.other['Default route'], d.other.Zones, d.other['Admin users'], d.other.Telnet, d.snmp.versions.join()],
+    ['203.0.113.1 (default)', 'untrust, trust, guest, dmz', 'admin, netops', 'disabled', 'v3']);
+  const e1 = port(d, 'ethernet1/1');
+  assert.deepEqual([e1.description, e1.mode, e1.ip, e1.link, e1.speed, e1.notes], ['ISP fibre', 'routed', '203.0.113.2/30', 'up', '1G', 'zone untrust; vr default; access ping (allow-ping)']);
+  const s10 = port(d, 'ethernet1/2.10');
+  assert.deepEqual([s10.kind, s10.mode, s10.tagged, s10.ip, s10.description], ['svi', 'vlan', '10', '10.98.10.1/24', 'Staff']);
+  assert.match(s10.notes, /on ethernet1\/2; zone trust; vr default; access https\/ssh\/ping \(allow-mgmt\)/);
+  assert.deepEqual([port(d, 'ethernet1/3').adminUp, port(d, 'ethernet1/3').mode, port(d, 'ethernet1/3').link], [false, 'tap', 'down']);
+  assert.deepEqual([port(d, 'ethernet1/5').lag, port(d, 'ethernet1/5').mode, port(d, 'ethernet1/5').speed], ['ae1', '', '10G']);
+  const ae = port(d, 'ae1');
+  assert.deepEqual([ae.kind, ae.mode, ae.ip, ae.description, ae.link], ['lag', 'routed', '10.98.30.1/24', 'DMZ switch', 'up']);
+  assert.equal(port(d, 'loopback.1').kind, 'loopback');
+  assert.equal(d.vlans.map(v => v.id + ':' + v.name).join(), '10:Staff,20:Guest wifi');
+  // policies and objects are reported as sections, never with their contents; the password hash is not kept anywhere
+  assert.deepEqual(d.unparsed.map(e => e.text + ' x' + e.count).sort(), ['set address web-server … x1', 'set rulebase security … x3']);
+  assert.ok(!JSON.stringify(d).includes('abcdefgh'));
+  assert.deepEqual(NP.checks(d).map(f => f.id), ['unusedenabled']);              // ethernet1/6 is enabled with no link
+});
+
+test('Palo Alto PAN-OS: XML export and brace format give the same result as set format', () => {
+  const xml = `<?xml version="1.0"?>
+<config version="10.2.0" urldb="paloaltonetworks" detail-version="10.2.4">
+  <mgt-config><users><entry name="admin"><phash>$1$abcdefgh$ijklmnopqrstuvwx</phash></entry></users></mgt-config>
+  <shared><log-settings><syslog><entry name="central"><server><entry name="srv1"><server>10.98.0.60</server></entry></server></entry></syslog></log-settings></shared>
+  <devices><entry name="localhost.localdomain">
+    <deviceconfig><system>
+      <hostname>PA-XML</hostname><ip-address>10.98.99.6</ip-address><netmask>255.255.255.0</netmask><default-gateway>10.98.99.1</default-gateway>
+      <dns-setting><servers><primary>10.98.0.53</primary></servers></dns-setting>
+      <ntp-servers><primary-ntp-server><ntp-server-address>10.98.0.1</ntp-server-address></primary-ntp-server></ntp-servers>
+      <service><disable-http>no</disable-http><disable-telnet>yes</disable-telnet></service>
+    </system></deviceconfig>
+    <network>
+      <profiles><interface-management-profile><entry name="mgmt &amp; ping"><https>yes</https><http>yes</http><ping>yes</ping></entry></interface-management-profile></profiles>
+      <interface><ethernet>
+        <entry name="ethernet1/1"><layer3><ip><entry name="198.51.100.2/30"/></ip><interface-management-profile>mgmt &amp; ping</interface-management-profile></layer3><comment>Internet &lt;primary&gt;</comment></entry>
+        <entry name="ethernet1/2"><layer3><units>
+          <entry name="ethernet1/2.30"><tag>30</tag><ip><entry name="10.98.30.1/24"/></ip><comment>Servers</comment></entry>
+        </units></layer3></entry>
+        <entry name="ethernet1/4"><link-state>down</link-state><layer2/></entry>
+      </ethernet></interface>
+      <virtual-router><entry name="default"><interface><member>ethernet1/1</member><member>ethernet1/2.30</member></interface>
+        <routing-table><ip><static-route><entry name="dflt"><nexthop><ip-address>198.51.100.1</ip-address></nexthop><destination>0.0.0.0/0</destination></entry></static-route></ip></routing-table>
+      </entry></virtual-router>
+    </network>
+    <vsys><entry name="vsys1"><zone>
+      <entry name="untrust"><network><layer3><member>ethernet1/1</member></layer3></network></entry>
+      <entry name="servers"><network><layer3><member>ethernet1/2.30</member></layer3></network></entry>
+    </zone><rulebase><security><rules><entry name="r1"><action>allow</action></entry></rules></security></rulebase></entry></vsys>
+  </entry></devices>
+</config>`;
+  const r = NP.ingest(xml, { devices: [] });
+  const d = r.dev;
+  assert.equal(r.vendor, 'paloalto');
+  assert.deepEqual([d.hostname, d.version, d.dns.join(), d.ntp.join(), d.syslog.join(), d.other['HTTP server'], d.other.Zones], ['PA-XML', '10.2.4', '10.98.0.53', '10.98.0.1', '10.98.0.60', 'enabled', 'untrust, servers']);
+  const e1 = port(d, 'ethernet1/1');
+  assert.deepEqual([e1.description, e1.mode, e1.ip, e1.notes], ['Internet <primary>', 'routed', '198.51.100.2/30', 'zone untrust; vr default; access https/http/ping (mgmt & ping)']);
+  const s30 = port(d, 'ethernet1/2.30');
+  assert.deepEqual([s30.tagged, s30.ip, s30.description], ['30', '10.98.30.1/24', 'Servers']);
+  assert.deepEqual([port(d, 'ethernet1/4').adminUp, port(d, 'ethernet1/4').mode], [false, 'layer2']);
+  assert.equal(d.other['Default route'], '198.51.100.1 (default)');
+  assert.ok(!JSON.stringify(d).includes('abcdefgh'));
+  // HTTP management left on, and admin access on the untrust interface, are both flagged
+  assert.deepEqual(NP.checks(d).map(f => f.id).sort(), ['fgclear', 'fgwanadmin', 'http', 'nosyslog'].filter(x => x !== 'nosyslog').sort());
+
+  const brace = `deviceconfig {
+  system {
+    hostname PA-BRACE;
+    dns-setting {
+      servers {
+        primary 10.98.0.53;
+      }
+    }
+  }
+}
+network {
+  interface {
+    ethernet {
+      ethernet1/1 {
+        layer3 {
+          ip {
+            192.0.2.2/30;
+          }
+        }
+        comment "Uplink";
+      }
+    }
+  }
+  virtual-router {
+    default {
+      interface [ ethernet1/1 ];
+    }
+  }
+}`;
+  const b = NP.ingest(brace, { devices: [] }).dev;
+  assert.deepEqual([b.vendor, b.hostname, b.dns.join()], ['paloalto', 'PA-BRACE', '10.98.0.53']);
+  assert.deepEqual([port(b, 'ethernet1/1').ip, port(b, 'ethernet1/1').description, port(b, 'ethernet1/1').notes], ['192.0.2.2/30', 'Uplink', 'vr default']);
+});
+
+test('prompt detection is not fooled by words or XML that merely start like a command', () => {
+  const cmds = t => NP.sections(t).map(s => s.cmd);
+  assert.deepEqual(cmds('<name>shopkeeper</name>\n<domain>shop.example.net</domain>\n<x>display</x>\nsw1#shutdown now\nsw1>getting started'), ['']);
+  assert.deepEqual(cmds('<SW1>display current-configuration\n sysname SW1\n<SW1>dis int brief\nx\nsw1#sh run\ny\nfw # get system status\nz\n[admin@mt] > /export\nq'),
+    ['display current-configuration', 'dis int brief', 'sh run', 'get system status', '/export']);
+});
+
+test('pfSense / OPNsense config.xml', () => {
+  const d = run('pfsense').dev;
+  assert.deepEqual([d.hostname, d.domain, d.model, d.dns.join(), d.ntp.join(), d.syslog.join()],
+    ['fw-shop', 'shop.example.net', 'pfSense', '1.1.1.1,9.9.9.9', '2.pfsense.pool.ntp.org,time.example.net', '192.168.40.60']);
+  assert.deepEqual([d.gateway, d.mgmtIp, d.other['Web interface'], d.other.SSH, d.other['Admin users'], d.other['DHCP server on'], d.snmp.versions.join(), d.snmp.location],
+    ['203.0.113.1 (WANGW)', '192.168.40.1/24 (LAN)', 'https port 8443', 'enabled', 'admin, shopkeeper', 'lan', 'v2c', 'Back office']);
+  const wan = port(d, 'igb0');
+  assert.deepEqual([wan.kind, wan.description, wan.ip, wan.adminUp, wan.notes], ['physical', 'WAN', 'dhcp', true, 'assigned as wan; role wan; blocks private nets']);
+  assert.deepEqual([port(d, 'igb1').description, port(d, 'igb1').ip, port(d, 'igb1').mode], ['LAN', '192.168.40.1/24', 'routed']);
+  const g = port(d, 'igb1.20');
+  assert.deepEqual([g.kind, g.mode, g.tagged, g.description, g.ip, g.notes], ['svi', 'vlan', '20', 'GUESTWIFI', '192.168.41.1/24', 'on igb1; assigned as opt1']);
+  const lag = port(d, 'lagg0');
+  assert.deepEqual([lag.kind, lag.adminUp, lag.description, lag.ip, lag.notes], ['lag', false, 'NASLINK', '192.168.42.1/24', 'lacp; assigned as opt2']);   // no <enable>: disabled
+  assert.deepEqual([port(d, 'igb2').lag, port(d, 'igb3').lag, port(d, 'igb2').mode], ['lagg0', 'lagg0', '']);
+  assert.equal(d.vlans.map(v => v.id + ':' + v.name).join(), '20:Guest wifi');
+  assert.deepEqual(d.unparsed.map(e => [e.ctx, e.text, e.inner]), [['section', '<filter>', 8]]);        // rules: named, counted, not read
+  assert.ok(!JSON.stringify(d).includes('$2y$') && !JSON.stringify(d).includes('shopmon') && !JSON.stringify(d).includes('Guests cannot'));
+  // OPNsense: same shape, <enable>1</enable>
+  const opn = NP.ingest('<?xml version="1.0"?>\n<opnsense>\n<system><hostname>opn1</hostname><domain>lab.example</domain></system>\n' +
+    '<interfaces><wan><if>vtnet0</if><enable>1</enable><ipaddr>dhcp</ipaddr></wan><lan><if>vtnet1</if><enable>0</enable><ipaddr>10.9.0.1</ipaddr><subnet>24</subnet></lan></interfaces>\n</opnsense>', { devices: [] }).dev;
+  assert.deepEqual([opn.vendor, opn.model, opn.hostname, port(opn, 'vtnet0').adminUp, port(opn, 'vtnet1').adminUp, port(opn, 'vtnet1').ip], ['pfsense', 'OPNsense', 'opn1', true, false, '10.9.0.1/24']);
+  // the sanitizer strips secrets kept as XML element content
+  const s = NP.sanitize(NP.samples.pfsense.text);
+  assert.ok(s.same && !s.text.includes('$2y$') && !s.text.includes('shopmon') && !s.text.includes('fw-shop') && s.text.includes('<if>igb0</if>'));
+});
+
+test('Ubiquiti UniFi: controller JSON with networks', () => {
+  const r = run('unifi');
+  const d = r.dev;
+  assert.deepEqual([d.hostname, d.model, d.version, d.serial, d.mgmtIp, d.stp.mode, d.stp.priority.join()],
+    ['UNIFI-IDF1', 'US-24-250W', '6.6.65.15248', '0000000000A1', '10.44.0.11', 'rstp', '8192']);
+  assert.equal(d.vlans.map(v => v.id + ':' + v.name).join(), '1:Default,10:Staff,20:Cameras,30:Guest');
+  assert.deepEqual(r.extra.map(x => [x.dev.hostname, x.dev.vendor, x.dev.ports.length]), [['UNIFI-CORE', 'unifi', 1]]);   // the access point is left out
+  const p1 = port(d, 'Port 1');
+  assert.deepEqual([p1.description, p1.mode, p1.untagged, p1.tagged, p1.link, p1.speed, p1.poeStatus, p1.poeWatts, p1.poeClass, p1.neighbor, p1.neighborPort, p1.stpState],
+    ['AP hallway', 'trunk', '1', 'all', 'up', '1G', 'on', '7.4', '4', 'AP-Hallway', 'eth0', 'forwarding']);
+  const p2 = port(d, 'Port 2');
+  assert.deepEqual([p2.mode, p2.untagged, p2.tagged, p2.speed], ['access', '20', '', '100M']);
+  const p3 = port(d, 'Port 3');
+  assert.deepEqual([p3.mode, p3.untagged, p3.tagged, p3.link, p3.poeAdmin, p3.poeStatus], ['trunk', '10', '30', 'down', 'disabled', 'off']);   // custom: all except 1 and 20
+  assert.deepEqual([port(d, 'Port 4').adminUp, port(d, 'Port 4').description], [false, '']);
+  const up = port(d, 'Port 25');
+  assert.deepEqual([up.media, up.neighbor, up.neighborPort, up.notes, up.poeAdmin], ['SFP', 'UNIFI-CORE', 'Port 8', 'uplink', '']);   // neighbor named from its MAC
+  assert.ok(!JSON.stringify(d).includes('0123456789abcdef'));
+  // the two switches report each other, so the cable list pairs them up
+  const cables = NP.cables([d, r.extra[0].dev]);
+  assert.deepEqual(cables.filter(c => c.status === 'both ends').map(c => c.a.host + ' ' + c.a.port + ' - ' + c.b.host + ' ' + c.b.port), ['UNIFI-IDF1 Port 25 - UNIFI-CORE Port 8']);
+  assert.equal(NP.units(d).length, 0);
+});
+
+test('Ubiquiti UniFi: mca-dump from one switch (no network list)', () => {
+  const dump = 'UNIFI-IDF1-US.6.6.65# mca-dump\n' + JSON.stringify({ hostname: 'UNIFI-IDF1', model: 'US24P250', version: '6.6.65.15248', serial: 'A1', ip: '10.44.0.11',
+    port_table: [{ port_idx: 1, media: 'GE', port_poe: true, up: true, speed: 1000, full_duplex: true, poe_good: true, poe_power: '7.42', poe_class: 'Class 4' },
+      { port_idx: 2, media: 'GE', port_poe: true, up: false, speed: 0, poe_power: '0.00' }],
+    lldp_table: [{ local_port_idx: 1, chassis_id: '00:00:5e:00:53:c1', port_id: 'eth0' }] }, null, 2);
+  const r = NP.ingest(dump, { devices: [] });
+  const d = r.dev;
+  assert.deepEqual([r.vendor, d.hostname, d.ports.length, r.extra.length], ['unifi', 'UNIFI-IDF1', 2, 0]);
+  const p1 = port(d, 'Port 1');
+  assert.deepEqual([p1.link, p1.speed, p1.poeWatts, p1.neighbor, p1.neighborPort, p1.mode, p1.untagged], ['up', '1G', '7.4', '00:00:5e:00:53:c1', 'eth0', '', '']);
+  assert.match(d.stp.notes.join(), /network list/);
+  // pasted after the controller JSON, it merges into the same device
+  const devices = [];
+  const c = NP.ingest(NP.samples.unifi.text, { devices });
+  devices.push(c.dev, ...c.extra.map(x => x.dev));
+  const m = NP.ingest(dump, { devices });
+  assert.deepEqual([m.isNew, m.dev === c.dev, port(c.dev, 'Port 1').untagged, port(c.dev, 'Port 1').description], [false, true, '1', 'AP hallway']);
+});
+
 test('MikroTik RouterOS', () => {
   const d = run('mikrotik').dev;
   assert.equal(d.hostname, 'MT-WORKSHOP');
@@ -674,6 +853,9 @@ test('sanitize: secrets and addresses without a recognised platform', () => {
   assert.ok(r.text.includes('255.255.255.0') && r.text.includes('0.0.0.0 0.0.0.0') && r.text.includes('10:15:30'));
   assert.match(r.text, /ip route 0\.0\.0\.0 0\.0\.0\.0 10\.2\.100\.1\nip address 10\.2\.100\.7 /);       // same network, same replacement
   assert.match(r.text, /mac 00:00:5e:00:53:01 and 0000\.5e00\.5301/);                                          // same MAC in both notations
+  assert.match(r.text, /add name=u1 password=removed group=full/);                                               // key=value keeps its key
+  const x = NP.sanitize('<snmpd><rocommunity>s3cr3t</rocommunity><syslocation>x</syslocation></snmpd>\n{"x_authkey":"abc123","name":"sw"}', { vendor: 'auto' });
+  assert.equal(x.text, '<snmpd><rocommunity>removed</rocommunity><syslocation>x</syslocation></snmpd>\n{"x_authkey":"removed","name":"sw"}');
 });
 
 test('messy paste cleanup', () => {

@@ -20,7 +20,7 @@
     const l2 = all.filter(function (p) { return (p.kind === 'physical' || p.kind === 'lag') && p.link !== 'not present'; });
     const linkKnown = phys.some(function (p) { return p.link; });
     const managed = !!dev.other['Managed by'];                       // FortiLink child: services live on the FortiGate
-    const isSwitch = dev.vendor !== 'fortigate';
+    const isSwitch = dev.vendor !== 'fortigate' && dev.vendor !== 'paloalto';
     const configSeen = !!(dev.stp.mode || dev.vlans.length || dev.dns.length || dev.ntp.length || Object.keys(dev.other).length);
     const stpNotes = dev.stp.notes.join(' | ');
     const has = function (p, flag) { return p.stp.split(', ').some(function (f) { return f === flag || f.indexOf(flag + ' ') === 0; }); };
@@ -61,7 +61,7 @@
     if (list.length && dev.vlans.some(function (v) { return v.id !== 1; })) add('accessvlan1', 'info', 'Access ports in the default VLAN 1',
       'These ports are ' + (linkKnown ? 'connected' : 'enabled') + ' and still in VLAN 1 although other VLANs are defined.', list);
 
-    if (dev.vlans.length && dev.vendor !== 'fortigate') {
+    if (dev.vlans.length && isSwitch) {
       const defined = {};
       dev.vlans.forEach(function (v) { defined[v.id] = true; });
       const missing = {};
@@ -140,11 +140,13 @@
       'A LAG with one port gives no redundancy or extra capacity. Fine if the second link is planned; otherwise it may be a leftover.', list);
 
     // ------------------------------------------------------------ firewall interfaces
-    if (dev.vendor === 'fortigate') {
+    if (dev.vendor === 'fortigate' || dev.vendor === 'paloalto') {
       const acc = function (p) { const m = p.notes.match(/access ([^;]+)/); return m ? m[1].split('/') : []; };
       list = all.filter(function (p) { return acc(p).some(function (a) { return a === 'http' || a === 'telnet'; }); });
       if (list.length) add('fgclear', 'warn', 'Interfaces allowing HTTP or Telnet administration', 'Administrative logins on these interfaces can cross the network unencrypted.', list);
-      list = all.filter(function (p) { return /role wan/.test(p.notes) && p.adminUp !== false && acc(p).some(function (a) { return /^(https|ssh|http|telnet|snmp)$/.test(a); }); });
+      // FortiGate marks WAN interfaces with a role; on PAN-OS go by the usual zone names
+      const wan = function (p) { return /role wan/.test(p.notes) || /zone \S*(untrust|wan|internet|outside|external)/i.test(p.notes); };
+      list = all.filter(function (p) { return wan(p) && p.adminUp !== false && acc(p).some(function (a) { return /^(https|ssh|http|telnet|snmp)$/.test(a); }); });
       if (list.length) add('fgwanadmin', 'warn', 'Administrative access enabled on WAN interfaces',
         'The management interface is reachable from the internet side. Restrict it with trusted hosts or a local-in policy, or turn it off.', list);
     }

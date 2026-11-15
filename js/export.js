@@ -200,6 +200,16 @@
       { cmd: 'diagnose switch physical-ports summary', gives: 'link state, speed, duplex' },
       { cmd: 'get switch poe inline', gives: 'PoE state and watts' },
       { cmd: 'get switch lldp neighbors-summary', gives: 'what is plugged in' }] },
+    paloalto: { pager: 'set cli pager off\nset cli config-output-format set', cmds: [
+      { cmd: 'configure', gives: 'enter configuration mode (needed to print the config)' },
+      { cmd: 'show', gives: 'interfaces, zones, virtual routers, DNS, NTP, syslog (or upload the exported running-config.xml instead)' },
+      { cmd: 'exit', gives: 'leave configuration mode' },
+      { cmd: 'show system info', gives: 'model, software version, serial' },
+      { cmd: 'show interface all', gives: 'link state, speed, zone, addresses' }] },
+    pfsense: { pager: '', cmds: [
+      { cmd: 'cat /conf/config.xml', gives: 'the whole configuration. Easier: in the web interface use Diagnostics > Backup & Restore (pfSense) or System > Configuration > Backups (OPNsense), download the XML and drop the file on the box below' }] },
+    unifi: { pager: '', cmds: [
+      { cmd: 'mca-dump', gives: 'run on the switch over SSH: ports, link, speed, PoE and neighbors as JSON, but no VLAN names. For VLANs use the controller instead: while logged in, open https://<controller>/proxy/network/api/s/default/stat/device and .../rest/networkconf (on a classic controller, https://<host>:8443/api/s/default/...), save both and paste or drop them together' }] },
     mikrotik: { pager: '', cmds: [
       { cmd: '/export', gives: 'bridge ports, VLANs, addresses, DNS, NTP and the rest (on RouterOS 6 use "/export hide-sensitive")' }] }
   };
@@ -220,7 +230,10 @@
     { id: 'fortiswitch', brand: 'Fortinet', name: 'FortiSwitch standalone (own CLI)' },
     { id: 'junos', brand: 'Juniper', name: 'Junos' },
     { id: 'mikrotik', brand: 'MikroTik', name: 'RouterOS' },
-    { id: 'icx', brand: 'Ruckus / Brocade', name: 'FastIron (ICX)' }
+    { id: 'paloalto', brand: 'Palo Alto', name: 'PAN-OS' },
+    { id: 'pfsense', brand: 'pfSense / OPNsense', name: 'config.xml' },
+    { id: 'icx', brand: 'Ruckus / Brocade', name: 'FastIron (ICX)' },
+    { id: 'unifi', brand: 'Ubiquiti', name: 'UniFi' }
   ];
   NP.platform = function (id) { return NP.platforms.find(function (p) { return p.id === id; }) || null; };
   // platform id -> parser id ('auto' and unknown ids pass through)
