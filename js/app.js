@@ -11,6 +11,9 @@
     search: '', physOnly: false, hideDown: false, sort: null,
     view: 'device',                      // 'device' or 'cables' (the cross-device cable list)
     cab: { q: '', loadedOnly: false, fmt: 'csv', lines: ['{a} {aport}', '{b} {bport}', ''], bothEnds: true, maxLen: 0 },
+    unit: '',                            // stack member shown on the Ports and Labels tabs ('' = all)
+    undo: null,                          // {text, devices, current}: the last removal, until something else changes
+    sig: '', backupSig: '', lastBackup: '',
     editing: false, only: null,          // only: {title, keys} = Ports tab limited to the ports of one check
     exp: { fmt: 'csv', cols: 'shown', rows: 'shown', devs: 'device' },
     label: { preset: 'port', per: 'port', lines: NP.labelPresets.port.lines.slice(), scope: 'device',
@@ -42,8 +45,12 @@
   function save() {
     try {
       state.saveFailed = false;
-      localStorage.setItem(STORE, JSON.stringify({
-        devices: state.devices, current: state.current, cols: state.cols, label: state.label }));
+      const devJson = JSON.stringify(state.devices);
+      let hsh = 2166136261;                              // FNV-1a: a cheap fingerprint to tell "changed since the last backup"
+      for (let i = 0; i < devJson.length; i++) { hsh ^= devJson.charCodeAt(i); hsh = Math.imul(hsh, 16777619); }
+      state.sig = devJson.length + ':' + (hsh >>> 0);
+      localStorage.setItem(STORE, '{"devices":' + devJson + ',' + JSON.stringify({ current: state.current, cols: state.cols, label: state.label,
+        backupSig: state.backupSig, lastBackup: state.lastBackup }).slice(1));
     } catch (e) {
       // private window or quota (snapshots are the usual cause): keep working, but say so
       if (!state.saveFailed && state.devices.length) msg('Could not save to browser storage (it may be full). Use Export backup to keep your work, and delete old snapshots.', 'err');
@@ -58,6 +65,7 @@
       state.current = d.current;
       if (Array.isArray(d.cols) && d.cols.length) state.cols = d.cols;
       if (d.label) Object.assign(state.label, d.label);
+      state.backupSig = d.backupSig || ''; state.lastBackup = d.lastBackup || '';
     } catch (e) { /* ignore corrupt storage */ }
   }
   const cur = function () {
@@ -94,6 +102,7 @@
     const r = NP.ingest(text, {
       vendor: $('selVendor').value, target: target,
       devices: state.devices, current: cur(), name: name });
+    state.undo = null;
     if (r.isNew) state.devices.push(r.dev);
     (r.extra || []).forEach(function (x) { if (x.isNew) state.devices.push(x.dev); });
     state.current = r.dev.id;
@@ -163,15 +172,31 @@
   function renderDevices() {
     const ul = $('deviceList');
     ul.replaceChildren();
+    const ub = $('undoBar');
+    ub.hidden = !state.undo;
+    ub.replaceChildren();
+    if (state.undo) {
+      ub.append(state.undo.text + ' ', h('button', { onclick: function () {
+        state.devices = state.undo.devices; state.current = state.undo.current; state.undo = null; save(); render();
+      } }, 'Undo'));
+    }
+    const bk = $('bkHint');
+    bk.hidden = !state.devices.length;
+    bk.replaceChildren();
+    if (state.devices.length) {
+      const exportLink = h('button', { onclick: function () { $('btnBackup').click(); } }, 'Export backup');
+      if (state.sig && state.sig === state.backupSig) bk.append('Backed up ' + new Date(state.lastBackup).toLocaleString() + '.');
+      else bk.append((state.lastBackup ? 'Changed since the backup of ' + new Date(state.lastBackup).toLocaleString() + '. ' : 'Only saved in this browser so far. '), exportLink);
+    }
     if (!state.devices.length) { ul.appendChild(h('li', { class: 'empty', text: 'No devices yet.' })); return; }
     state.devices.forEach(function (d) {
       ul.appendChild(h('li', { class: d.id === state.current && state.view !== 'cables' ? 'sel' : '' },
-        h('button', { class: 'pick', onclick: function () { state.current = d.id; state.view = 'device'; state.sort = null; state.only = null; save(); render(); } },
+        h('button', { class: 'pick', onclick: function () { state.current = d.id; state.view = 'device'; state.sort = null; state.only = null; state.unit = ''; save(); render(); } },
           h('b', { text: d.hostname || '(unnamed)' }),
           h('span', { text: NP.vendorLabel(d) + ' · ' + d.ports.length + ' ports' })),
         h('button', { class: 'link', title: 'Remove this device', 'aria-label': 'Remove ' + (d.hostname || 'device'),
           onclick: function () {
-            if (!confirm('Remove ' + (d.hostname || 'this device') + '?')) return;
+            state.undo = { text: 'Removed ' + (d.hostname || 'a device') + '.', devices: state.devices.slice(), current: state.current };
             state.devices = state.devices.filter(function (x) { return x !== d; });
             if (state.current === d.id) state.current = state.devices.length ? state.devices[0].id : null;
             save(); render();
@@ -238,6 +263,17 @@
         }))));
     });
     view.appendChild(grid);
+    const us = NP.units(dev);
+    if (us.length) {
+      view.appendChild(h('section', { class: 'card' }, h('h2', { text: 'Stack units / slots (' + us.length + ')' }),
+        h('div', { class: 'tablewrap' }, h('table', {},
+          h('thead', {}, h('tr', {}, ['Unit', 'Ports', 'Up', 'Down', 'Disabled', 'Not present', 'PoE W', ''].map(function (t) { return h('th', { class: 'nosort', scope: 'col', text: t }); }))),
+          h('tbody', {}, us.map(function (u) {
+            return h('tr', {}, h('td', { class: 'mono', text: u.unit }), h('td', { text: u.ports }), h('td', { text: u.up }), h('td', { text: u.down }),
+              h('td', { text: u.disabled }), h('td', { text: u.absent || '' }), h('td', { text: u.poeWatts || '' }),
+              h('td', {}, h('button', { class: 'link', onclick: function () { state.unit = u.unit; state.tab = 'ports'; render(); } }, 'Show ports')));
+          }))))));
+    }
     if (dev.vlans.length) {
       view.appendChild(h('section', { class: 'card' }, h('h2', { text: 'VLANs' }),
         h('div', { class: 'chips' }, dev.vlans.map(function (v) {
@@ -477,8 +513,10 @@
   function portPredicate() {
     const q = state.search.trim().toLowerCase();
     const only = state.only ? state.only.keys : null;
+    const unit = state.unit;
     return function (p) {
       if (only && !only.includes(p.key)) return false;
+      if (unit && NP.portUnit(p) !== unit) return false;
       if (state.physOnly && p.kind !== 'physical') return false;
       if (state.hideDown && p.link !== 'up') return false;
       if (!q) return true;
@@ -573,7 +611,11 @@
       if (!confirm('Discard ' + ec.total + ' manual change(s) on ' + (dev.hostname || 'this device') + ' and go back to the parsed values?')) return;
       dev.edits = {}; save(); render();
     } }, 'Reset edits (' + ec.total + ')') : null;
-    const toolbar = h('div', { class: 'toolbar' }, search, check('Physical only', 'physOnly'), check('Link up only', 'hideDown'),
+    const units = NP.units(dev);
+    if (state.unit && !units.some(function (u) { return u.unit === state.unit; })) state.unit = '';
+    const unitSel = units.length ? sel(state.unit, [['', 'All units (' + units.length + ')']].concat(units.map(function (u) {
+      return [u.unit, 'Unit ' + u.unit + ' (' + u.ports + ' ports)']; })), function (v) { state.unit = v; render(); }, 'Stack unit') : null;
+    const toolbar = h('div', { class: 'toolbar' }, search, unitSel, check('Physical only', 'physOnly'), check('Link up only', 'hideDown'),
       colPicker, h('span', { class: 'count', text: list.length + ' of ' + dev.ports.length + ' shown' +
         (ec.fields ? ', ' + ec.fields + ' edited' : '') + (ec.excluded ? ', ' + ec.excluded + ' excluded' : '') }), h('span', { class: 'spacer' }),
       editBtn, resetBtn, expMenu, h('button', { onclick: function () { window.print(); } }, 'Print'));
@@ -625,7 +667,9 @@
     const L = state.label;
     const perDevice = L.per === 'device';
     const devs = L.scope === 'all' ? state.devices : [dev];
-    const rows = NP.labelRows(devs, L);
+    const lunits = L.scope === 'all' ? [] : NP.units(dev);
+    if (state.unit && !lunits.some(function (u) { return u.unit === state.unit; })) state.unit = '';
+    const rows = NP.labelRows(devs, Object.assign({}, L, { unit: L.scope === 'all' ? '' : state.unit }));
     const set = function (fn) { return function (e) { fn(e.target); save(); render(); }; };
     const check = function (label, key, disabled) {
       return h('label', { class: 'check' },
@@ -649,6 +693,8 @@
         h('select', { onchange: set(function (t) { L.scope = t.value; }) },
           h('option', { value: 'device', selected: L.scope === 'device', text: 'This device only' }),
           h('option', { value: 'all', selected: L.scope === 'all', text: 'All loaded devices (' + state.devices.length + ')' }))),
+      lunits.length ? h('label', {}, 'Stack unit', sel(state.unit, [['', 'All units (' + lunits.length + ')']].concat(lunits.map(function (u) {
+        return [u.unit, 'Unit ' + u.unit + ' (' + u.ports + ' ports)']; })), function (v) { state.unit = v; render(); })) : null,
       lineInput(0), lineInput(1), lineInput(2),
       h('label', {}, 'Only ports matching (comma = or)',
         h('input', { type: 'text', value: L.match, placeholder: 'e.g. AP, 1/0/1, trunk', disabled: perDevice,
@@ -763,6 +809,9 @@
     $('btnBackup').addEventListener('click', function () {
       if (!state.devices.length) { msg('Nothing to back up yet.', 'err'); return; }
       download('confighelper-backup-' + new Date().toISOString().slice(0, 10) + '.json', NP.backup(state.devices), 'application/json');
+      save();                                             // refresh the fingerprint, then record it as backed up
+      state.backupSig = state.sig; state.lastBackup = new Date().toISOString();
+      save(); render();
     });
     $('btnImport').addEventListener('click', function () { $('fileBackup').click(); });
     $('fileBackup').addEventListener('change', function (e) {
@@ -785,7 +834,8 @@
       e.target.value = '';
     });
     $('btnClear').addEventListener('click', function () {
-      if (!state.devices.length || !confirm('Remove all ' + state.devices.length + ' device(s) from this browser?')) return;
+      if (!state.devices.length) return;
+      state.undo = { text: 'Removed all ' + state.devices.length + ' device(s).', devices: state.devices.slice(), current: state.current };
       state.devices = []; state.current = null; save(); render();
     });
     load();

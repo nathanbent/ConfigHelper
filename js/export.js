@@ -237,6 +237,7 @@
   NP.labelFilter = function (opts) {
     const terms = String(opts.match || '').toLowerCase().split(',').map(function (t) { return t.trim(); }).filter(Boolean);
     return function (p) {
+      if (opts.unit && NP.portUnit(p) !== opts.unit) return false;
       if (opts.physicalOnly && p.kind !== 'physical') return false;
       if (p.link === 'not present') return false;
       if (opts.upOnly && p.link !== 'up') return false;

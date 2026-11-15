@@ -133,6 +133,53 @@ test('ui', { skip: chromium ? false : 'Playwright is not installed' }, async (t)
     assert.deepEqual(tries, { fetch: 'blocked', xhr: 'blocked', img: 'blocked', script: 'blocked' });
   });
 
+  await t.test('eight-member stack: unit selector and a responsive table', async (t) => {
+    const { page, errors } = await open(t);
+    await paste(page, require('./stack.js')(8));
+    await page.click('#btnParse');
+    assert.match(await page.textContent('#msg'), /416 ports/);
+    assert.equal(await page.locator('tbody tr').count(), 416);
+    await page.selectOption('.toolbar select[aria-label="Stack unit"]', '5');
+    assert.match(await page.textContent('.toolbar .count'), /^52 of 416 shown/);       // 48 access ports + 4 empty uplink slots
+    await tab(page, 'Labels');
+    assert.match(await page.textContent('.toolbar .count'), /^48 label/);      // the unit choice carries over
+    await tab(page, 'Overview');
+    assert.match(await page.textContent('#view'), /Stack units \/ slots \(8\)/);
+    await tab(page, 'Ports');
+    await page.selectOption('.toolbar select[aria-label="Stack unit"]', '');
+    // typing in the filter re-draws the table: it has to stay quick with every port showing
+    const ms = await page.evaluate(async () => {
+      const box = document.querySelector('.toolbar input[type=search]');
+      const t0 = performance.now();
+      for (const ch of 'desk 1') { box.value += ch; box.dispatchEvent(new Event('input', { bubbles: true })); await new Promise(requestAnimationFrame); }
+      return (performance.now() - t0) / 6;
+    });
+    console.log('      average redraw per keystroke with 416 ports: ' + ms.toFixed(0) + ' ms');
+    assert.ok(ms < 250, 'redraw took ' + ms.toFixed(0) + ' ms');
+    assert.deepEqual(errors, []);
+  });
+
+  await t.test('remove and clear all can be undone; backup reminder', async (t) => {
+    const { page, errors } = await open(t);
+    for (const id of ['ios', 'junos']) { await page.selectOption('#selSample', id); await page.click('#btnParse'); }
+    assert.match(await page.textContent('#bkHint'), /Only saved in this browser so far/);
+    await save(page, () => page.click('#btnBackup'));
+    assert.match(await page.textContent('#bkHint'), /^Backed up /);
+    await page.click('.devices li:first-child button.link');
+    assert.equal(await page.locator('.devices li .pick').count(), 1);
+    assert.match(await page.textContent('#undoBar'), /Removed SW-ACCESS-01/);
+    assert.match(await page.textContent('#bkHint'), /Changed since the backup/);
+    await page.click('#undoBar button');
+    assert.equal(await page.locator('.devices li .pick').count(), 2);
+    assert.match(await page.textContent('#bkHint'), /^Backed up /);
+    await page.click('#btnClear');
+    assert.equal(await page.locator('.devices li .pick').count(), 0);
+    await page.click('#undoBar button');
+    assert.equal(await page.locator('.devices li .pick').count(), 2);
+    assert.equal(await page.locator('#undoBar').isHidden(), true);
+    assert.deepEqual(errors, []);
+  });
+
   await t.test('phone width: no sideways scrolling', async (t) => {
     const { page, errors } = await open(t, { viewport: { width: 390, height: 800 } });
     await page.selectOption('#selSample', 'ios');

@@ -147,6 +147,33 @@
     return m ? m[1] : '';
   };
 
+  // Stack member / chassis slot a physical port belongs to: Gi2/0/14 -> "2", ge-1/0/3 -> "1",
+  // 3/1/24 -> "3", ProCurve "2/24" -> "2" and "B12" -> "B". Single-numbered ports have none.
+  NP.portUnit = function (p) {
+    if (p.kind !== 'physical') return '';
+    const m = String(p.short).match(/(\d+)(?:\/\d+)+(?!.*\d)/);
+    if (m) return m[1];
+    const l = String(p.short).match(/^([A-Za-z])\d+$/);
+    return l ? l[1].toUpperCase() : '';
+  };
+  // -> [{unit, ports, up, down, disabled, absent, poeWatts}] for devices with more than one unit, else []
+  NP.units = function (dev) {
+    const by = {};
+    dev.ports.forEach(function (p) {
+      const u = NP.portUnit(p);
+      if (!u) return;
+      const x = by[u] = by[u] || { unit: u, ports: 0, up: 0, down: 0, disabled: 0, absent: 0, poeWatts: 0 };
+      x.ports++;
+      if (p.link === 'not present') x.absent++;
+      else if (p.adminUp === false) x.disabled++;
+      else if (p.link === 'up') x.up++;
+      else if (p.link) x.down++;
+      x.poeWatts = Math.round((x.poeWatts + (parseFloat(p.poeWatts) || 0)) * 10) / 10;
+    });
+    const list = Object.keys(by).sort(NP.naturalCompare).map(function (k) { return by[k]; });
+    return list.length > 1 ? list : [];
+  };
+
   // ------------------------------------------------------------- data model
   let seq = 0;
   NP.newDevice = function () {
@@ -505,6 +532,7 @@
     { id: 'neighborPort', label: 'Neighbor port', get: function (p) { return p.neighborPort; }, on: true },
     { id: 'neighborInfo', label: 'Neighbor info', get: function (p) { return p.neighborInfo; } },
     { id: 'notes', label: 'Notes', get: function (p) { return p.notes; } },
+    { id: 'unit', label: 'Unit', get: function (p) { return NP.portUnit(p); } },
     { id: 'kind', label: 'Kind', get: function (p) { return p.kind; } }
   ];
 })(typeof globalThis !== 'undefined' ? globalThis : this);

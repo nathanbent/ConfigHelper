@@ -136,6 +136,9 @@ td.editcell.edited input { border-color: var(--accent); }
 tr.excluded td { opacity: .45; }
 tr.excluded td:first-child { opacity: 1; }
 .edithint { margin: 0 0 10px; }
+.undobar { margin: 0 0 8px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--warn-bg); color: var(--warn); font-size: 13px; }
+.undobar button { margin-left: 6px; min-height: 26px; padding: 2px 8px; }
+#bkHint button { min-height: 0; padding: 0; border: 0; background: none; color: var(--accent); text-decoration: underline; }
 .cablebtn { width: 100%; margin-top: 10px; text-align: left; }
 .cablebtn.sel { border-color: var(--accent); background: var(--row); font-weight: 600; }
 .difftable td.before { color: var(--off); }

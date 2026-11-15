@@ -52,6 +52,11 @@ status line says what was fixed.
 was cleaned and sanitized, what the parser made of it (port table, Not parsed list, checks) and the sanitized
 input. Platforms not yet checked on real hardware are marked "experimental" in the app.
 
+Stacks and chassis: when ports belong to more than one unit (`Gi2/0/14`, `3/1/24`, `ge-1/0/3`), the Ports and
+Labels tabs get a **unit selector**, the Overview shows a per-unit table (ports, up, down, PoE draw), and a
+Unit column is available. Removing a device or clearing everything can be undone, and the Devices panel says
+whether your work has changed since the last backup.
+
 The **Not parsed** tab on each device lists the config lines and command output the parser saw but did not use
 (with known noise left out and passwords and keys replaced by `***`). Use it to spot gaps on a new device; the
 **Copy list** button gives you something to paste into a bug report.

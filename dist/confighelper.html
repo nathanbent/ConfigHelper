@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-rJhnxhYYcfvqzm9LxFCd64b/oFmQlbmeWqIKKgcG/Ek=' 'sha256-/FBUO0Y4TcBAijaaBqdmWGE81+yAVEl47dOes50EaS8=' 'sha256-tsrTkGy/ADYmcGoTViQxyTeYM3YhLwFWtBQstE1Ov+Y=' 'sha256-dm2P1Lq+IiAMmvA1VLFWy+yH/l63QbTq7hJX3tyuD3I=' 'sha256-SkAiENnX4esLRXszj84y7xgXfycHa0RyS2W+lmV2WH8=' 'sha256-T83vvNRVwHWcojUyWdBnDzJQMfkcLKFgGP4vcUWgmtQ=' 'sha256-Mlq3ECsbsMScI+0J8eEm29OM0C/Ekt72nVe0c6JvCrI=' 'sha256-v4ldS5g0gxDa2MRDAeGjVwkP18Zxx43ANOBOqLVzDbI=' 'sha256-NzTtGqSW6if3fyroofbZRNRagIEWSzVRILietckByHM=' 'sha256-nR1g/rNbl2y9xCwaD26btLVbLmCcaHufer/4+llN6V0=' 'sha256-G6wah/j0TiEYdkRfImoHpZHu+PVJp5SLmRg/dBmF7C0=' 'sha256-b31dqDKex48/3Lz9rvol5kAT/E7tDmzddR71u79Oem0=' 'sha256-vzrZcry896Arg/5TXGjJET4Li9vM/ve2rMDKv3piRrE=' 'sha256-qFHLagWPV5lqOSYexiS7xx7L1kgdBRiE6cY4jGNRjYI=' 'sha256-1ZLnrjsBQyv9S3vMo0pbOkaITV5elhJG9IGJ7I2UDt0=' 'sha256-/KsLCTM69o1uG6qbksfnP8OFlwWlUaBhBJJBqDw/ayY=' 'sha256-M80BPhH9TlMLYkruM03W9rKWzLTYVpuUfCmVzbb0+NY=' 'sha256-CXdI7LsC8MuQA+NDxSTG7k/K51MR3W48IKWXHI4ZEMM='; style-src 'sha256-aEnI1LpH3IzipiIxKhaMc8NBd2Y2tVMlv3kCTH6l0R8='; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-iw3ZRdVZlJCb+rUhpFgJ2dytbqYJZNhH0mtB/Sn2IOw=' 'sha256-/FBUO0Y4TcBAijaaBqdmWGE81+yAVEl47dOes50EaS8=' 'sha256-tsrTkGy/ADYmcGoTViQxyTeYM3YhLwFWtBQstE1Ov+Y=' 'sha256-dm2P1Lq+IiAMmvA1VLFWy+yH/l63QbTq7hJX3tyuD3I=' 'sha256-SkAiENnX4esLRXszj84y7xgXfycHa0RyS2W+lmV2WH8=' 'sha256-T83vvNRVwHWcojUyWdBnDzJQMfkcLKFgGP4vcUWgmtQ=' 'sha256-Mlq3ECsbsMScI+0J8eEm29OM0C/Ekt72nVe0c6JvCrI=' 'sha256-v4ldS5g0gxDa2MRDAeGjVwkP18Zxx43ANOBOqLVzDbI=' 'sha256-NzTtGqSW6if3fyroofbZRNRagIEWSzVRILietckByHM=' 'sha256-nR1g/rNbl2y9xCwaD26btLVbLmCcaHufer/4+llN6V0=' 'sha256-G6wah/j0TiEYdkRfImoHpZHu+PVJp5SLmRg/dBmF7C0=' 'sha256-b31dqDKex48/3Lz9rvol5kAT/E7tDmzddR71u79Oem0=' 'sha256-R3cmFdCL61zi8t4WOfU0HysgenDiS7NO/1jRv6cIEL8=' 'sha256-qFHLagWPV5lqOSYexiS7xx7L1kgdBRiE6cY4jGNRjYI=' 'sha256-1ZLnrjsBQyv9S3vMo0pbOkaITV5elhJG9IGJ7I2UDt0=' 'sha256-/KsLCTM69o1uG6qbksfnP8OFlwWlUaBhBJJBqDw/ayY=' 'sha256-M80BPhH9TlMLYkruM03W9rKWzLTYVpuUfCmVzbb0+NY=' 'sha256-q3zsWtQkAkoqwGoANJ4CmMkDUeqjGI+yZa6mk5Hz3XM='; style-src 'sha256-GGsZoeZSLo393cmHg5++13eQRGUckEplAWhb6YyM/gE='; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ConfigHelper</title>
 <style>
@@ -144,6 +144,9 @@ td.editcell.edited input { border-color: var(--accent); }
 tr.excluded td { opacity: .45; }
 tr.excluded td:first-child { opacity: 1; }
 .edithint { margin: 0 0 10px; }
+.undobar { margin: 0 0 8px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--warn-bg); color: var(--warn); font-size: 13px; }
+.undobar button { margin-left: 6px; min-height: 26px; padding: 2px 8px; }
+#bkHint button { min-height: 0; padding: 0; border: 0; background: none; color: var(--accent); text-decoration: underline; }
 .cablebtn { width: 100%; margin-top: 10px; text-align: left; }
 .cablebtn.sel { border-color: var(--accent); background: var(--row); font-weight: 600; }
 .difftable td.before { color: var(--off); }
@@ -244,8 +247,10 @@ A whole terminal session works too, for example:
 
     <section class="card">
       <h2>Devices</h2>
+      <p id="undoBar" class="undobar" hidden></p>
       <ul id="deviceList" class="devices"></ul>
       <button id="btnCables" class="cablebtn" hidden>Cable list</button>
+      <p id="bkHint" class="hint" hidden></p>
     </section>
   </aside>
 
@@ -400,6 +405,33 @@ A whole terminal session works too, for example:
   NP.portNum = function (name) {
     const m = String(name).match(/(\d+)(?!.*\d)/);
     return m ? m[1] : '';
+  };
+
+  // Stack member / chassis slot a physical port belongs to: Gi2/0/14 -> "2", ge-1/0/3 -> "1",
+  // 3/1/24 -> "3", ProCurve "2/24" -> "2" and "B12" -> "B". Single-numbered ports have none.
+  NP.portUnit = function (p) {
+    if (p.kind !== 'physical') return '';
+    const m = String(p.short).match(/(\d+)(?:\/\d+)+(?!.*\d)/);
+    if (m) return m[1];
+    const l = String(p.short).match(/^([A-Za-z])\d+$/);
+    return l ? l[1].toUpperCase() : '';
+  };
+  // -> [{unit, ports, up, down, disabled, absent, poeWatts}] for devices with more than one unit, else []
+  NP.units = function (dev) {
+    const by = {};
+    dev.ports.forEach(function (p) {
+      const u = NP.portUnit(p);
+      if (!u) return;
+      const x = by[u] = by[u] || { unit: u, ports: 0, up: 0, down: 0, disabled: 0, absent: 0, poeWatts: 0 };
+      x.ports++;
+      if (p.link === 'not present') x.absent++;
+      else if (p.adminUp === false) x.disabled++;
+      else if (p.link === 'up') x.up++;
+      else if (p.link) x.down++;
+      x.poeWatts = Math.round((x.poeWatts + (parseFloat(p.poeWatts) || 0)) * 10) / 10;
+    });
+    const list = Object.keys(by).sort(NP.naturalCompare).map(function (k) { return by[k]; });
+    return list.length > 1 ? list : [];
   };
 
   // ------------------------------------------------------------- data model
@@ -760,6 +792,7 @@ A whole terminal session works too, for example:
     { id: 'neighborPort', label: 'Neighbor port', get: function (p) { return p.neighborPort; }, on: true },
     { id: 'neighborInfo', label: 'Neighbor info', get: function (p) { return p.neighborInfo; } },
     { id: 'notes', label: 'Notes', get: function (p) { return p.notes; } },
+    { id: 'unit', label: 'Unit', get: function (p) { return NP.portUnit(p); } },
     { id: 'kind', label: 'Kind', get: function (p) { return p.kind; } }
   ];
 })(typeof globalThis !== 'undefined' ? globalThis : this);
@@ -4180,6 +4213,7 @@ set enabled=yes location="Workshop cabinet"
   NP.labelFilter = function (opts) {
     const terms = String(opts.match || '').toLowerCase().split(',').map(function (t) { return t.trim(); }).filter(Boolean);
     return function (p) {
+      if (opts.unit && NP.portUnit(p) !== opts.unit) return false;
       if (opts.physicalOnly && p.kind !== 'physical') return false;
       if (p.link === 'not present') return false;
       if (opts.upOnly && p.link !== 'up') return false;
@@ -4920,6 +4954,9 @@ set enabled=yes location="Workshop cabinet"
     search: '', physOnly: false, hideDown: false, sort: null,
     view: 'device',                      // 'device' or 'cables' (the cross-device cable list)
     cab: { q: '', loadedOnly: false, fmt: 'csv', lines: ['{a} {aport}', '{b} {bport}', ''], bothEnds: true, maxLen: 0 },
+    unit: '',                            // stack member shown on the Ports and Labels tabs ('' = all)
+    undo: null,                          // {text, devices, current}: the last removal, until something else changes
+    sig: '', backupSig: '', lastBackup: '',
     editing: false, only: null,          // only: {title, keys} = Ports tab limited to the ports of one check
     exp: { fmt: 'csv', cols: 'shown', rows: 'shown', devs: 'device' },
     label: { preset: 'port', per: 'port', lines: NP.labelPresets.port.lines.slice(), scope: 'device',
@@ -4951,8 +4988,12 @@ set enabled=yes location="Workshop cabinet"
   function save() {
     try {
       state.saveFailed = false;
-      localStorage.setItem(STORE, JSON.stringify({
-        devices: state.devices, current: state.current, cols: state.cols, label: state.label }));
+      const devJson = JSON.stringify(state.devices);
+      let hsh = 2166136261;                              // FNV-1a: a cheap fingerprint to tell "changed since the last backup"
+      for (let i = 0; i < devJson.length; i++) { hsh ^= devJson.charCodeAt(i); hsh = Math.imul(hsh, 16777619); }
+      state.sig = devJson.length + ':' + (hsh >>> 0);
+      localStorage.setItem(STORE, '{"devices":' + devJson + ',' + JSON.stringify({ current: state.current, cols: state.cols, label: state.label,
+        backupSig: state.backupSig, lastBackup: state.lastBackup }).slice(1));
     } catch (e) {
       // private window or quota (snapshots are the usual cause): keep working, but say so
       if (!state.saveFailed && state.devices.length) msg('Could not save to browser storage (it may be full). Use Export backup to keep your work, and delete old snapshots.', 'err');
@@ -4967,6 +5008,7 @@ set enabled=yes location="Workshop cabinet"
       state.current = d.current;
       if (Array.isArray(d.cols) && d.cols.length) state.cols = d.cols;
       if (d.label) Object.assign(state.label, d.label);
+      state.backupSig = d.backupSig || ''; state.lastBackup = d.lastBackup || '';
     } catch (e) { /* ignore corrupt storage */ }
   }
   const cur = function () {
@@ -5003,6 +5045,7 @@ set enabled=yes location="Workshop cabinet"
     const r = NP.ingest(text, {
       vendor: $('selVendor').value, target: target,
       devices: state.devices, current: cur(), name: name });
+    state.undo = null;
     if (r.isNew) state.devices.push(r.dev);
     (r.extra || []).forEach(function (x) { if (x.isNew) state.devices.push(x.dev); });
     state.current = r.dev.id;
@@ -5072,15 +5115,31 @@ set enabled=yes location="Workshop cabinet"
   function renderDevices() {
     const ul = $('deviceList');
     ul.replaceChildren();
+    const ub = $('undoBar');
+    ub.hidden = !state.undo;
+    ub.replaceChildren();
+    if (state.undo) {
+      ub.append(state.undo.text + ' ', h('button', { onclick: function () {
+        state.devices = state.undo.devices; state.current = state.undo.current; state.undo = null; save(); render();
+      } }, 'Undo'));
+    }
+    const bk = $('bkHint');
+    bk.hidden = !state.devices.length;
+    bk.replaceChildren();
+    if (state.devices.length) {
+      const exportLink = h('button', { onclick: function () { $('btnBackup').click(); } }, 'Export backup');
+      if (state.sig && state.sig === state.backupSig) bk.append('Backed up ' + new Date(state.lastBackup).toLocaleString() + '.');
+      else bk.append((state.lastBackup ? 'Changed since the backup of ' + new Date(state.lastBackup).toLocaleString() + '. ' : 'Only saved in this browser so far. '), exportLink);
+    }
     if (!state.devices.length) { ul.appendChild(h('li', { class: 'empty', text: 'No devices yet.' })); return; }
     state.devices.forEach(function (d) {
       ul.appendChild(h('li', { class: d.id === state.current && state.view !== 'cables' ? 'sel' : '' },
-        h('button', { class: 'pick', onclick: function () { state.current = d.id; state.view = 'device'; state.sort = null; state.only = null; save(); render(); } },
+        h('button', { class: 'pick', onclick: function () { state.current = d.id; state.view = 'device'; state.sort = null; state.only = null; state.unit = ''; save(); render(); } },
           h('b', { text: d.hostname || '(unnamed)' }),
           h('span', { text: NP.vendorLabel(d) + ' · ' + d.ports.length + ' ports' })),
         h('button', { class: 'link', title: 'Remove this device', 'aria-label': 'Remove ' + (d.hostname || 'device'),
           onclick: function () {
-            if (!confirm('Remove ' + (d.hostname || 'this device') + '?')) return;
+            state.undo = { text: 'Removed ' + (d.hostname || 'a device') + '.', devices: state.devices.slice(), current: state.current };
             state.devices = state.devices.filter(function (x) { return x !== d; });
             if (state.current === d.id) state.current = state.devices.length ? state.devices[0].id : null;
             save(); render();
@@ -5147,6 +5206,17 @@ set enabled=yes location="Workshop cabinet"
         }))));
     });
     view.appendChild(grid);
+    const us = NP.units(dev);
+    if (us.length) {
+      view.appendChild(h('section', { class: 'card' }, h('h2', { text: 'Stack units / slots (' + us.length + ')' }),
+        h('div', { class: 'tablewrap' }, h('table', {},
+          h('thead', {}, h('tr', {}, ['Unit', 'Ports', 'Up', 'Down', 'Disabled', 'Not present', 'PoE W', ''].map(function (t) { return h('th', { class: 'nosort', scope: 'col', text: t }); }))),
+          h('tbody', {}, us.map(function (u) {
+            return h('tr', {}, h('td', { class: 'mono', text: u.unit }), h('td', { text: u.ports }), h('td', { text: u.up }), h('td', { text: u.down }),
+              h('td', { text: u.disabled }), h('td', { text: u.absent || '' }), h('td', { text: u.poeWatts || '' }),
+              h('td', {}, h('button', { class: 'link', onclick: function () { state.unit = u.unit; state.tab = 'ports'; render(); } }, 'Show ports')));
+          }))))));
+    }
     if (dev.vlans.length) {
       view.appendChild(h('section', { class: 'card' }, h('h2', { text: 'VLANs' }),
         h('div', { class: 'chips' }, dev.vlans.map(function (v) {
@@ -5386,8 +5456,10 @@ set enabled=yes location="Workshop cabinet"
   function portPredicate() {
     const q = state.search.trim().toLowerCase();
     const only = state.only ? state.only.keys : null;
+    const unit = state.unit;
     return function (p) {
       if (only && !only.includes(p.key)) return false;
+      if (unit && NP.portUnit(p) !== unit) return false;
       if (state.physOnly && p.kind !== 'physical') return false;
       if (state.hideDown && p.link !== 'up') return false;
       if (!q) return true;
@@ -5482,7 +5554,11 @@ set enabled=yes location="Workshop cabinet"
       if (!confirm('Discard ' + ec.total + ' manual change(s) on ' + (dev.hostname || 'this device') + ' and go back to the parsed values?')) return;
       dev.edits = {}; save(); render();
     } }, 'Reset edits (' + ec.total + ')') : null;
-    const toolbar = h('div', { class: 'toolbar' }, search, check('Physical only', 'physOnly'), check('Link up only', 'hideDown'),
+    const units = NP.units(dev);
+    if (state.unit && !units.some(function (u) { return u.unit === state.unit; })) state.unit = '';
+    const unitSel = units.length ? sel(state.unit, [['', 'All units (' + units.length + ')']].concat(units.map(function (u) {
+      return [u.unit, 'Unit ' + u.unit + ' (' + u.ports + ' ports)']; })), function (v) { state.unit = v; render(); }, 'Stack unit') : null;
+    const toolbar = h('div', { class: 'toolbar' }, search, unitSel, check('Physical only', 'physOnly'), check('Link up only', 'hideDown'),
       colPicker, h('span', { class: 'count', text: list.length + ' of ' + dev.ports.length + ' shown' +
         (ec.fields ? ', ' + ec.fields + ' edited' : '') + (ec.excluded ? ', ' + ec.excluded + ' excluded' : '') }), h('span', { class: 'spacer' }),
       editBtn, resetBtn, expMenu, h('button', { onclick: function () { window.print(); } }, 'Print'));
@@ -5534,7 +5610,9 @@ set enabled=yes location="Workshop cabinet"
     const L = state.label;
     const perDevice = L.per === 'device';
     const devs = L.scope === 'all' ? state.devices : [dev];
-    const rows = NP.labelRows(devs, L);
+    const lunits = L.scope === 'all' ? [] : NP.units(dev);
+    if (state.unit && !lunits.some(function (u) { return u.unit === state.unit; })) state.unit = '';
+    const rows = NP.labelRows(devs, Object.assign({}, L, { unit: L.scope === 'all' ? '' : state.unit }));
     const set = function (fn) { return function (e) { fn(e.target); save(); render(); }; };
     const check = function (label, key, disabled) {
       return h('label', { class: 'check' },
@@ -5558,6 +5636,8 @@ set enabled=yes location="Workshop cabinet"
         h('select', { onchange: set(function (t) { L.scope = t.value; }) },
           h('option', { value: 'device', selected: L.scope === 'device', text: 'This device only' }),
           h('option', { value: 'all', selected: L.scope === 'all', text: 'All loaded devices (' + state.devices.length + ')' }))),
+      lunits.length ? h('label', {}, 'Stack unit', sel(state.unit, [['', 'All units (' + lunits.length + ')']].concat(lunits.map(function (u) {
+        return [u.unit, 'Unit ' + u.unit + ' (' + u.ports + ' ports)']; })), function (v) { state.unit = v; render(); })) : null,
       lineInput(0), lineInput(1), lineInput(2),
       h('label', {}, 'Only ports matching (comma = or)',
         h('input', { type: 'text', value: L.match, placeholder: 'e.g. AP, 1/0/1, trunk', disabled: perDevice,
@@ -5672,6 +5752,9 @@ set enabled=yes location="Workshop cabinet"
     $('btnBackup').addEventListener('click', function () {
       if (!state.devices.length) { msg('Nothing to back up yet.', 'err'); return; }
       download('confighelper-backup-' + new Date().toISOString().slice(0, 10) + '.json', NP.backup(state.devices), 'application/json');
+      save();                                             // refresh the fingerprint, then record it as backed up
+      state.backupSig = state.sig; state.lastBackup = new Date().toISOString();
+      save(); render();
     });
     $('btnImport').addEventListener('click', function () { $('fileBackup').click(); });
     $('fileBackup').addEventListener('change', function (e) {
@@ -5694,7 +5777,8 @@ set enabled=yes location="Workshop cabinet"
       e.target.value = '';
     });
     $('btnClear').addEventListener('click', function () {
-      if (!state.devices.length || !confirm('Remove all ' + state.devices.length + ' device(s) from this browser?')) return;
+      if (!state.devices.length) return;
+      state.undo = { text: 'Removed all ' + state.devices.length + ' device(s).', devices: state.devices.slice(), current: state.current };
       state.devices = []; state.current = null; save(); render();
     });
     load();

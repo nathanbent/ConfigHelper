@@ -706,6 +706,25 @@ test('problem report bundles the sanitized input with what the parser made of it
   assert.deepEqual(Object.keys(NP.verified), ['ios']);
 });
 
+const bigStack = require('./stack.js');
+
+test('stack units', () => {
+  const unit = n => NP.portUnit(NP.newPort(n));
+  assert.deepEqual(['GigabitEthernet2/0/14', 'Te3/1/4', 'ge-1/0/3', '4/1/24', '2/24', 'B12', 'Ethernet1/5', 'port7', '24', 'ether3', 'Vlan10', 'Port-channel2'].map(unit),
+    ['2', '3', '1', '4', '2', 'B', '1', '', '', '', '', '']);
+  const d = NP.ingest(bigStack(8), { vendor: 'ios', devices: [] }).dev;
+  assert.equal(d.ports.length, 8 * 52);
+  const us = NP.units(d);
+  assert.deepEqual(us.map(u => u.unit), ['1', '2', '3', '4', '5', '6', '7', '8']);
+  assert.deepEqual(us[2], { unit: '3', ports: 52, up: 16, down: 32, disabled: 0, absent: 4, poeWatts: 96 });   // 4 empty uplink slots
+  assert.equal(d.other['Stack members'].split(', ').length, 8);
+  const lab = NP.labelRows([d], { lines: ['{port}', '{desc}'], physicalOnly: true, unit: '5' });
+  assert.equal(lab.length, 1 + 48);
+  assert.deepEqual(lab[1], ['Gi5/0/1', 'U5 desk 1']);
+  assert.deepEqual(NP.units(NP.ingest(NP.samples.ios.text, { devices: [] }).dev), []);               // single switch: no selector
+  assert.equal(NP.columns.find(c => c.id === 'unit').get(NP.findPort(d, 'Gi7/0/3')), '7');
+});
+
 test('forcing a vendor and unknown input', () => {
   assert.throws(() => NP.ingest('hello world\nnothing here', { devices: [] }), /vendor/);
   assert.throws(() => NP.ingest('hello world', { vendor: 'ios', devices: [] }), /Nothing recognisable/);
