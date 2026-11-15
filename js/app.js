@@ -197,19 +197,17 @@
   function renderCommands() {
     const box = $('cmdList');
     box.replaceChildren();
-    let vendor = $('selVendor').value;
-    const dev = cur();
-    const fromDevice = vendor === 'auto' && dev && $('selTarget').value !== 'new';
-    // a switch that came out of a FortiGate config is refreshed by pasting the FortiGate config again
-    if (fromDevice) vendor = dev.vendor === 'fortiswitch' && dev.other['Managed by'] ? 'fortilink' : dev.vendor;
+    // Commands are shown only for a platform chosen by hand, never guessed: a list for the wrong
+    // platform is too easy to copy without noticing.
+    const vendor = $('selVendor').value;
     const c = NP.commands[vendor];
     if (!c) {
       $('cmdSummary').textContent = 'Commands to run';
-      box.appendChild(h('p', { text: 'Choose a platform above to see which commands to run on the device.' }));
+      box.appendChild(h('p', { text: $('selBrand').value === 'auto' ? 'Choose a brand and platform above to see which commands to run on the device.'
+        : 'Choose a platform above to see which commands to run on the device.' }));
       return;
     }
     $('cmdSummary').textContent = 'Commands to run: ' + NP.platformLabel(vendor);
-    if (fromDevice) box.appendChild(h('p', { text: 'Based on the selected device, ' + (dev.hostname || 'unnamed') + '.' }));
     box.appendChild(h('ol', {},
       c.pager ? h('li', {}, h('code', { text: c.pager }), h('span', { text: 'turns off paging so output is not cut at --More--' })) : null,
       c.cmds.map(function (x) { return h('li', {}, h('code', { text: x.cmd }), h('span', { text: x.gives })); })));
@@ -802,8 +800,11 @@
     $('selBrand').addEventListener('change', function (e) {
       const sel = $('selVendor'), brand = e.target.value;
       sel.replaceChildren();
+      const list = NP.platforms.filter(function (p) { return p.brand === brand; });
+      // more than one platform: nothing is chosen until the user chooses (pasted output is still auto-detected)
       if (brand === 'auto') sel.appendChild(h('option', { value: 'auto', text: 'Auto-detect' }));
-      NP.platforms.filter(function (p) { return p.brand === brand; }).forEach(function (p) {
+      else if (list.length > 1) sel.appendChild(h('option', { value: 'auto', text: 'Choose a platform…' }));
+      list.forEach(function (p) {
         sel.appendChild(h('option', { value: p.id, text: p.name + (NP.verified[p.parser || p.id] ? '' : ' (experimental)') }));
       });
       sel.disabled = sel.options.length < 2;

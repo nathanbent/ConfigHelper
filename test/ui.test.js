@@ -53,6 +53,32 @@ test('ui', { skip: chromium ? false : 'Playwright is not installed' }, async (t)
     assert.deepEqual(errors, []);
   });
 
+  await t.test('commands appear only for a platform chosen by hand', async (t) => {
+    const { page, errors } = await open(t);
+    const shown = () => page.locator('#cmdList button:has-text("Copy all")').count();
+    await page.selectOption('#selSample', 'fortigate');
+    await page.click('#btnParse');                                          // a device is loaded and selected: still nothing to copy
+    assert.equal(await shown(), 0);
+    assert.equal(await page.textContent('#cmdSummary'), 'Commands to run');
+    await page.selectOption('#selBrand', 'Fortinet');                       // three platforms: none is picked for you
+    assert.equal(await page.inputValue('#selVendor'), 'auto');
+    assert.match(await page.locator('#selVendor option').first().textContent(), /Choose a platform/);
+    assert.equal(await shown(), 0);
+    await page.selectOption('#selVendor', 'fortilink');
+    assert.equal(await shown(), 1);
+    assert.match(await page.textContent('#cmdSummary'), /FortiLink/);
+    await page.selectOption('#selBrand', 'Dell');                           // changing brand clears the choice again
+    assert.equal(await shown(), 0);
+    await page.selectOption('#selBrand', 'Juniper');                        // one platform: the brand is the choice
+    assert.equal(await page.inputValue('#selVendor'), 'junos');
+    assert.equal(await shown(), 1);
+    await page.selectOption('#selBrand', 'Cisco');                          // brand chosen, platform not: pastes are still auto-detected
+    await page.selectOption('#selSample', 'ios');
+    await page.click('#btnParse');
+    assert.match(await page.textContent('#msg'), /^Added .* as Cisco IOS/);
+    assert.deepEqual(errors, []);
+  });
+
   await t.test('real 3850 session: table, filter, sort, export, labels', async (t) => {
     const { page, errors } = await open(t);
     await paste(page, FIXTURE);

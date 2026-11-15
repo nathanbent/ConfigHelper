@@ -15,7 +15,7 @@ Online: https://nathanbent.github.io/ConfigHelper/ (deployed from `main` by GitH
 Offline: Open `dist/confighelper.html` in a browser. That single file is the whole app; copy it anywhere.
 (`index.html` also works directly and is the one to use while editing the source.)
 
-1. Optional: choose a brand, then a platform (Dell > OS10, Fortinet > FortiSwitch FortiLink-managed ...) to see the commands to run on the device, with a **Copy all** button.
+1. Optional: choose a brand, then a platform (Dell > OS10, Fortinet > FortiSwitch FortiLink-managed ...) to see the commands to run on the device, with a **Copy all** button. Nothing is shown until you choose, so the list for the wrong platform cannot be copied by accident.
 2. Paste a config, show output, or a whole terminal session, or drop text files on the box. Press **Parse**.
 3. Paste more output for the same device later; it merges by hostname (taken from the config or the CLI prompt). If the paste has no hostname, it goes into the selected device. One paste holding sessions from several devices is cut where the prompt's hostname changes, and each device is added on its own.
 4. Use the **Ports** tab to filter, sort, pick columns and export. Use **Labels** to build label rows.
