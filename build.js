@@ -15,6 +15,20 @@ html = html.replace(/<script src="([^"]+)"><\/script>/g, function (all, src) {
 const stamp = process.env.GITHUB_SHA ? process.env.GITHUB_SHA.slice(0, 7) : 'local build';
 if (!html.includes("NP.build = 'source';")) throw new Error('build stamp placeholder not found');
 html = html.replace("NP.build = 'source';", "NP.build = '" + stamp + "';");
+// Content Security Policy: the page may run only the exact scripts and styles bundled here and may not
+// contact any server at all, so "nothing is uploaded" is enforced by the browser, not just promised.
+const crypto = require('crypto');
+const hashes = function (tag) {
+  const out = [];
+  html.replace(new RegExp('<' + tag + '>([\\s\\S]*?)</' + tag + '>', 'g'), function (all, body) {
+    out.push("'sha256-" + crypto.createHash('sha256').update(body, 'utf8').digest('base64') + "'");
+  });
+  return out.join(' ');
+};
+const csp = ["default-src 'none'", 'script-src ' + hashes('script'), 'style-src ' + hashes('style'), 'img-src data:',
+  "connect-src 'none'", "form-action 'none'", "base-uri 'none'"].join('; ');
+if (!html.includes('<meta charset="utf-8">')) throw new Error('charset meta not found');
+html = html.replace('<meta charset="utf-8">', '<meta charset="utf-8">\n<meta http-equiv="Content-Security-Policy" content="' + csp + '">');
 fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
 fs.writeFileSync(path.join(root, 'dist', 'confighelper.html'), html);
 console.log('dist/confighelper.html', (html.length / 1024).toFixed(0) + ' kB');

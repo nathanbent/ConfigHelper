@@ -83,7 +83,7 @@ textarea.drag { border-color: var(--accent); border-style: dashed; }
 .devhead { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .devhead h1 { font-size: 22px; }
 .devhead .sub { color: var(--muted); }
-.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-top: 12px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--line); margin-top: 12px; }
 .tabs button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 8px 14px; color: var(--muted); }
 .tabs button[aria-selected=true] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
 

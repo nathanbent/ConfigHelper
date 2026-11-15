@@ -4,7 +4,8 @@
   "private": true,
   "description": "Turn switch/router/firewall configs and show output into port tables and label-maker CSVs. Runs entirely in the browser.",
   "scripts": {
-    "test": "node --test test/*.test.js",
-    "build": "node build.js"
+    "test": "node --test test/parsers.test.js",
+    "build": "node build.js",
+    "test:ui": "node build.js && node --test test/ui.test.js"
   }
 }
