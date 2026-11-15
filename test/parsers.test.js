@@ -912,7 +912,7 @@ test('problem report bundles the sanitized input with what the parser made of it
   assert.match(bad.text, /Platform: not recognised/);
   assert.ok(!bad.text.includes('hunter2'));
   // only platforms checked on real hardware count as verified
-  assert.deepEqual(Object.keys(NP.verified), ['ios']);
+  assert.deepEqual(Object.keys(NP.verified), ['ios', 'icx']);
 });
 
 const bigStack = require('./stack.js');
