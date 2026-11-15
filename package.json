@@ -1,0 +1,10 @@
+{
+  "name": "portsheet",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Turn switch/router/firewall configs and show output into port tables and label-maker CSVs. Runs entirely in the browser.",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "build": "node build.js"
+  }
+}

@@ -1,0 +1,3112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PortSheet</title>
+<style>
+:root {
+  --bg: #f3f5f8; --panel: #ffffff; --ink: #18212d; --muted: #5f6b7a; --line: #d9dfe7;
+  --accent: #0b6bcb; --accent-ink: #ffffff; --row: #f7f9fb; --head: #eef2f6;
+  --up: #12804a; --up-bg: #dff3e8; --down: #5f6b7a; --down-bg: #e8ecf1;
+  --off: #a8322b; --off-bg: #f8e1df; --warn: #8a5a00; --warn-bg: #fbeed0;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #11161d; --panel: #19212b; --ink: #e4e9f0; --muted: #96a3b3; --line: #2c3745;
+    --accent: #4da3ff; --accent-ink: #08121e; --row: #1d2631; --head: #212c39;
+    --up: #5fd39a; --up-bg: #173527; --down: #a3afbd; --down-bg: #2a3440;
+    --off: #ff8f87; --off-bg: #44201e; --warn: #f0c46a; --warn-bg: #3d3115;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+h1, h2, h3 { margin: 0; font-weight: 650; }
+h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 10px; }
+button, select, input, textarea { font: inherit; color: inherit; }
+button, select, input[type=text], input[type=search] {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; min-height: 32px;
+}
+button { cursor: pointer; white-space: nowrap; }
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+button.danger:hover { border-color: var(--off); color: var(--off); }
+button.link { border: 0; background: none; padding: 0 4px; min-height: 0; color: var(--muted); }
+button.link:hover { color: var(--off); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--line); }
+.brand { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.brand small { font-size: 12.5px; font-weight: 400; color: var(--muted); }
+.logo { width: 22px; height: 16px; border: 2px solid var(--accent); border-radius: 3px;
+  background: repeating-linear-gradient(90deg, var(--accent) 0 3px, transparent 3px 6px) center 60% / 14px 4px no-repeat; }
+.top-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 16px; padding: 16px; align-items: start; }
+@media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+aside { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+label { display: grid; gap: 3px; font-size: 12px; color: var(--muted); }
+label select { width: 100%; color: var(--ink); font-size: 13px; }
+textarea { width: 100%; height: 200px; resize: vertical; background: var(--row); border: 1px solid var(--line);
+  border-radius: 6px; padding: 8px; font: 12px/1.4 var(--mono); }
+textarea.drag { border-color: var(--accent); border-style: dashed; }
+.btnrow { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.btnrow select { flex: 1 1 120px; min-width: 0; }
+.msg { margin: 8px 0 0; font-size: 13px; min-height: 1.2em; }
+.msg.ok { color: var(--up); } .msg.err { color: var(--off); }
+.hint { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
+
+.devices { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.devices li { display: flex; align-items: center; gap: 6px; border: 1px solid transparent; border-radius: 6px; }
+.devices li.sel { background: var(--row); border-color: var(--line); }
+.devices .pick { flex: 1; min-width: 0; text-align: left; border: 0; background: none; padding: 6px 8px; }
+.devices .pick b { display: block; overflow: hidden; text-overflow: ellipsis; }
+.devices .pick span { font-size: 12px; color: var(--muted); }
+.empty { color: var(--muted); font-size: 13px; }
+
+#view { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.welcome { padding: 28px; }
+.welcome h1 { font-size: 20px; margin-bottom: 8px; }
+.welcome ol { margin: 10px 0 0; padding-left: 20px; color: var(--muted); }
+.welcome li { margin: 4px 0; }
+.devhead { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.devhead h1 { font-size: 22px; }
+.devhead .sub { color: var(--muted); }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-top: 12px; }
+.tabs button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 8px 14px; color: var(--muted); }
+.tabs button[aria-selected=true] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+dl.kv { display: grid; grid-template-columns: minmax(110px, max-content) minmax(0, 1fr); gap: 5px 14px; margin: 0; }
+dl.kv dt { color: var(--muted); }
+dl.kv dd { margin: 0; overflow-wrap: anywhere; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { background: var(--row); border: 1px solid var(--line); border-radius: 999px; padding: 1px 9px; font-size: 12.5px; }
+.chip b { font-variant-numeric: tabular-nums; }
+
+.toolbar { display: flex; gap: 8px 14px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+.toolbar input[type=search] { flex: 1 1 180px; max-width: 280px; }
+.toolbar .check, .opts .check { display: inline-flex; grid-template-columns: none; align-items: center; gap: 5px; font-size: 13px; color: var(--ink); }
+.toolbar .spacer { flex: 1; }
+.toolbar .count { color: var(--muted); font-size: 12.5px; }
+details.cols { position: relative; }
+details.cols summary { list-style: none; cursor: pointer; border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; min-height: 32px; }
+details.cols summary::-webkit-details-marker { display: none; }
+details.cols .pop { position: absolute; z-index: 5; top: 38px; left: 0; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 14px; width: 330px; box-shadow: 0 6px 24px rgba(0,0,0,.18); }
+
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; vertical-align: top; }
+td.wrap { white-space: normal; min-width: 160px; overflow-wrap: anywhere; }
+thead th { background: var(--head); position: sticky; top: 0; font-weight: 600; cursor: pointer; user-select: none; }
+thead th.nosort { cursor: default; }
+thead th[aria-sort=ascending]::after { content: " ▲"; font-size: 10px; }
+thead th[aria-sort=descending]::after { content: " ▼"; font-size: 10px; }
+tbody tr:nth-child(even) { background: var(--row); }
+tbody tr:last-child td { border-bottom: 0; }
+td.mono { font-family: var(--mono); font-size: 12.5px; }
+.pill { display: inline-block; border-radius: 999px; padding: 0 8px; font-size: 12px; font-weight: 600; }
+.pill.up { color: var(--up); background: var(--up-bg); }
+.pill.down { color: var(--down); background: var(--down-bg); }
+.pill.off { color: var(--off); background: var(--off-bg); }
+.pill.warn { color: var(--warn); background: var(--warn-bg); }
+
+.labelform { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px 14px; margin-bottom: 10px; }
+.labelform input[type=text] { width: 100%; font-family: var(--mono); font-size: 13px; color: var(--ink); }
+.opts { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-bottom: 10px; }
+.tokens { font-size: 12.5px; color: var(--muted); margin: 0 0 12px; }
+.tokens code { font-family: var(--mono); background: var(--row); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; color: var(--ink); }
+.labelprev td:first-child, .labelprev td:nth-child(2), .labelprev td:nth-child(3) { font-weight: 600; }
+
+@media print {
+  .top, aside, .toolbar, .tabs, .labelform, .opts, .tokens { display: none !important; }
+  .layout { display: block; padding: 0; }
+  body { background: #fff; color: #000; }
+  .card { border: 0; padding: 0; }
+  .tablewrap { overflow: visible; border: 0; }
+  table { font-size: 10px; } th, td { padding: 3px 5px; white-space: normal; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo" aria-hidden="true"></span>PortSheet <small>switch, router and firewall config to tables and labels</small></div>
+  <div class="top-actions">
+    <button id="btnImport" title="Load a PortSheet backup (.json)">Import backup</button>
+    <button id="btnBackup" title="Save every loaded device as one JSON file">Export backup</button>
+    <button id="btnClear" class="danger">Clear all</button>
+    <input type="file" id="fileBackup" accept=".json,application/json" hidden>
+  </div>
+</header>
+
+<div class="layout">
+  <aside>
+    <section class="card" id="inputCard">
+      <h2>Add device output</h2>
+      <div class="row2">
+        <label>Platform
+          <select id="selVendor"><option value="auto">Auto-detect</option></select>
+        </label>
+        <label>Add to
+          <select id="selTarget">
+            <option value="auto">Auto (match hostname)</option>
+            <option value="current">Selected device</option>
+            <option value="new">New device</option>
+          </select>
+        </label>
+      </div>
+      <textarea id="txtInput" spellcheck="false" placeholder="Paste a running config and/or show output here, or drop text files on this box.
+
+A whole terminal session works too, for example:
+  show running-config
+  show interfaces status
+  show power inline
+  show cdp neighbors"></textarea>
+      <div class="btnrow">
+        <button id="btnParse" class="primary">Parse</button>
+        <button id="btnFiles">Open files…</button>
+        <input type="file" id="fileInput" multiple hidden>
+        <select id="selSample" title="Load made-up sample data"><option value="">Load a sample…</option></select>
+      </div>
+      <p id="msg" class="msg" role="status"></p>
+      <p class="hint">Everything is processed in this browser tab. Nothing is uploaded.</p>
+    </section>
+
+    <section class="card">
+      <h2>Devices</h2>
+      <ul id="deviceList" class="devices"></ul>
+    </section>
+  </aside>
+
+  <main id="view"></main>
+</div>
+
+<script>
+/* PortSheet core: shared data model, helpers, vendor registry.
+ * Plain script (no modules) so index.html works straight from file://.
+ * In Node, require() the files in order; everything hangs off globalThis.NP. */
+(function (root) {
+  'use strict';
+  const NP = root.NP = root.NP || {};
+
+  // ---------------------------------------------------------------- vendors
+  NP.vendors = {};
+  NP.vendorOrder = [];
+  NP.registerVendor = function (id, label, parse) {
+    NP.vendors[id] = { id, label, parse };
+    NP.vendorOrder.push(id);
+  };
+
+  // ---------------------------------------------------------------- helpers
+  NP.addUnique = function (arr, v) {
+    if (v === undefined || v === null || v === '') return;
+    if (!arr.includes(v)) arr.push(v);
+  };
+
+  NP.unquote = function (s) {
+    s = String(s == null ? '' : s).trim();
+    return s.replace(/^"(.*)"$/, '$1').replace(/^'(.*)'$/, '$1');
+  };
+
+  // "1,3-5 7" -> [1,3,4,5,7]
+  NP.parseVlanList = function (s) {
+    const out = [];
+    String(s).split(/[,\s]+/).forEach(function (part) {
+      const m = part.match(/^(\d+)(?:-(\d+))?$/);
+      if (!m) return;
+      const a = +m[1], b = m[2] ? +m[2] : a;
+      if (b < a || b > 4095) return;
+      for (let i = a; i <= b; i++) out.push(i);
+    });
+    return out;
+  };
+
+  // [1,3,4,5,7] -> "1,3-5,7"
+  NP.compressVlans = function (list) {
+    const a = Array.from(new Set(list.map(Number))).filter(function (n) { return !isNaN(n); })
+      .sort(function (x, y) { return x - y; });
+    const out = [];
+    for (let i = 0; i < a.length; i++) {
+      let j = i;
+      while (j + 1 < a.length && a[j + 1] === a[j] + 1) j++;
+      out.push(j > i ? a[i] + '-' + a[j] : String(a[i]));
+      i = j;
+    }
+    return out.join(',');
+  };
+
+  // Normalise a VLAN list string for display.
+  NP.normVlans = function (s) {
+    s = String(s == null ? '' : s).trim();
+    if (!s || /^none$/i.test(s)) return '';
+    if (/^all$/i.test(s)) return 'all';
+    const l = NP.parseVlanList(s);
+    if (!l.length) return s;
+    const c = NP.compressVlans(l);
+    return /^1-409[45]$/.test(c) ? 'all' : c;
+  };
+
+  NP.maskToLen = function (mask) {
+    let n = 0;
+    String(mask).split('.').forEach(function (o) {
+      let v = +o;
+      while (v) { n += v & 1; v >>= 1; }
+    });
+    return n;
+  };
+  NP.cidr = function (ip, mask) {
+    if (!mask) return ip;
+    return ip + '/' + (/^\d+$/.test(mask) ? mask : NP.maskToLen(mask));
+  };
+
+  NP.fmtSpeed = function (s) {
+    s = String(s == null ? '' : s).trim().replace(/^a-/, '').replace(/\(a\)$/, '');
+    if (!s || /^auto$/i.test(s) || s === '--') return '';
+    const map = { 10: '10M', 100: '100M', 1000: '1G', 2500: '2.5G', 5000: '5G', 10000: '10G',
+      25000: '25G', 40000: '40G', 50000: '50G', 100000: '100G' };
+    if (/^\d+$/.test(s)) return map[+s] || s + 'M';
+    return s;
+  };
+  NP.fmtDuplex = function (s) {
+    s = String(s == null ? '' : s).trim().replace(/^a-/, '').replace(/\(a\)$/, '');
+    if (/^(full|f|fdx)$/i.test(s)) return 'full';
+    if (/^(half|h|hdx)$/i.test(s)) return 'half';
+    return '';
+  };
+
+  // ------------------------------------------------------------ port naming
+  // long/short interface prefixes -> one canonical abbreviation, so that
+  // "GigabitEthernet1/0/1" (config) and "Gi1/0/1" (show output) merge.
+  const PREFIX = {
+    fastethernet: 'Fa', fa: 'Fa', fas: 'Fa',
+    gigabitethernet: 'Gi', gi: 'Gi', gig: 'Gi', ge: 'Gi',
+    twogigabitethernet: 'Tw', tw: 'Tw', two: 'Tw',
+    fivegigabitethernet: 'Fi', fi: 'Fi', fiv: 'Fi',
+    tengigabitethernet: 'Te', te: 'Te', ten: 'Te', 'ten-gigabitethernet': 'Te', xge: 'Te',
+    twentyfivegige: 'Twe', twe: 'Twe', twentyfivegigabitethernet: 'Twe', 'twenty-fivegige': 'Twe', wge: 'Twe',
+    fortygigabitethernet: 'Fo', fo: 'Fo', 'for': 'Fo', fortygige: 'Fo', fge: 'Fo',
+    hundredgige: 'Hu', hu: 'Hu', hun: 'Hu', hundredgigabitethernet: 'Hu', hge: 'Hu',
+    appgigabitethernet: 'Ap', ap: 'Ap',
+    ethernet: 'Eth', eth: 'Eth', et: 'Eth',
+    'port-channel': 'Po', po: 'Po', portchannel: 'Po',
+    'bridge-aggregation': 'BAGG', bagg: 'BAGG',
+    vlan: 'Vlan', vl: 'Vlan', 'vlan-interface': 'Vlan',
+    loopback: 'Lo', lo: 'Lo', loop: 'Lo',
+    management: 'Ma', ma: 'Ma', mgmt: 'mgmt',
+    tunnel: 'Tu', tu: 'Tu',
+    lag: 'lag'
+  };
+  const KIND_BY_ABBR = { Po: 'lag', BAGG: 'lag', lag: 'lag', Vlan: 'svi', Lo: 'loopback',
+    Ma: 'mgmt', mgmt: 'mgmt', Tu: 'tunnel' };
+
+  NP.portId = function (name) {
+    name = String(name).trim();
+    const m = name.match(/^([A-Za-z][A-Za-z\-]*?)\s*(\d[\d\/.:]*)$/);
+    if (m) {
+      const abbr = PREFIX[m[1].toLowerCase()];
+      if (abbr) {
+        return { key: (abbr + m[2]).toLowerCase(), short: abbr + m[2], kind: KIND_BY_ABBR[abbr] || 'physical' };
+      }
+    }
+    let kind = 'physical';
+    if (/^(ae|bond|trk|lag|bridge)\d*/i.test(name)) kind = 'lag';
+    else if (/^(vlan|irb|vl)[\s.\-]?\d+/i.test(name)) kind = 'svi';
+    else if (/^lo(opback)?\d*(\.\d+)?$/i.test(name)) kind = 'loopback';
+    else if (/^(mgmt|me\d|fxp|em\d|vme|oobm|management)/i.test(name)) kind = 'mgmt';
+    else if (/^(tunnel|gre|ipsec|wg|ssl\.)/i.test(name)) kind = 'tunnel';
+    return { key: name.toLowerCase().replace(/\s+/g, ''), short: name, kind: kind };
+  };
+
+  // Trailing port number, handy for faceplate labels: Gi1/0/12 -> "12"
+  NP.portNum = function (name) {
+    const m = String(name).match(/(\d+)(?!.*\d)/);
+    return m ? m[1] : '';
+  };
+
+  // ------------------------------------------------------------- data model
+  let seq = 0;
+  NP.newDevice = function () {
+    return {
+      id: 'd' + Date.now().toString(36) + (seq++).toString(36),
+      vendor: '', hostname: '', model: '', version: '', serial: '',
+      mgmtIp: '', gateway: '', domain: '',
+      dns: [], ntp: [], syslog: [],
+      snmp: { versions: [], location: '', contact: '' },
+      stp: { enabled: '', mode: '', priority: [], notes: [] },
+      multicast: { igmpSnooping: '', querier: '', routing: '', notes: [] },
+      vlans: [],          // {id, name}
+      ports: [],
+      other: {},          // free-form "Label" -> "value"
+      sources: []         // what was pasted in, for the record (names only)
+    };
+  };
+
+  NP.newPort = function (name) {
+    const id = NP.portId(name);
+    return {
+      key: id.key, name: name, short: id.short, kind: id.kind,
+      description: '', adminUp: null, link: '', speed: '', duplex: '', media: '',
+      mode: '', untagged: '', tagged: '', voiceVlan: '', lag: '', ip: '',
+      poeAdmin: '', poeStatus: '', poeWatts: '', poeClass: '',
+      stp: '', stpState: '', neighbor: '', neighborPort: '', notes: ''
+    };
+  };
+
+  // get-or-create
+  NP.port = function (dev, name) {
+    name = String(name).trim();
+    const id = NP.portId(name);
+    let p = dev.ports.find(function (x) { return x.key === id.key; });
+    if (!p) { p = NP.newPort(name); dev.ports.push(p); }
+    else if (name.length > p.name.length) p.name = name;   // prefer the long form
+    return p;
+  };
+  NP.findPort = function (dev, name) {
+    const key = NP.portId(name).key;
+    return dev.ports.find(function (x) { return x.key === key; });
+  };
+
+  NP.addVlan = function (dev, id, name) {
+    id = +id;
+    if (!id) return null;
+    let v = dev.vlans.find(function (x) { return x.id === id; });
+    if (!v) { v = { id: id, name: '' }; dev.vlans.push(v); }
+    if (name) v.name = NP.unquote(name);
+    return v;
+  };
+
+  NP.addNote = function (p, note) {
+    const list = p.notes ? p.notes.split('; ') : [];
+    if (!list.includes(note)) list.push(note);
+    p.notes = list.join('; ');
+  };
+  NP.addFlag = function (p, field, flag) {
+    const list = p[field] ? p[field].split(', ') : [];
+    if (!list.includes(flag)) list.push(flag);
+    p[field] = list.join(', ');
+  };
+  NP.addOther = function (dev, key, val) {
+    const cur = dev.other[key] ? dev.other[key].split(', ') : [];
+    if (!cur.includes(val)) cur.push(val);
+    dev.other[key] = cur.join(', ');
+  };
+
+  // ------------------------------------------------------- input splitting
+  // A paste may be a whole terminal session ("sw1#show run ... sw1#show int status ...").
+  // Split it at the prompt lines so each command's output is handled on its own.
+  const PROMPT = /^\s*((?:[\w.\-:\/()@~]+\s?[#>]|\[[^\]\n]+\]\s?>?|<[\w.\-]+>))\s*((?:show|sho|sh|display|disp|dis|get|do|export|print|\/[a-z])[^\n]*)$/i;
+
+  NP.sections = function (text) {
+    const out = [];
+    let cur = { cmd: '', host: '', lines: [] };
+    String(text).split(/\r?\n/).forEach(function (line) {
+      const m = line.match(PROMPT);
+      if (m) {
+        if (cur.lines.some(function (l) { return l.trim(); })) out.push(cur);
+        const host = m[1].replace(/[#>\s]+$/, '').replace(/^[\[<]|[\]>]$/g, '')
+          .replace(/^.*@/, '').replace(/\(.*\)$/, '').trim();
+        cur = { cmd: m[2].trim(), host: host, lines: [] };
+      } else cur.lines.push(line);
+    });
+    if (cur.lines.some(function (l) { return l.trim(); })) out.push(cur);
+    return out.map(function (s) { return { cmd: s.cmd, host: s.host, text: s.lines.join('\n') }; });
+  };
+
+  // Walk fixed-layout "show" tables: find each header line, feed the rows that follow.
+  NP.eachTable = function (text, isHeader, onRow) {
+    const lines = text.split(/\r?\n/);
+    for (let i = 0; i < lines.length; i++) {
+      if (!isHeader(lines[i])) continue;
+      const header = lines[i];
+      let rows = 0;
+      for (i++; i < lines.length; i++) {
+        const ln = lines[i];
+        if (!ln.trim()) { if (rows) break; continue; }
+        if (/^[\s\-=+|]+$/.test(ln)) continue;
+        if (isHeader(ln)) { i--; break; }
+        if (onRow(ln, header) === false) break;
+        rows++;
+      }
+    }
+  };
+
+  // ---------------------------------------------------------------- finalise
+  const KIND_RANK = { physical: 0, lag: 1, svi: 2, loopback: 3, mgmt: 4, tunnel: 5 };
+  NP.naturalCompare = function (a, b) {
+    const ax = String(a).match(/\d+|\D+/g) || [], bx = String(b).match(/\d+|\D+/g) || [];
+    for (let i = 0; i < Math.min(ax.length, bx.length); i++) {
+      if (ax[i] === bx[i]) continue;
+      const an = /^\d/.test(ax[i]), bn = /^\d/.test(bx[i]);
+      if (an && bn) return +ax[i] - +bx[i];
+      return ax[i] < bx[i] ? -1 : 1;
+    }
+    return ax.length - bx.length;
+  };
+  NP.comparePorts = function (a, b) {
+    const r = (KIND_RANK[a.kind] === undefined ? 9 : KIND_RANK[a.kind]) -
+              (KIND_RANK[b.kind] === undefined ? 9 : KIND_RANK[b.kind]);
+    return r || NP.naturalCompare(a.key, b.key);
+  };
+
+  NP.finalize = function (dev) {
+    dev.ports.sort(NP.comparePorts);
+    dev.vlans.sort(function (a, b) { return a.id - b.id; });
+    if (!dev.mgmtIp) {
+      const up = function (p) { return p.ip && /\d/.test(p.ip) && p.adminUp !== false; };
+      const pick = dev.ports.find(function (p) { return p.kind === 'mgmt' && up(p); }) ||
+        dev.ports.find(function (p) { return p.kind === 'svi' && up(p); }) ||
+        dev.ports.find(function (p) { return p.kind === 'loopback' && up(p); }) ||
+        dev.ports.find(up);
+      if (pick) dev.mgmtIp = pick.ip + ' (' + pick.short + ')';
+    }
+    return dev;
+  };
+
+  // ------------------------------------------------------------------ ingest
+  NP.parseInto = function (text, vendor, dev) {
+    NP.vendors[vendor].parse(text, dev);
+    if (!dev.hostname) {
+      const s = NP.sections(text).find(function (x) { return x.host; });
+      if (s) dev.hostname = s.host;
+    }
+    return dev;
+  };
+
+  // opts: {vendor:'auto'|id, target:'auto'|'new'|'current', devices:[], current:dev|null, name:''}
+  NP.ingest = function (text, opts) {
+    opts = opts || {};
+    const devices = opts.devices || [];
+    let vendor = opts.vendor && opts.vendor !== 'auto' ? opts.vendor : NP.detect(text);
+    if (!vendor && opts.current) vendor = opts.current.vendor;
+    if (!vendor || !NP.vendors[vendor]) {
+      throw new Error('Could not tell which vendor this is. Pick one from the list and try again.');
+    }
+    const probe = NP.parseInto(text, vendor, NP.newDevice());
+    const found = probe.ports.length || probe.vlans.length || probe.hostname || probe.dns.length ||
+      probe.ntp.length || probe.version || probe.model;
+    if (!found) {
+      throw new Error('Nothing recognisable was found in that input (parsed as ' + NP.vendors[vendor].label + ').');
+    }
+    let dev = null;
+    const target = opts.target || 'auto';
+    if (target === 'current') dev = opts.current || null;
+    else if (target === 'auto') {
+      if (probe.hostname) {
+        dev = devices.find(function (d) { return d.hostname.toLowerCase() === probe.hostname.toLowerCase(); }) || null;
+      } else dev = opts.current || null;
+    }
+    const isNew = !dev;
+    if (isNew) dev = NP.newDevice();
+    if (!dev.vendor) dev.vendor = vendor;
+    NP.parseInto(text, vendor, dev);
+    NP.finalize(dev);
+    dev.sources.push({ name: opts.name || 'pasted text', vendor: vendor, lines: text.split('\n').length });
+    return { dev: dev, isNew: isNew, vendor: vendor };
+  };
+
+  // ------------------------------------------------------------- port columns
+  NP.adminText = function (p) { return p.adminUp === false ? 'disabled' : p.adminUp === true ? 'enabled' : ''; };
+  NP.columns = [
+    { id: 'name', label: 'Port', get: function (p) { return p.name; }, on: true },
+    { id: 'short', label: 'Short', get: function (p) { return p.short; } },
+    { id: 'description', label: 'Description', get: function (p) { return p.description; }, on: true },
+    { id: 'admin', label: 'Admin', get: NP.adminText, on: true },
+    { id: 'link', label: 'Link', get: function (p) { return p.link; }, on: true },
+    { id: 'speed', label: 'Speed', get: function (p) { return p.speed; }, on: true },
+    { id: 'duplex', label: 'Duplex', get: function (p) { return p.duplex; } },
+    { id: 'media', label: 'Media', get: function (p) { return p.media; } },
+    { id: 'mode', label: 'Mode', get: function (p) { return p.mode; }, on: true },
+    { id: 'untagged', label: 'Untagged / native', get: function (p) { return p.untagged; }, on: true },
+    { id: 'tagged', label: 'Tagged VLANs', get: function (p) { return p.tagged; }, on: true },
+    { id: 'voiceVlan', label: 'Voice VLAN', get: function (p) { return p.voiceVlan; }, on: true },
+    { id: 'lag', label: 'LAG', get: function (p) { return p.lag; }, on: true },
+    { id: 'ip', label: 'IP address', get: function (p) { return p.ip; } },
+    { id: 'poeAdmin', label: 'PoE admin', get: function (p) { return p.poeAdmin; } },
+    { id: 'poeStatus', label: 'PoE', get: function (p) { return p.poeStatus; }, on: true },
+    { id: 'poeWatts', label: 'PoE W', get: function (p) { return p.poeWatts; }, on: true },
+    { id: 'poeClass', label: 'PoE class', get: function (p) { return p.poeClass; } },
+    { id: 'stp', label: 'STP config', get: function (p) { return p.stp; }, on: true },
+    { id: 'stpState', label: 'STP state', get: function (p) { return p.stpState; } },
+    { id: 'neighbor', label: 'Neighbor', get: function (p) { return p.neighbor; }, on: true },
+    { id: 'neighborPort', label: 'Neighbor port', get: function (p) { return p.neighborPort; }, on: true },
+    { id: 'notes', label: 'Notes', get: function (p) { return p.notes; } },
+    { id: 'kind', label: 'Kind', get: function (p) { return p.kind; } }
+  ];
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+<script>
+/* Vendor auto-detection from the pasted text. First match wins; most specific first. */
+(function (root) {
+  'use strict';
+  const NP = root.NP;
+
+  const RULES = [
+    ['fortigate', /^\s*config system (global|interface)\b/m, /^#config-version=F/m],
+    ['mikrotik', /by RouterOS/, /^\/(interface|ip|system) [a-z]/m],
+    ['junos', /^set (system|interfaces|vlans|protocols|version) /m, /^\s*host-name \S+;/m,
+      /^Interface\s+Admin\s+Link\s+Proto/m, /^## Last commit/m],
+    ['comware', /^\s*sysname \S/m, /^\s*port link-type /m, /^interface (Bridge-Aggregation|Vlan-interface)\d/m,
+      /^Interface\s+Link\s+Speed\s+Duplex\s+Type\s+PVID/m],
+    ['arubaos', /^; \S+ Configuration Editor/m, /^\s+(untagged|tagged) [\w,\-\/]+\s*$/m,
+      /Port\s+Type\s+\|\s+(Intrusion\s+)?Alert/, /PoE\s+\|\s+Power/],
+    ['aoscx', /^!Version ArubaOS-CX/m, /^interface \d+\/\d+\/\d+\s*$/m, /^\s+vlan (access|trunk) /m],
+    ['os10', /^! Version 10\.\d/m, /\bOS10\b/, /^interface ethernet\s?\d+\/\d+\/\d+/m],
+    ['nxos', /^feature \S+/m, /^vdc \S+/m, /\bNX-?OS\b/, /^switchname \S+/m, /^interface Ethernet\d+\/\d+\s*$/m],
+    ['eos', /^! device: .*EOS/m, /\bArista\b/, /^interface Ethernet\d+\s*$/m, /^interface Port-Channel\d+/m],
+    ['ios', /^interface (Fast|Gigabit|TwoGigabit|FiveGigabit|TenGigabit|TwentyFiveGig|FortyGigabit|HundredGig)E/m,
+      /Cisco IOS/, /^Current configuration\s*:/m, /^\s*switchport /m,
+      /^Port\s+Name\s+Status\s+Vlan/m, /^Interface\s+Admin\s+Oper\s+Power/m, /^Device ID\s+Local Intrfce/m,
+      /^hostname \S+/m]
+  ];
+
+  NP.detect = function (text) {
+    for (const rule of RULES) {
+      for (let i = 1; i < rule.length; i++) if (rule[i].test(text)) return rule[0];
+    }
+    return '';
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+<script>
+/* Parser for the "industry standard CLI" family:
+ * Cisco IOS / IOS-XE, Cisco NX-OS, Arista EOS, Dell OS10, Aruba AOS-CX. */
+(function (root) {
+  'use strict';
+  const NP = root.NP;
+  const addUnique = NP.addUnique;
+  const IP = /^(\d+\.\d+\.\d+\.\d+|[0-9a-fA-F]*:[0-9a-fA-F:]+)$/;
+
+  function parse(text, dev, fl) {
+    NP.sections(text).forEach(function (s) {
+      if (/^(interface|hostname|switchname|vlan) \S/m.test(s.text)) parseConfig(s.text, dev, fl);
+      parseShow(s.text, dev, fl);
+    });
+  }
+
+  // ================================================================ config
+  function parseConfig(text, dev, fl) {
+    const stp = dev.stp, mc = dev.multicast;
+    const cxNoShut = fl === 'aoscx' && /^\s+no shutdown\s*$/m.test(text);
+    let ctx = null;
+    let stpSeen = false;
+
+    function finish() {
+      if (ctx && ctx.type === 'if') finishIf(ctx.p, ctx.c);
+      ctx = null;
+    }
+
+    function finishIf(p, c) {
+      const l2 = p.kind === 'physical' || p.kind === 'lag';
+      let defUp = true;
+      if (fl === 'aoscx' && cxNoShut && p.kind === 'physical') defUp = false;
+      if (fl === 'nxos' && p.kind === 'svi') defUp = false;
+      p.adminUp = c.shutdown === true ? false : c.shutdown === false ? true : defUp;
+      if (c.ip) p.ip = c.ip;
+      if (c.lag) p.lag = c.lag;
+      if (c.voice) p.voiceVlan = c.voice;
+      if (!l2) return;
+      // LAG members with no VLAN settings of their own inherit from the LAG: leave blank
+      if (c.lag && !c.mode && !c.access && !c.native && c.allowed === null) { p.mode = ''; p.untagged = ''; p.tagged = ''; return; }
+      let mode = c.mode;
+      if (c.sw === false || (c.ip && c.sw !== true && !mode)) mode = 'routed';
+      if (!mode) mode = 'access';
+      p.mode = mode;
+      if (mode === 'routed') { p.untagged = ''; p.tagged = ''; }
+      else if (/trunk/.test(mode)) {
+        if (fl === 'os10') {
+          p.untagged = c.access || '1';
+          p.tagged = NP.normVlans(c.allowed || '');
+        } else {
+          p.untagged = c.native || '1';
+          p.tagged = c.allowed === null ? (fl === 'aoscx' ? '' : 'all') : NP.normVlans(c.allowed);
+        }
+      } else {
+        p.untagged = c.access || '1';
+        p.tagged = '';
+      }
+    }
+
+    function comment(l) {
+      let m;
+      if ((m = l.match(/^!\s*Version ArubaOS-CX (\S+)/))) dev.version = dev.version || m[1];
+      else if ((m = l.match(/^! Version (10\.\S+)/))) dev.version = dev.version || m[1];
+      else if ((m = l.match(/^! device: (\S+) \(([^,]+), EOS-([^)]+)\)/))) {
+        dev.model = dev.model || m[2]; dev.version = dev.version || m[3];
+      }
+    }
+
+    function global(l) {
+      let m;
+      if ((m = l.match(/^(?:hostname|switchname) (\S+)/))) { dev.hostname = NP.unquote(m[1]); return; }
+      if ((m = l.match(/^interface (.+)$/))) {
+        const name = m[1].trim();
+        if (/^range /i.test(name)) return;
+        ctx = { type: 'if', p: NP.port(dev, name),
+          c: { sw: null, mode: '', access: '', native: '', allowed: null, voice: '', shutdown: null, ip: '', lag: '' } };
+        return;
+      }
+      if ((m = l.match(/^vlan ([\d,\-\s]+)$/))) {
+        const ids = NP.parseVlanList(m[1]);
+        ids.forEach(function (id) { NP.addVlan(dev, id); });
+        ctx = { type: 'vlan', ids: ids };
+        return;
+      }
+      if ((m = l.match(/^ip (?:domain[- ]name|dns domain-name) (?:vrf \S+ )?(\S+)/))) { dev.domain = m[1]; return; }
+      if ((m = l.match(/^ip (?:name-server|dns server-address) (.+)/))) {
+        m[1].split(/\s+/).forEach(function (t) { if (IP.test(t)) addUnique(dev.dns, t); });
+        return;
+      }
+      if ((m = l.match(/^(ntp|sntp) (server|peer) (.+)/))) {
+        const t = m[3].split(/\s+/);
+        let i = 0;
+        if (t[0] === 'vrf') i = 2;
+        if (t[i]) addUnique(dev.ntp, t[i] + (m[2] === 'peer' ? ' (peer)' : '') + (/\bprefer\b/.test(m[3]) ? ' (prefer)' : ''));
+        return;
+      }
+      if ((m = l.match(/^logging (?:host |server )?(\d+\.\d+\.\d+\.\d+|[0-9a-fA-F]*:[0-9a-fA-F:]+)\b/)) ||
+          (m = l.match(/^logging (?:host|server) (\S+)/))) { addUnique(dev.syslog, m[1]); return; }
+      if ((m = l.match(/^snmp-server location (.+)/))) { dev.snmp.location = NP.unquote(m[1]); return; }
+      if ((m = l.match(/^snmp-server contact (.+)/))) { dev.snmp.contact = NP.unquote(m[1]); return; }
+      if (/^snmp-server community /.test(l)) { addUnique(dev.snmp.versions, 'v2c'); return; }
+      if (/^snmp-server (group|user) .*\bv3\b/.test(l) || /^snmpv3 /.test(l)) { addUnique(dev.snmp.versions, 'v3'); return; }
+      if ((m = l.match(/^snmp-server host (\S+)/))) { NP.addOther(dev, 'SNMP trap hosts', m[1]); return; }
+
+      // ---- spanning tree
+      if (/^(no )?spanning-tree\b/.test(l)) {
+        stpSeen = true;
+        if (l === 'spanning-tree') { stp.enabled = 'yes'; return; }
+        if (l === 'no spanning-tree') { stp.enabled = 'no'; return; }
+        if ((m = l.match(/^spanning-tree mode (\S+)/))) { stp.mode = m[1]; return; }
+        if ((m = l.match(/^spanning-tree (?:(vlan|mst) (\S+) |rstp |)priority (\d+)/))) {
+          let pr = +m[3];
+          if (fl === 'aoscx' && pr <= 15) pr = pr * 4096;
+          addUnique(stp.priority, (m[1] ? m[1].toUpperCase() + ' ' + m[2] + ': ' : '') + pr);
+          return;
+        }
+        if ((m = l.match(/^spanning-tree (vlan|mst) (\S+) root (primary|secondary)/))) {
+          addUnique(stp.priority, m[1].toUpperCase() + ' ' + m[2] + ': root ' + m[3]); return;
+        }
+        if ((m = l.match(/^no spanning-tree vlan (\S+)/))) { addUnique(stp.notes, 'disabled on VLAN ' + m[1]); return; }
+        if (/^spanning-tree mst configuration/.test(l)) { ctx = { type: 'mst' }; return; }
+        if (/^spanning-tree extend system-id/.test(l)) return;
+        addUnique(stp.notes, l.replace(/^spanning-tree /, ''));
+        return;
+      }
+
+      // ---- multicast
+      if (l === 'no ip igmp snooping') { mc.igmpSnooping = 'disabled'; return; }
+      if (l === 'ip igmp snooping') { mc.igmpSnooping = 'enabled'; return; }
+      if (/^ip igmp snooping querier/.test(l)) { mc.querier = 'enabled'; return; }
+      if ((m = l.match(/^ip igmp snooping vlan (\S+) querier/))) { addUnique(mc.notes, 'querier on VLAN ' + m[1]); return; }
+      if ((m = l.match(/^no ip igmp snooping vlan (\S+)$/))) { addUnique(mc.notes, 'snooping off on VLAN ' + m[1]); return; }
+      if (/^ip multicast-routing/.test(l)) { mc.routing = 'enabled'; return; }
+      if ((m = l.match(/^ip pim rp-address (\S+)/))) { addUnique(mc.notes, 'PIM RP ' + m[1]); return; }
+
+      // ---- routing / gateway
+      if ((m = l.match(/^ip default-gateway (\S+)/))) { dev.gateway = m[1]; return; }
+      if ((m = l.match(/^ip route (?:vrf \S+ )?0\.0\.0\.0(?:\/0| 0\.0\.0\.0) (?:[A-Za-z]\S* )?(\d+\.\d+\.\d+\.\d+)/))) {
+        if (!dev.gateway) dev.gateway = m[1];
+        return;
+      }
+      if (l === 'ip routing') { dev.other['IP routing'] = 'enabled'; return; }
+      if ((m = l.match(/^router (\S+)(?: (\S+))?/))) { NP.addOther(dev, 'Routing protocols', m[1] + (m[2] ? ' ' + m[2] : '')); return; }
+      if ((m = l.match(/^vrf (?:definition|context) (\S+)/))) { NP.addOther(dev, 'VRFs', m[1]); return; }
+
+      // ---- everything else worth a line in the summary
+      if ((m = l.match(/^version (\S+)/))) { dev.version = dev.version || m[1]; return; }
+      if (/^aaa new-model/.test(l)) { NP.addOther(dev, 'AAA', 'new-model'); return; }
+      if (/^radius[- ]server/.test(l) || /^aaa group server radius/.test(l)) { NP.addOther(dev, 'AAA', 'RADIUS'); return; }
+      if (/^tacacs[- ]server/.test(l) || /^aaa group server tacacs/.test(l)) { NP.addOther(dev, 'AAA', 'TACACS+'); return; }
+      if ((m = l.match(/^username (\S+)/))) { NP.addOther(dev, 'Local users', m[1]); return; }
+      if ((m = l.match(/^vtp mode (\S+)/))) { NP.addOther(dev, 'VTP', 'mode ' + m[1]); return; }
+      if ((m = l.match(/^vtp domain (\S+)/))) { NP.addOther(dev, 'VTP', 'domain ' + m[1]); return; }
+      if ((m = l.match(/^(no )?lldp run/))) { dev.other.LLDP = m[1] ? 'disabled' : 'enabled'; return; }
+      if ((m = l.match(/^(no )?cdp run/))) { dev.other.CDP = m[1] ? 'disabled' : 'enabled'; return; }
+      if ((m = l.match(/^ip ssh version (\d)/))) { dev.other.SSH = 'version ' + m[1]; return; }
+      if ((m = l.match(/^(no )?ip http (secure-)?server/))) {
+        dev.other[m[2] ? 'HTTPS server' : 'HTTP server'] = m[1] ? 'disabled' : 'enabled'; return;
+      }
+      if ((m = l.match(/^feature (\S+)/))) { NP.addOther(dev, 'Features', m[1]); return; }
+      if ((m = l.match(/^clock timezone (.+)/))) { dev.other['Time zone'] = m[1]; return; }
+      if (l === 'ip dhcp snooping') { NP.addOther(dev, 'DHCP snooping', 'enabled'); return; }
+      if ((m = l.match(/^ip dhcp snooping vlan (\S+)/))) { NP.addOther(dev, 'DHCP snooping', 'VLAN ' + m[1]); return; }
+      if ((m = l.match(/^ip dhcp pool (\S+)/))) { NP.addOther(dev, 'DHCP pools', m[1]); return; }
+      if ((m = l.match(/^errdisable recovery cause (\S+)/))) { NP.addOther(dev, 'Errdisable recovery', m[1]); return; }
+    }
+
+    function sub(l) {
+      let m;
+      if (ctx.type === 'vlan') {
+        if ((m = l.match(/^name (.+)/))) NP.addVlan(dev, ctx.ids[0], m[1]);
+        else if (/^ip igmp snooping( enable)?$/.test(l)) addUnique(mc.notes, 'snooping on VLAN ' + ctx.ids.join(','));
+        return;
+      }
+      if (ctx.type === 'mst') {
+        if ((m = l.match(/^name (\S+)/))) addUnique(stp.notes, 'MST region ' + m[1]);
+        else if ((m = l.match(/^revision (\d+)/))) addUnique(stp.notes, 'MST revision ' + m[1]);
+        else if ((m = l.match(/^instance (\d+) vlan (.+)/))) addUnique(stp.notes, 'MST ' + m[1] + ' = VLAN ' + m[2]);
+        return;
+      }
+      const p = ctx.p, c = ctx.c;
+      if ((m = l.match(/^description (.+)/))) { p.description = NP.unquote(m[1]); return; }
+      if (l === 'shutdown') { c.shutdown = true; return; }
+      if (l === 'no shutdown') { c.shutdown = false; return; }
+      if (l === 'no switchport' || l === 'routing') { c.sw = false; return; }
+      if (l === 'switchport' || l === 'no routing') { c.sw = true; return; }
+      if ((m = l.match(/^switchport mode (.+)/))) { c.mode = m[1]; return; }
+      if ((m = l.match(/^switchport access vlan (\d+)/))) { c.access = m[1]; return; }
+      if ((m = l.match(/^switchport trunk native vlan (\d+)/))) { c.native = m[1]; return; }
+      if ((m = l.match(/^switchport trunk allowed vlan (add )?(.+)/))) {
+        c.allowed = m[1] && c.allowed ? c.allowed + ',' + m[2] : m[2];
+        return;
+      }
+      if ((m = l.match(/^switchport voice vlan (\S+)/))) { c.voice = m[1]; return; }
+      // AOS-CX
+      if ((m = l.match(/^vlan access (\d+)/))) { c.mode = 'access'; c.access = m[1]; return; }
+      if ((m = l.match(/^vlan trunk native (\d+)/))) { c.mode = 'trunk'; c.native = m[1]; return; }
+      if ((m = l.match(/^vlan trunk allowed (.+)/))) { c.mode = 'trunk'; c.allowed = m[1]; return; }
+      if ((m = l.match(/^lag (\d+)/))) { c.lag = 'lag' + m[1]; return; }
+      if ((m = l.match(/^channel-group (\d+)/))) { c.lag = 'Po' + m[1]; return; }
+      if ((m = l.match(/^ip(?:v4)? (?:address|static) (\S+)(?: (\d+\.\d+\.\d+\.\d+))?(.*)/))) {
+        if (!/secondary/.test(m[3]) && !c.ip) c.ip = NP.cidr(m[1], m[2]);
+        return;
+      }
+      if ((m = l.match(/^spanning-tree (.+)/))) { NP.addFlag(p, 'stp', stpFlag(m[1])); return; }
+      if ((m = l.match(/^power inline (\S+)/))) { p.poeAdmin = m[1] === 'never' ? 'disabled' : m[1]; return; }
+      if (/^(no power-over-ethernet|poe disabled|no power inline)/.test(l)) { p.poeAdmin = 'disabled'; return; }
+      if ((m = l.match(/^speed (\S+)/))) { if (!p.speed && m[1] !== 'auto') p.speed = NP.fmtSpeed(m[1]); return; }
+      if ((m = l.match(/^duplex (\S+)/))) { if (!p.duplex) p.duplex = NP.fmtDuplex(m[1]); return; }
+      if ((m = l.match(/^ip pim (\S+)/))) { addUnique(mc.notes, 'PIM ' + m[1] + ' on ' + p.short); return; }
+      if (/^switchport port-security/.test(l)) { NP.addNote(p, 'port-security'); return; }
+      if (/^(authentication port-control|dot1x |mab\b|access-session )/.test(l)) { NP.addNote(p, '802.1X/MAB'); return; }
+      if (/^storm-control/.test(l)) { NP.addNote(p, 'storm-control'); return; }
+      if ((m = l.match(/^ip helper-address (\S+)/))) { NP.addNote(p, 'helper ' + m[1]); return; }
+      if (/^ip dhcp snooping trust/.test(l)) { NP.addNote(p, 'dhcp-snooping trust'); return; }
+      if ((m = l.match(/^(vpc|mlag) (\S+)/))) { NP.addNote(p, m[1] + ' ' + m[2]); return; }
+      if ((m = l.match(/^mtu (\d+)/))) { NP.addNote(p, 'mtu ' + m[1]); return; }
+      if ((m = l.match(/^ip access-group (\S+) (in|out)/))) { NP.addNote(p, 'acl ' + m[1] + ' ' + m[2]); return; }
+      if ((m = l.match(/^vrf (?:forwarding|member|attach) (\S+)/))) { NP.addNote(p, 'vrf ' + m[1]); return; }
+    }
+
+    text.split(/\r?\n/).forEach(function (raw) {
+      const line = raw.replace(/\s+$/, '');
+      const l = line.trim();
+      if (!l) return;
+      const indented = /^\s/.test(line);
+      if (l[0] === '!') { comment(l); if (!indented) finish(); return; }
+      if (!indented) { finish(); global(l); }
+      else if (ctx) sub(l);
+    });
+    finish();
+
+    // platform defaults, only where the config was silent
+    if (!stp.mode) {
+      if (fl === 'aoscx') {
+        if (stp.enabled === 'yes') stp.mode = 'mstp (default)';
+        else if (!stp.enabled) stp.enabled = 'no (default)';
+      } else {
+        stp.mode = { ios: 'pvst (default)', nxos: 'rapid-pvst (default)', eos: 'mstp (default)', os10: 'rpvst (default)' }[fl] || '';
+      }
+    }
+    if (!mc.igmpSnooping && (fl === 'ios' || fl === 'nxos' || fl === 'eos')) mc.igmpSnooping = 'enabled (default)';
+    void stpSeen;
+  }
+
+  function stpFlag(s) {
+    if (/^(portfast|port type edge|port-type admin-edge)/.test(s)) {
+      if (/disable/.test(s)) return 'portfast off';
+      return 'edge' + (/trunk/.test(s) ? ' (trunk)' : '');
+    }
+    if (/^(bpduguard|bpdu-guard)/.test(s)) return /disable/.test(s) ? 'bpduguard off' : 'bpduguard';
+    if (/^(bpdufilter|bpdu-filter)/.test(s)) return /disable/.test(s) ? 'bpdufilter off' : 'bpdufilter';
+    if (/^(guard root|root-guard)/.test(s)) return 'rootguard';
+    if (/^(guard loop|loop-guard)/.test(s)) return 'loopguard';
+    let m;
+    if ((m = s.match(/^(?:vlan \S+ |mst \S+ )?cost (\d+)/))) return 'cost ' + m[1];
+    if ((m = s.match(/^(?:vlan \S+ |mst \S+ )?port-priority (\d+)/))) return 'prio ' + m[1];
+    return s;
+  }
+
+  // ========================================================= show commands
+  const STATUS = /^(connected|notconnect|notconnec|disabled|err-disabled|errdisabled|inactive|monitoring|suspended|suspnd|sfpAbsent|xcvrAbsent|noOperMem|down|up|linkFlap|channelDo|faulty)$/i;
+
+  function applyStatus(p, st) {
+    st = st.toLowerCase();
+    if (st === 'connected' || st === 'up') { p.link = 'up'; if (p.adminUp === null) p.adminUp = true; }
+    else if (st === 'disabled') { p.link = 'down'; p.adminUp = false; }
+    else if (/^err/.test(st)) { p.link = 'err-disabled'; }
+    else { p.link = 'down'; if (p.adminUp === null) p.adminUp = true; if (!/^(notconnec|down)/.test(st)) NP.addNote(p, st); }
+  }
+
+  function parseShow(text, dev, fl) {
+    let m;
+
+    // ---- show interfaces status (IOS, NX-OS, EOS)
+    NP.eachTable(text, function (h) { return /^Port\s+Name\s+Status\s+Vlan/.test(h); }, function (ln, header) {
+      const iName = header.indexOf('Name'), iStatus = header.indexOf('Status');
+      const port = ln.trim().split(/\s+/)[0];
+      if (!/\d/.test(port)) return;
+      let name = ln.slice(iName, iStatus).trim();
+      let rest = ln.slice(iStatus).trim().split(/\s+/);
+      if (!STATUS.test(rest[0] || '')) {            // columns shifted: fall back to token search
+        const t = ln.trim().split(/\s+/);
+        const i = t.findIndex(function (x, k) { return k > 0 && STATUS.test(x); });
+        if (i < 0) return;
+        name = t.slice(1, i).join(' ');
+        rest = t.slice(i);
+      }
+      const p = NP.port(dev, port);
+      if (name && !p.description) p.description = name;
+      applyStatus(p, rest[0]);
+      let k = 1;
+      let vlan = rest[k++] || '';
+      if (vlan === 'in') vlan = 'in ' + (rest[k++] || '');
+      if (/^\d+$/.test(vlan)) { if (!p.mode) { p.mode = 'access'; p.untagged = vlan; } }
+      else if (vlan === 'trunk') { if (!p.mode) p.mode = 'trunk'; }
+      else if (vlan === 'routed') { if (!p.mode) p.mode = 'routed'; }
+      else if (/^in /.test(vlan) && !p.lag) p.lag = vlan.slice(3);
+      const up = p.link === 'up';
+      p.duplex = up ? NP.fmtDuplex(rest[k]) : p.duplex; k++;
+      p.speed = up ? NP.fmtSpeed(rest[k]) : p.speed; k++;
+      const media = rest.slice(k).join(' ');
+      if (media && media !== '--') p.media = media;
+    });
+
+    // ---- show ip interface brief
+    NP.eachTable(text, function (h) { return /^Interface\s+IP-Address\s+OK\?/.test(h); }, function (ln) {
+      const t = ln.trim().split(/\s+/);
+      if (t.length < 5 || !/\d/.test(t[0])) return;
+      const p = NP.port(dev, t[0]);
+      if (!p.ip && IP.test(t[1])) p.ip = t[1];
+      if (/administratively down/.test(ln)) { p.adminUp = false; p.link = 'down'; }
+      else { if (p.adminUp === null) p.adminUp = true; p.link = t[t.length - 1] === 'up' ? 'up' : 'down'; }
+    });
+
+    // ---- show interfaces (one status line per interface)
+    text.split(/\r?\n/).forEach(function (ln) {
+      const x = ln.match(/^([A-Za-z][A-Za-z\-]*\d[\d\/.:]*) is (administratively down|up|down)\b(?:.*line protocol is (up|down))?/);
+      if (!x) return;
+      const p = NP.port(dev, x[1]);
+      if (x[2] === 'administratively down') { p.adminUp = false; p.link = 'down'; }
+      else { if (p.adminUp === null) p.adminUp = true; p.link = (x[3] || x[2]) === 'up' ? 'up' : 'down'; }
+    });
+
+    // ---- show power inline
+    NP.eachTable(text, function (h) { return /^Interface\s+Admin\s+Oper\s+Power/.test(h); }, function (ln) {
+      const t = ln.trim().split(/\s+/);
+      if (t.length < 6 || !/^[A-Za-z]+\d/.test(t[0]) || !/^[\d.]+$/.test(t[3])) return;
+      const p = NP.port(dev, t[0]);
+      p.poeAdmin = t[1] === 'off' ? 'disabled' : t[1];
+      p.poeStatus = t[2];
+      p.poeWatts = t[2] === 'on' ? t[3] : '';
+      const cls = t[t.length - 2];
+      p.poeClass = /^\d/.test(cls) ? cls : '';
+    });
+
+    // ---- CDP / LLDP detail
+    let cur = '', local = '', nport = '';
+    text.split(/\r?\n/).forEach(function (ln) {
+      let x;
+      if ((x = ln.match(/^Device ID:\s*(\S+)/))) cur = x[1].replace(/\(.*\)$/, '');
+      else if ((x = ln.match(/^Interface: (\S+?),\s+Port ID \(outgoing port\): (.+)$/)) && cur) {
+        const p = NP.port(dev, x[1]); p.neighbor = cur; p.neighborPort = x[2].trim();
+      }
+      else if ((x = ln.match(/^Local (?:Intf|Port id): (\S+)/))) { local = x[1]; nport = ''; }
+      else if ((x = ln.match(/^Port id: (.+)$/))) nport = x[1].trim();
+      else if ((x = ln.match(/^System Name: (\S+)/)) && local) {
+        const p = NP.port(dev, local); p.neighbor = x[1]; p.neighborPort = nport; local = '';
+      }
+    });
+
+    // ---- show cdp neighbors (brief; long device names wrap onto their own line)
+    let pending = '';
+    NP.eachTable(text, function (h) { return /^Device ID\s+Local Intrfce/.test(h); }, function (ln, header) {
+      const iLocal = header.indexOf('Local'), iHold = header.search(/Hold/), iPort = header.indexOf('Port ID');
+      if (/^Total /.test(ln)) return false;
+      if (!/^\s/.test(ln) && ln.trim().split(/\s+/).length === 1) { pending = ln.trim(); return; }
+      const devId = /^\s/.test(ln) && pending ? pending : ln.slice(0, iLocal).trim();
+      pending = '';
+      const loc = ln.slice(iLocal, iHold).trim().replace(/\s+/g, '');
+      const rp = ln.slice(iPort).trim().replace(/\s+/g, '');
+      if (!devId || !/\d/.test(loc)) return;
+      const p = NP.port(dev, loc);
+      if (!p.neighbor) { p.neighbor = devId.replace(/\(.*\)$/, ''); p.neighborPort = rp; }
+    });
+
+    // ---- show lldp neighbors (IOS / NX-OS brief)
+    NP.eachTable(text, function (h) { return /^Device ID\s+Local Intf\s+Hold-?time/i.test(h); }, function (ln, header) {
+      const iLocal = header.indexOf('Local');
+      if (/^Total /.test(ln)) return false;
+      const devId = ln.slice(0, iLocal).trim();
+      const rest = ln.slice(iLocal).trim().split(/\s+/);
+      if (!devId || rest.length < 3 || !/\d/.test(rest[0])) return;
+      const p = NP.port(dev, rest[0]);
+      if (!p.neighbor) { p.neighbor = devId; p.neighborPort = rest[rest.length - 1]; }
+    });
+
+    // ---- show lldp neighbors (EOS)
+    NP.eachTable(text, function (h) { return /^Port\s+Neighbor Device ID\s+Neighbor Port ID/.test(h); }, function (ln) {
+      const t = ln.trim().split(/\s+/);
+      if (t.length < 3 || !/\d/.test(t[0])) return;
+      const p = NP.port(dev, t[0]); p.neighbor = t[1]; p.neighborPort = t[2];
+    });
+
+    // ---- show lldp neighbor-info (AOS-CX)
+    NP.eachTable(text, function (h) { return /^LOCAL-PORT\s+CHASSIS-ID\s+PORT-ID/.test(h); }, function (ln) {
+      const t = ln.trim().split(/\s+/);
+      if (t.length < 5 || !/^\d/.test(t[0])) return;
+      const p = NP.port(dev, t[0]); p.neighbor = t[t.length - 1]; p.neighborPort = t[2];
+    });
+
+    // ---- show interface brief (AOS-CX)
+    NP.eachTable(text, function (h) { return /^Port\s+Native\s+Mode\s+Type\s+Enabled\s+Status/.test(h); }, function (ln, header) {
+      const t = ln.trim().split(/\s+/);
+      if (t.length < 6 || !/^(\d+\/\d+\/\d+|lag\d+|vlan\d+)$/i.test(t[0])) return;
+      const iSpeed = header.indexOf('Speed'), iDesc = header.indexOf('Description');
+      const p = NP.port(dev, t[0]);
+      p.adminUp = t[4] === 'yes';
+      p.link = t[5] === 'up' ? 'up' : 'down';
+      if (!p.mode && /^(access|trunk|routed)$/.test(t[2])) { p.mode = t[2]; if (/^\d+$/.test(t[1])) p.untagged = t[1]; }
+      if (t[3] !== '--') p.media = t[3];
+      if (iSpeed > 0 && iDesc > iSpeed) {
+        if (p.link === 'up') p.speed = NP.fmtSpeed(ln.slice(iSpeed, iDesc).trim());
+        const d = ln.slice(iDesc).trim();
+        if (d && d !== '--' && !p.description) p.description = d;
+      }
+    });
+
+    // ---- show vlan [brief]
+    NP.eachTable(text, function (h) { return /^VLAN\s+Name\s+Status\s+Ports/.test(h); }, function (ln) {
+      const x = ln.match(/^(\d+)\s+(\S+)\s+(active|act\/\S+|sus\S*)/);
+      if (x) NP.addVlan(dev, x[1], x[2]);
+    });
+
+    // ---- show spanning-tree
+    const states = {};
+    NP.eachTable(text, function (h) { return /^Interface\s+Role\s+Sts\s+Cost/.test(h); }, function (ln) {
+      const t = ln.trim().split(/\s+/);
+      if (t.length < 4 || !/\d/.test(t[0])) return;
+      (states[t[0]] = states[t[0]] || []).push(t[1] + ' ' + t[2]);
+    });
+    Object.keys(states).forEach(function (name) {
+      NP.port(dev, name).stpState = Array.from(new Set(states[name])).join(' / ');
+    });
+    if (/This bridge is the root/.test(text)) addUnique(dev.stp.notes, 'this switch is root for at least one instance');
+
+    // ---- show version
+    if (/uptime is|Cisco IOS|NX-?OS|Arista|ArubaOS-CX/.test(text)) {
+      if ((m = text.match(/Cisco IOS.*?Version ([^,\s]+)/)) || (m = text.match(/^\s*(?:NXOS|system):\s+version (\S+)/m)) ||
+          (m = text.match(/^Software image version:\s*(\S+)/m)) || (m = text.match(/^Version\s+:\s*(\S+)/m))) dev.version = m[1];
+      if ((m = text.match(/^Model [Nn]umber\s*:\s*(\S+)/m)) || (m = text.match(/^\s*cisco (\S+(?: \S+)?) .*(?:processor|Chassis)/mi)) ||
+          (m = text.match(/^Arista (\S+)/m)) || (m = text.match(/^Platform\s+:\s*(\S+)/m))) dev.model = m[1];
+      if ((m = text.match(/^System [Ss]erial [Nn]umber\s*:\s*(\S+)/m)) || (m = text.match(/^\s*Processor [Bb]oard ID (\S+)/m)) ||
+          (m = text.match(/^Serial number:\s*(\S+)/m)) || (m = text.match(/^Chassis Serial Nbr\s*:\s*(\S+)/m))) dev.serial = m[1];
+      if (!dev.hostname && (m = text.match(/^(\S+) uptime is/m))) dev.hostname = m[1];
+    }
+    void fl;
+  }
+
+  NP.registerVendor('ios', 'Cisco IOS / IOS-XE', function (t, d) { parse(t, d, 'ios'); });
+  NP.registerVendor('nxos', 'Cisco NX-OS', function (t, d) { parse(t, d, 'nxos'); });
+  NP.registerVendor('eos', 'Arista EOS', function (t, d) { parse(t, d, 'eos'); });
+  NP.registerVendor('os10', 'Dell OS10', function (t, d) { parse(t, d, 'os10'); });
+  NP.registerVendor('aoscx', 'Aruba AOS-CX', function (t, d) { parse(t, d, 'aoscx'); });
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+<script>
+/* ArubaOS-Switch / HP ProCurve. VLAN membership lives under "vlan N" blocks
+ * (untagged/tagged port lists), so ports are assembled from those. */
+(function (root) {
+  'use strict';
+  const NP = root.NP;
+  const addUnique = NP.addUnique;
+
+  // "1-4,A1-A3,1/10-1/12,Trk1" -> individual port names
+  function expandPorts(s) {
+    const out = [];
+    String(s).split(',').forEach(function (part) {
+      part = part.trim();
+      if (!part) return;
+      const r = part.match(/^(.*?)(\d+)-(.*?)(\d+)$/);
+      if (r && r[1].toLowerCase() === r[3].toLowerCase() && +r[4] >= +r[2] && +r[4] - +r[2] < 512) {
+        for (let i = +r[2]; i <= +r[4]; i++) out.push(r[1] + i);
+      } else out.push(part);
+    });
+    return out;
+  }
+  const isPortList = function (s) { return /^(\d|[A-Za-z]\d|trk\d)/i.test(s) && !/[^\w,\-\/]/.test(s); };
+  const pname = function (s) { return /^trk/i.test(s) ? 'Trk' + s.slice(3) : s.toUpperCase(); };
+
+  function stpFlags(dev, ports, rest) {
+    const map = [[/admin-edge-port/, 'edge'], [/bpdu-protection/, 'bpduguard'], [/bpdu-filter/, 'bpdufilter'],
+      [/root-guard/, 'rootguard'], [/loop-guard/, 'loopguard'], [/tcn-guard/, 'tcn-guard']];
+    ports.forEach(function (n) {
+      const p = NP.port(dev, pname(n));
+      map.forEach(function (f) { if (f[0].test(rest) && !/no-/.test(rest)) NP.addFlag(p, 'stp', f[1]); });
+      let m;
+      if ((m = rest.match(/\bpriority (\d+)/))) NP.addFlag(p, 'stp', 'prio ' + m[1]);
+      if ((m = rest.match(/\bpath-cost (\d+)/))) NP.addFlag(p, 'stp', 'cost ' + m[1]);
+    });
+  }
+
+  function parseConfig(text, dev) {
+    const untag = {}, tag = {};          // port key -> vlan ids
+    const voice = [];
+    let ctx = null, stpOn = false, m;
+    const touch = function (n) { const p = NP.port(dev, pname(n)); if (p.adminUp === null) p.adminUp = true; return p; };
+
+    text.split(/\r?\n/).forEach(function (raw) {
+      const l = raw.trim();
+      if (!l) return;
+      if (l[0] === ';') {
+        if ((m = l.match(/^; (\S+) Configuration Editor; Created on release #?(\S+)/))) {
+          dev.model = dev.model || m[1]; dev.version = dev.version || m[2];
+        }
+        return;
+      }
+      if (l === 'exit') { ctx = null; return; }
+      const indented = /^\s/.test(raw);
+      if (!indented) ctx = null;
+
+      if (!indented && (m = l.match(/^interface (\S+)$/))) { ctx = { type: 'if', ports: expandPorts(m[1]).map(touch) }; return; }
+      if (!indented && (m = l.match(/^vlan (\d+)$/))) { NP.addVlan(dev, m[1]); ctx = { type: 'vlan', id: +m[1] }; return; }
+
+      if (ctx && ctx.type === 'if') {
+        ctx.ports.forEach(function (p) {
+          if ((m = l.match(/^name (.+)/))) p.description = NP.unquote(m[1]);
+          else if (l === 'disable') p.adminUp = false;
+          else if (l === 'enable') p.adminUp = true;
+          else if (/^no power-over-ethernet/.test(l)) p.poeAdmin = 'disabled';
+          else if ((m = l.match(/^power-over-ethernet (\S+)/))) p.poeAdmin = 'enabled (' + m[1] + ')';
+          else if ((m = l.match(/^poe-allocate-by (\S+)/))) NP.addNote(p, 'poe alloc ' + m[1]);
+          else if ((m = l.match(/^speed-duplex (\S+)/))) NP.addNote(p, 'speed-duplex ' + m[1]);
+          else if ((m = l.match(/^(untagged|tagged) vlan (.+)/))) {
+            const bucket = m[1] === 'untagged' ? untag : tag;
+            (bucket[p.key] = bucket[p.key] || []).push.apply(bucket[p.key], NP.parseVlanList(m[2]));
+          }
+          else if (/^spanning-tree /.test(l)) stpFlags(dev, [p.name], l);
+          else if (/^(aaa port-access|port-security)/.test(l)) NP.addNote(p, l.split(' ').slice(0, 2).join(' '));
+        });
+        return;
+      }
+      if (ctx && ctx.type === 'vlan') {
+        const id = ctx.id;
+        if ((m = l.match(/^name (.+)/))) NP.addVlan(dev, id, m[1]);
+        else if ((m = l.match(/^(untagged|tagged) (\S+)/))) {
+          const bucket = m[1] === 'untagged' ? untag : tag;
+          expandPorts(m[2]).forEach(function (n) {
+            const p = touch(n);
+            (bucket[p.key] = bucket[p.key] || []).push(id);
+          });
+        }
+        else if (l === 'voice') voice.push(id);
+        else if ((m = l.match(/^ip address (\S+)(?: (\S+))?/))) {
+          const svi = NP.port(dev, 'Vlan' + id);
+          svi.adminUp = true;
+          svi.ip = /^\d/.test(m[1]) ? NP.cidr(m[1], m[2]) : m[1];
+          const v = dev.vlans.find(function (x) { return x.id === id; });
+          if (v && v.name && !svi.description) svi.description = v.name;
+        }
+        else if (l === 'ip igmp') { dev.multicast.igmpSnooping = 'enabled'; addUnique(dev.multicast.notes, 'IGMP on VLAN ' + id); }
+        else if (/^ip igmp querier/.test(l)) addUnique(dev.multicast.notes, 'querier on VLAN ' + id);
+        else if ((m = l.match(/^ip helper-address (\S+)/))) NP.addNote(NP.port(dev, 'Vlan' + id), 'helper ' + m[1]);
+        return;
+      }
+
+      // ---- global
+      if ((m = l.match(/^hostname (.+)/))) dev.hostname = NP.unquote(m[1]);
+      else if ((m = l.match(/^trunk (\S+) (trk\d+)(?: (\S+))?/i))) {
+        const t = touch(m[2]);
+        t.kind = 'lag';
+        if (m[3]) NP.addNote(t, m[3]);
+        expandPorts(m[1]).forEach(function (n) { touch(n).lag = t.name; });
+      }
+      else if ((m = l.match(/^ip default-gateway (\S+)/))) dev.gateway = m[1];
+      else if ((m = l.match(/^ip route 0\.0\.0\.0 0\.0\.0\.0 (\S+)/))) dev.gateway = dev.gateway || m[1];
+      else if ((m = l.match(/^ip dns domain-name (.+)/))) dev.domain = NP.unquote(m[1]);
+      else if ((m = l.match(/^ip dns server-address (?:priority \d+ )?(\S+)/))) addUnique(dev.dns, m[1]);
+      else if ((m = l.match(/^(?:ntp|sntp) server (?:priority \d+ )?(\S+)/))) addUnique(dev.ntp, m[1]);
+      else if ((m = l.match(/^timesync (\S+)/))) dev.other['Time sync'] = m[1];
+      else if ((m = l.match(/^time timezone (\S+)/))) dev.other['Time zone'] = 'UTC offset ' + m[1] + ' min';
+      else if ((m = l.match(/^logging (\d+\.\d+\.\d+\.\d+)/))) addUnique(dev.syslog, m[1]);
+      else if ((m = l.match(/^snmp-server location (.+)/))) dev.snmp.location = NP.unquote(m[1]);
+      else if ((m = l.match(/^snmp-server contact (.+)/))) dev.snmp.contact = NP.unquote(m[1]);
+      else if (/^snmp-server community /.test(l)) addUnique(dev.snmp.versions, 'v2c');
+      else if (/^snmpv3 /.test(l)) addUnique(dev.snmp.versions, 'v3');
+      else if (l === 'ip routing') dev.other['IP routing'] = 'enabled';
+      else if (l === 'spanning-tree') stpOn = true;
+      else if ((m = l.match(/^spanning-tree mode (\S+)/))) dev.stp.mode = m[1];
+      else if ((m = l.match(/^spanning-tree priority (\d+)/))) addUnique(dev.stp.priority, String(+m[1] <= 15 ? +m[1] * 4096 : +m[1]));
+      else if ((m = l.match(/^spanning-tree config-name (.+)/))) addUnique(dev.stp.notes, 'MST region ' + NP.unquote(m[1]));
+      else if ((m = l.match(/^spanning-tree (\S+) (.+)/)) && isPortList(m[1])) stpFlags(dev, expandPorts(m[1]), m[2]);
+      else if (/^spanning-tree /.test(l)) addUnique(dev.stp.notes, l.replace(/^spanning-tree /, ''));
+      else if ((m = l.match(/^(radius|tacacs)-server host (\S+)/))) NP.addOther(dev, 'AAA', m[1].toUpperCase() + ' ' + m[2]);
+      else if (/^no (telnet-server|web-management)/.test(l)) NP.addOther(dev, 'Disabled services', l.slice(3));
+      else if (/^ip ssh/.test(l)) dev.other.SSH = 'enabled';
+      else if ((m = l.match(/^dhcp-snooping( vlan (.+))?$/))) NP.addOther(dev, 'DHCP snooping', m[2] ? 'VLAN ' + m[2] : 'enabled');
+      else if (/^loop-protect /.test(l)) NP.addOther(dev, 'Loop protect', l.replace(/^loop-protect /, ''));
+    });
+
+    dev.stp.enabled = stpOn ? 'yes' : (dev.stp.enabled || 'no (default)');
+    if (stpOn && !dev.stp.mode) dev.stp.mode = 'mstp (default)';
+    if (!dev.multicast.igmpSnooping) dev.multicast.igmpSnooping = 'disabled (default)';
+
+    dev.ports.forEach(function (p) {
+      if (p.kind === 'svi') return;
+      const u = untag[p.key] || [], t = tag[p.key] || [];
+      if (!u.length && !t.length) return;
+      p.untagged = u.length ? String(u[u.length - 1]) : '';
+      const v = t.filter(function (id) { return voice.includes(id); });
+      p.tagged = NP.compressVlans(t);
+      const data = t.filter(function (id) { return !voice.includes(id); });
+      if (v.length && !data.length) p.voiceVlan = String(v[0]);
+      p.mode = data.length ? 'trunk' : 'access';
+    });
+  }
+
+  function parseShow(text, dev) {
+    // show interfaces brief
+    text.split(/\r?\n/).forEach(function (ln) {
+      const i = ln.indexOf('|');
+      if (i < 0) return;
+      const left = ln.slice(0, i).trim().split(/\s+/), right = ln.slice(i + 1).trim().split(/\s+/);
+      if (right.length < 4 || !/^(Yes|No)$/.test(right[1]) || !/^(Up|Down)$/.test(right[2]) || !left[0]) return;
+      const p = NP.port(dev, pname(left[0].replace(/-Trk\d+$/i, '')));
+      if (left[1]) p.media = left[1];
+      p.adminUp = right[1] === 'Yes';
+      p.link = right[2].toLowerCase();
+      const md = (right[3] || '').match(/^(\d+G?)(FDx|HDx)/i);
+      if (md && p.link === 'up') { p.speed = NP.fmtSpeed(md[1]); p.duplex = /^F/i.test(md[2]) ? 'full' : 'half'; }
+    });
+
+    // show power-over-ethernet brief
+    text.split(/\r?\n/).forEach(function (ln) {
+      const x = ln.match(/^\s*(\S+)\s+\|\s+(Yes|No)\s+(\S+)\s+(\S+)\s+(\d+) W\s+([\d.]+) W\s+.*?(Delivering|Searching|Disabled|Other Fault|Fault|Denied)\s+(\d+)/);
+      if (!x) return;
+      const p = NP.port(dev, pname(x[1]));
+      p.poeAdmin = x[2] === 'Yes' ? 'enabled' : 'disabled';
+      p.poeStatus = x[7].toLowerCase();
+      p.poeWatts = x[7] === 'Delivering' ? x[6] : '';
+      p.poeClass = x[7] === 'Delivering' ? x[8] : '';
+    });
+
+    // show lldp info remote-device
+    NP.eachTable(text, function (h) { return /LocalPort\s+\|\s+ChassisId/.test(h); }, function (ln, header) {
+      const bar = ln.indexOf('|');
+      if (bar < 0) return;
+      const iPort = header.indexOf('PortId'), iDescr = header.indexOf('PortDescr'), iSys = header.indexOf('SysName');
+      const local = ln.slice(0, bar).trim();
+      if (!local) return;
+      const p = NP.port(dev, pname(local));
+      p.neighbor = ln.slice(iSys).trim();
+      p.neighborPort = ln.slice(iPort, iDescr).trim();
+    });
+  }
+
+  NP.registerVendor('arubaos', 'ArubaOS-Switch / HP ProCurve', function (text, dev) {
+    NP.sections(text).forEach(function (s) {
+      if (/^(hostname|vlan \d+|interface \S+)\s*/m.test(s.text) && /^\s+(untagged|tagged|name|exit)\b/m.test(s.text)) parseConfig(s.text, dev);
+      parseShow(s.text, dev);
+    });
+  });
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+<script>
+/* HPE Comware / H3C (display current-configuration, display interface brief). */
+(function (root) {
+  'use strict';
+  const NP = root.NP;
+  const addUnique = NP.addUnique;
+
+  // "1 10 20 to 30" -> "1,10,20-30"
+  function vl(s) {
+    s = s.trim();
+    if (/^all$/i.test(s)) return 'all';
+    return NP.normVlans(s.replace(/(\d+)\s+to\s+(\d+)/g, '$1-$2').replace(/\s+/g, ','));
+  }
+
+  function parseConfig(text, dev) {
+    let ctx = null, m;
+    function finish() {
+      if (!ctx || ctx.type !== 'if') { ctx = null; return; }
+      const p = ctx.p, c = ctx.c;
+      p.adminUp = !c.shutdown;
+      if (c.ip) p.ip = c.ip;
+      if (p.kind === 'physical' || p.kind === 'lag') {
+        if (c.route || c.ip) p.mode = 'routed';
+        else if (c.type === 'trunk') {
+          p.mode = 'trunk'; p.untagged = c.pvid || '1';
+          const perm = c.permit.filter(function (v) { return !c.undo.includes(v); });
+          p.tagged = c.permitAll ? 'all' : NP.compressVlans(perm.filter(function (v) { return String(v) !== p.untagged; }));
+        } else if (c.type === 'hybrid') {
+          p.mode = 'hybrid'; p.untagged = c.pvid || '1'; p.tagged = NP.compressVlans(c.hyTagged);
+        } else { p.mode = 'access'; p.untagged = c.access || '1'; p.tagged = ''; }
+      }
+      ctx = null;
+    }
+
+    text.split(/\r?\n/).forEach(function (raw) {
+      const l = raw.trim();
+      if (!l) return;
+      if (l === '#' || l === 'return') { finish(); return; }
+      if ((m = l.match(/^interface (\S+)$/))) {
+        finish();
+        ctx = { type: 'if', p: NP.port(dev, m[1]),
+          c: { type: '', access: '', pvid: '', permit: [], undo: [], permitAll: false, hyTagged: [], shutdown: false, ip: '', route: false } };
+        return;
+      }
+      if ((m = l.match(/^vlan (\d+)$/))) { finish(); NP.addVlan(dev, m[1]); ctx = { type: 'vlan', id: +m[1] }; return; }
+      if ((m = l.match(/^vlan (\d+(?: to \d+)?(?: \d+(?: to \d+)?)*)$/))) {
+        finish();
+        NP.parseVlanList(vl(m[1])).forEach(function (id) { NP.addVlan(dev, id); });
+        return;
+      }
+      if (ctx && !/^\s/.test(raw)) finish();
+
+      if (ctx && ctx.type === 'vlan') {
+        if ((m = l.match(/^(?:name|description) (.+)/))) NP.addVlan(dev, ctx.id, m[1]);
+        else if (/^igmp-snooping enable/.test(l)) addUnique(dev.multicast.notes, 'snooping on VLAN ' + ctx.id);
+        return;
+      }
+      if (ctx && ctx.type === 'if') {
+        const p = ctx.p, c = ctx.c;
+        if ((m = l.match(/^description (.+)/))) p.description = m[1];
+        else if (l === 'shutdown') c.shutdown = true;
+        else if (l === 'port link-mode route') c.route = true;
+        else if ((m = l.match(/^port link-type (\S+)/))) c.type = m[1];
+        else if ((m = l.match(/^port access vlan (\d+)/))) c.access = m[1];
+        else if ((m = l.match(/^port (?:trunk|hybrid) pvid vlan (\d+)/))) c.pvid = m[1];
+        else if ((m = l.match(/^port trunk permit vlan (.+)/))) {
+          if (/^all$/i.test(m[1].trim())) c.permitAll = true;
+          else c.permit = c.permit.concat(NP.parseVlanList(vl(m[1])));
+        }
+        else if ((m = l.match(/^undo port trunk permit vlan (.+)/))) c.undo = c.undo.concat(NP.parseVlanList(vl(m[1])));
+        else if ((m = l.match(/^port hybrid vlan (.+) (tagged|untagged)$/))) {
+          if (m[2] === 'tagged') c.hyTagged = c.hyTagged.concat(NP.parseVlanList(vl(m[1])));
+        }
+        else if ((m = l.match(/^voice[- ]vlan (\d+) enable/))) p.voiceVlan = m[1];
+        else if ((m = l.match(/^port link-aggregation group (\d+)/))) p.lag = 'BAGG' + m[1];
+        else if ((m = l.match(/^ip address (\S+) (\S+)/))) { if (!/ sub$/.test(l) && !c.ip) c.ip = NP.cidr(m[1], m[2]); }
+        else if (/^stp edged-port/.test(l)) NP.addFlag(p, 'stp', 'edge');
+        else if (/^stp root-protection/.test(l)) NP.addFlag(p, 'stp', 'rootguard');
+        else if (/^stp loop-protection/.test(l)) NP.addFlag(p, 'stp', 'loopguard');
+        else if (/^stp port bpdu-protection/.test(l) || /^bpdu-protection/.test(l)) NP.addFlag(p, 'stp', 'bpduguard');
+        else if (/^(undo stp enable|stp disable)/.test(l)) NP.addFlag(p, 'stp', 'stp off');
+        else if ((m = l.match(/^stp (?:instance \d+ )?cost (\d+)/))) NP.addFlag(p, 'stp', 'cost ' + m[1]);
+        else if (l === 'poe enable') p.poeAdmin = 'enabled';
+        else if (l === 'undo poe enable') p.poeAdmin = 'disabled';
+        else if ((m = l.match(/^speed (\S+)/))) { if (!p.speed && m[1] !== 'auto') p.speed = NP.fmtSpeed(m[1]); }
+        else if (/^port-security/.test(l)) NP.addNote(p, 'port-security');
+        else if (/^dot1x/.test(l) || /^mac-authentication/.test(l)) NP.addNote(p, '802.1X/MAC-auth');
+        else if (/^(broadcast|multicast|unicast)-suppression/.test(l)) NP.addNote(p, 'storm suppression');
+        else if (/^dhcp snooping trust/.test(l)) NP.addNote(p, 'dhcp-snooping trust');
+        else if (/^igmp enable/.test(l)) addUnique(dev.multicast.notes, 'IGMP on ' + p.short);
+        else if ((m = l.match(/^pim (sm|dm)/))) addUnique(dev.multicast.notes, 'PIM-' + m[1].toUpperCase() + ' on ' + p.short);
+        return;
+      }
+
+      // ---- global
+      if ((m = l.match(/^sysname (\S+)/))) dev.hostname = m[1];
+      else if ((m = l.match(/^version ([^,\s]+)(?:, (.+))?/))) dev.version = dev.version || m[1] + (m[2] ? ' ' + m[2] : '');
+      else if ((m = l.match(/^dns server (\S+)/))) addUnique(dev.dns, m[1]);
+      else if ((m = l.match(/^dns domain (\S+)/))) dev.domain = m[1];
+      else if ((m = l.match(/^(?:ntp-service|ntp) unicast-(server|peer) (\S+)/))) addUnique(dev.ntp, m[2] + (m[1] === 'peer' ? ' (peer)' : ''));
+      else if ((m = l.match(/^info-center loghost (?:vpn-instance \S+ )?(\S+)/))) addUnique(dev.syslog, m[1]);
+      else if ((m = l.match(/^snmp-agent sys-info location (.+)/))) dev.snmp.location = m[1];
+      else if ((m = l.match(/^snmp-agent sys-info contact (.+)/))) dev.snmp.contact = m[1];
+      else if ((m = l.match(/^snmp-agent sys-info version (.+)/))) m[1].split(/\s+/).forEach(function (v) { addUnique(dev.snmp.versions, v); });
+      else if ((m = l.match(/^ip route-static 0\.0\.0\.0 (?:0|0\.0\.0\.0) (?:\S*[A-Za-z]\S* )?(\d+\.\d+\.\d+\.\d+)/))) dev.gateway = dev.gateway || m[1];
+      else if ((m = l.match(/^stp mode (\S+)/))) dev.stp.mode = m[1];
+      else if (/^stp (global )?enable/.test(l)) dev.stp.enabled = 'yes';
+      else if (/^(undo stp (global )?enable|stp (global )?disable)/.test(l)) dev.stp.enabled = 'no';
+      else if ((m = l.match(/^stp (?:instance (\S+) )?priority (\d+)/))) addUnique(dev.stp.priority, (m[1] ? 'MST ' + m[1] + ': ' : '') + m[2]);
+      else if ((m = l.match(/^stp (?:instance (\S+) )?root (primary|secondary)/))) addUnique(dev.stp.priority, (m[1] ? 'MST ' + m[1] + ': ' : '') + 'root ' + m[2]);
+      else if (/^stp bpdu-protection/.test(l)) addUnique(dev.stp.notes, 'bpdu-protection (global, edge ports)');
+      else if (/^stp /.test(l)) addUnique(dev.stp.notes, l.slice(4));
+      else if (l === 'igmp-snooping') dev.multicast.igmpSnooping = 'enabled';
+      else if (/^multicast routing/.test(l)) dev.multicast.routing = 'enabled';
+      else if (/^lldp (global )?enable/.test(l)) dev.other.LLDP = 'enabled';
+      else if ((m = l.match(/^local-user (\S+)/))) NP.addOther(dev, 'Local users', m[1]);
+      else if ((m = l.match(/^(radius|hwtacacs) scheme (\S+)/))) NP.addOther(dev, 'AAA', m[1] + ' ' + m[2]);
+      else if (/^ssh server enable/.test(l)) dev.other.SSH = 'enabled';
+      else if (/^telnet server enable/.test(l)) dev.other.Telnet = 'enabled';
+      else if (/^dhcp snooping enable/.test(l) || l === 'dhcp-snooping') dev.other['DHCP snooping'] = 'enabled';
+      else if ((m = l.match(/^irf member (\d+) priority (\d+)/))) NP.addOther(dev, 'IRF members', m[1] + ' (prio ' + m[2] + ')');
+    });
+    finish();
+    if (!dev.stp.mode) dev.stp.mode = 'mstp (default)';
+    if (!dev.multicast.igmpSnooping) dev.multicast.igmpSnooping = 'disabled (default)';
+  }
+
+  function parseShow(text, dev) {
+    // display interface brief (bridge-mode table)
+    NP.eachTable(text, function (h) { return /^Interface\s+Link\s+Speed\s+Duplex\s+Type\s+PVID/.test(h); }, function (ln) {
+      const t = ln.trim().split(/\s+/);
+      if (t.length < 6 || !/\d/.test(t[0])) return;
+      const p = NP.port(dev, t[0]);
+      linkOf(p, t[1]);
+      if (p.link === 'up') { p.speed = NP.fmtSpeed(t[2]); p.duplex = NP.fmtDuplex(t[3]); }
+      if (!p.mode) {
+        p.mode = { A: 'access', T: 'trunk', H: 'hybrid' }[t[4]] || '';
+        if (/^\d+$/.test(t[5])) p.untagged = t[5];
+      }
+      const d = t.slice(6).join(' ');
+      if (d && !p.description) p.description = d;
+    });
+    // display interface brief (route-mode table)
+    NP.eachTable(text, function (h) { return /^Interface\s+Link\s+Protocol\s+(Main|Primary) IP/.test(h); }, function (ln) {
+      const t = ln.trim().split(/\s+/);
+      if (t.length < 3 || !/\d/.test(t[0])) return;
+      const p = NP.port(dev, t[0]);
+      linkOf(p, t[1]);
+      if (!p.ip && /^\d+\.\d+\.\d+\.\d+$/.test(t[3] || '')) p.ip = t[3];
+    });
+    let m;
+    if ((m = text.match(/^(?:HPE?|H3C) (\S+(?: \S+)?) (?:Switch )?(?:with|uptime)/m))) dev.model = dev.model || m[1];
+  }
+  function linkOf(p, s) {
+    if (/^ADM/i.test(s)) { p.adminUp = false; p.link = 'down'; }
+    else { if (p.adminUp === null) p.adminUp = true; p.link = /^UP/i.test(s) ? 'up' : 'down'; }
+  }
+
+  NP.registerVendor('comware', 'HPE Comware / H3C', function (text, dev) {
+    NP.sections(text).forEach(function (s) {
+      if (/^\s*(sysname \S|interface \S+\d|vlan \d)/m.test(s.text)) parseConfig(s.text, dev);
+      parseShow(s.text, dev);
+    });
+  });
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+<script>
+/* Juniper Junos: "display set" output or the default curly-brace config
+ * (converted to set lines first), plus a few show commands. */
+(function (root) {
+  'use strict';
+  const NP = root.NP;
+  const addUnique = NP.addUnique;
+
+  // curly-brace config -> "set ..." lines
+  function toSet(text) {
+    const out = [], stack = [];
+    text.split(/\r?\n/).forEach(function (raw) {
+      let l = raw.replace(/\s+#.*$/, '').trim();
+      if (!l || l[0] === '#' || /^\/\*/.test(l)) return;
+      if (/^inactive: /.test(l)) return;
+      l = l.replace(/^(protect|replace|active): /, '');
+      if (/\{$/.test(l)) { stack.push(l.slice(0, -1).trim()); return; }
+      if (l === '}') { stack.pop(); return; }
+      if (/;$/.test(l)) {
+        const stmt = l.slice(0, -1).trim();
+        const prefix = 'set ' + stack.concat(['']).join(' ');
+        const br = stmt.match(/^(.*?)\[\s*(.*?)\s*\]$/);
+        if (br) br[2].split(/\s+/).forEach(function (v) { out.push(prefix + br[1] + v); });
+        else out.push(prefix + stmt);
+      }
+    });
+    return out;
+  }
+
+  function expandRange(a, b) {
+    const x = a.match(/^(.*?)(\d+)$/), y = b.match(/^(.*?)(\d+)$/);
+    if (!x || !y || x[1] !== y[1] || +y[2] < +x[2]) return [a, b];
+    const out = [];
+    for (let i = +x[2]; i <= +y[2] && out.length < 512; i++) out.push(x[1] + i);
+    return out;
+  }
+
+  function parseConfig(lines, dev) {
+    const vlanIds = {};                 // name -> id
+    const ranges = {};                  // interface-range name -> members
+    const cfg = {};                     // ifname -> working state
+    const c = function (n) {
+      return cfg[n] = cfg[n] || { members: [], mode: '', native: '', l2: false, ip: '', disable: false, lag: '' };
+    };
+    let m;
+
+    // pass 1: vlan names and interface-range membership
+    lines.forEach(function (l) {
+      l = l.replace(/^set groups \S+ /, 'set ');
+      if ((m = l.match(/^set vlans (\S+) vlan-id (\d+)/))) { vlanIds[m[1]] = +m[2]; NP.addVlan(dev, m[2], m[1]); }
+      else if ((m = l.match(/^set interfaces interface-range (\S+) member-range (\S+) to (\S+)/))) {
+        ranges[m[1]] = (ranges[m[1]] || []).concat(expandRange(m[2], m[3]));
+      } else if ((m = l.match(/^set interfaces interface-range (\S+) member (\S+)/))) {
+        (ranges[m[1]] = ranges[m[1]] || []).push(m[2]);
+      }
+    });
+    if (vlanIds.default === undefined) vlanIds.default = 1;
+
+    // expand interface-range statements onto their members
+    const expanded = [];
+    lines.forEach(function (l) {
+      l = l.replace(/^set groups \S+ /, 'set ');
+      if ((m = l.match(/^set interfaces interface-range (\S+) (.+)$/))) {
+        if (/^member(-range)? /.test(m[2])) return;
+        (ranges[m[1]] || []).forEach(function (n) { expanded.push('set interfaces ' + n + ' ' + m[2]); });
+      } else expanded.push(l);
+    });
+
+    expanded.forEach(function (l) {
+      if ((m = l.match(/^set interfaces (\S+) (.+)$/))) {
+        let name = m[1], rest = m[2];
+        const u = rest.match(/^unit (\d+) (.+)$/);
+        const unitOnly = rest.match(/^unit (\d+)$/);
+        if (unitOnly) return;
+        if (u) {
+          rest = u[2];
+          if (u[1] !== '0' || /^(irb|vlan|lo\d)/.test(name)) name = name + '.' + u[1];
+        }
+        const p = NP.port(dev, name), s = c(name);
+        let x;
+        if ((x = rest.match(/^description (.+)/))) p.description = NP.unquote(x[1]);
+        else if (rest === 'disable') s.disable = true;
+        else if ((x = rest.match(/^family ethernet-switching (?:interface-mode|port-mode) (\S+)/))) { s.l2 = true; s.mode = x[1]; }
+        else if ((x = rest.match(/^family ethernet-switching vlan members (\S+)/))) { s.l2 = true; s.members.push(x[1]); }
+        else if ((x = rest.match(/^family ethernet-switching native-vlan-id (\S+)/))) s.native = x[1];
+        else if (/^family ethernet-switching/.test(rest)) s.l2 = true;
+        else if ((x = rest.match(/^native-vlan-id (\d+)/))) s.native = x[1];
+        else if ((x = rest.match(/^family inet address (\S+)/))) { if (!s.ip) s.ip = x[1]; }
+        else if (/^family inet dhcp/.test(rest)) { if (!s.ip) s.ip = 'dhcp'; }
+        else if ((x = rest.match(/^(?:giga)?ether-options 802\.3ad (ae\d+)/))) s.lag = x[1];
+        else if ((x = rest.match(/^vlan-id (\d+)/))) { p.tagged = x[1]; p.mode = 'subinterface'; }
+        else if ((x = rest.match(/^mtu (\d+)/))) NP.addNote(p, 'mtu ' + x[1]);
+        else if ((x = rest.match(/^(?:giga)?ether-options (no-auto-negotiation|speed \S+)/))) NP.addNote(p, x[1]);
+        return;
+      }
+      if ((m = l.match(/^set system host-name (\S+)/))) dev.hostname = m[1];
+      else if ((m = l.match(/^set version (\S+)/))) dev.version = dev.version || m[1];
+      else if ((m = l.match(/^set system domain-name (\S+)/))) dev.domain = m[1];
+      else if ((m = l.match(/^set system name-server (\S+)/))) addUnique(dev.dns, m[1]);
+      else if ((m = l.match(/^set system ntp server (\S+)( .*prefer)?/))) addUnique(dev.ntp, m[1] + (m[2] ? ' (prefer)' : ''));
+      else if ((m = l.match(/^set system syslog host (\S+)/))) addUnique(dev.syslog, m[1]);
+      else if ((m = l.match(/^set system time-zone (\S+)/))) dev.other['Time zone'] = m[1];
+      else if ((m = l.match(/^set system login user (\S+)/))) NP.addOther(dev, 'Local users', m[1]);
+      else if ((m = l.match(/^set system services (\S+)/))) NP.addOther(dev, 'Services', m[1]);
+      else if ((m = l.match(/^set system (radius|tacplus)-server (\S+)/))) NP.addOther(dev, 'AAA', m[1] + ' ' + m[2]);
+      else if ((m = l.match(/^set snmp location (.+)/))) dev.snmp.location = NP.unquote(m[1]);
+      else if ((m = l.match(/^set snmp contact (.+)/))) dev.snmp.contact = NP.unquote(m[1]);
+      else if (/^set snmp community /.test(l)) addUnique(dev.snmp.versions, 'v2c');
+      else if (/^set snmp v3 /.test(l)) addUnique(dev.snmp.versions, 'v3');
+      else if ((m = l.match(/^set routing-options static route 0\.0\.0\.0\/0 next-hop (\S+)/))) dev.gateway = dev.gateway || m[1];
+      else if ((m = l.match(/^set vlans (\S+) l3-interface (\S+)/))) {
+        const p = NP.port(dev, m[2]); if (!p.description) p.description = m[1];
+      }
+      else if ((m = l.match(/^set (?:switch-options|ethernet-switching-options) voip interface (\S+) vlan (\S+)/))) {
+        const tgt = m[1].replace(/\.0$/, '');
+        const v = String(vlanIds[m[2]] !== undefined ? vlanIds[m[2]] : m[2]);
+        if (tgt === 'access-ports') dev.other['Voice VLAN'] = v + ' on all access ports';
+        else NP.port(dev, tgt).voiceVlan = v;
+      }
+      else if ((m = l.match(/^set protocols (rstp|mstp|vstp|stp)\b(.*)$/))) {
+        dev.stp.enabled = 'yes';
+        if (!dev.stp.mode || m[1] !== 'stp') dev.stp.mode = m[1];
+        const r = m[2].trim();
+        let x;
+        if ((x = r.match(/^(?:vlan (\S+) )?bridge-priority (\S+)/))) addUnique(dev.stp.priority, (x[1] ? 'VLAN ' + x[1] + ': ' : '') + x[2]);
+        else if ((x = r.match(/^(?:vlan \S+ )?interface (\S+)(?: (.+))?$/))) {
+          const flag = !x[2] ? '' : x[2] === 'edge' ? 'edge' : x[2] === 'no-root-port' ? 'rootguard' :
+            /^cost /.test(x[2]) ? x[2] : /^mode /.test(x[2]) ? x[2].slice(5) : x[2];
+          if (x[1] === 'all') { if (flag) addUnique(dev.stp.notes, 'all interfaces: ' + flag); }
+          else if (flag) NP.addFlag(NP.port(dev, x[1].replace(/\.0$/, '')), 'stp', flag);
+        }
+        else if (r === 'bpdu-block-on-edge') addUnique(dev.stp.notes, 'bpdu-block-on-edge (BPDU guard on edge ports)');
+        else if ((x = r.match(/^configuration-name (\S+)/))) addUnique(dev.stp.notes, 'MST region ' + x[1]);
+        else if (r && !/^interface/.test(r)) addUnique(dev.stp.notes, r);
+      }
+      else if ((m = l.match(/^set protocols igmp-snooping vlan (\S+)/))) {
+        dev.multicast.igmpSnooping = 'enabled';
+        addUnique(dev.multicast.notes, 'snooping on VLAN ' + m[1]);
+      }
+      else if (/^set protocols pim /.test(l)) dev.multicast.routing = 'PIM configured';
+      else if (/^set protocols lldp /.test(l)) dev.other.LLDP = 'enabled';
+      else if ((m = l.match(/^set protocols (ospf3?|bgp|isis|rip)\b/))) NP.addOther(dev, 'Routing protocols', m[1]);
+      else if ((m = l.match(/^set poe interface (\S+)( disable)?/))) {
+        if (m[1] === 'all') dev.other.PoE = m[2] ? 'disabled on all ports' : 'enabled on all ports';
+        else NP.port(dev, m[1]).poeAdmin = m[2] ? 'disabled' : 'enabled';
+      }
+      else if ((m = l.match(/^set virtual-chassis member (\d+)(?: role (\S+))?/))) NP.addOther(dev, 'Virtual chassis', 'member ' + m[1] + (m[2] ? ' ' + m[2] : ''));
+    });
+
+    const resolve = function (list) {
+      const ids = [], names = [];
+      list.forEach(function (v) {
+        if (v === 'all') names.push('all');
+        else if (/^[\d\-]+$/.test(v)) ids.push.apply(ids, NP.parseVlanList(v));
+        else if (vlanIds[v] !== undefined) ids.push(vlanIds[v]);
+        else names.push(v);
+      });
+      if (names.includes('all')) return 'all';
+      return [NP.compressVlans(ids)].concat(names).filter(Boolean).join(',');
+    };
+    Object.keys(cfg).forEach(function (name) {
+      const s = cfg[name], p = NP.port(dev, name);
+      p.adminUp = !s.disable;
+      if (s.ip) p.ip = s.ip;
+      if (s.lag) p.lag = s.lag;
+      if (/^ae\d/.test(name)) p.kind = 'lag';
+      if (p.kind !== 'physical' && p.kind !== 'lag') return;
+      if (s.l2) {
+        if (s.mode === 'trunk') {
+          p.mode = 'trunk';
+          p.untagged = s.native ? String(vlanIds[s.native] !== undefined ? vlanIds[s.native] : s.native) : '';
+          p.tagged = resolve(s.members);
+        } else {
+          p.mode = 'access';
+          p.untagged = resolve(s.members.length ? s.members : ['default']);
+          p.tagged = '';
+        }
+      } else if (s.ip && p.mode !== 'subinterface') p.mode = 'routed';
+    });
+    if (!dev.stp.enabled) dev.stp.enabled = '';
+    if (!dev.multicast.igmpSnooping) dev.multicast.igmpSnooping = '';
+  }
+
+  function parseShow(text, dev) {
+    // show interfaces terse
+    NP.eachTable(text, function (h) { return /^Interface\s+Admin\s+Link\s+Proto/.test(h); }, function (ln) {
+      const t = ln.trim().split(/\s+/);
+      if (t.length < 3 || !/^(up|down)$/.test(t[1])) return;
+      let name = t[0];
+      if (!/^(ge|xe|et|mge|fe|ae|me|fxp|em|irb|vlan|vme)[\-\d.]/.test(name)) return;
+      if (/\.\d+$/.test(name)) {
+        if (!/^(irb|vlan)\./.test(name) && !NP.findPort(dev, name)) return;
+      }
+      const p = NP.port(dev, name);
+      if (/^ae\d/.test(name)) p.kind = 'lag';
+      p.adminUp = t[1] === 'up';
+      p.link = t[2] === 'up' ? 'up' : 'down';
+    });
+    // show lldp neighbors
+    NP.eachTable(text, function (h) { return /^Local Interface\s+Parent Interface\s+Chassis Id/.test(h); }, function (ln, header) {
+      const iPort = header.indexOf('Port info'), iSys = header.indexOf('System Name');
+      const local = ln.trim().split(/\s+/)[0];
+      if (!/\d/.test(local)) return;
+      const p = NP.port(dev, local.replace(/\.0$/, ''));
+      p.neighbor = ln.slice(iSys).trim();
+      p.neighborPort = ln.slice(iPort, iSys).trim();
+    });
+    // show poe interface
+    text.split(/\r?\n/).forEach(function (ln) {
+      const x = ln.match(/^\s*([a-z]+-\d+\/\d+\/\d+)\s+(Enabled|Disabled)\s+(\S+)\s+(\S+)\s+(\S+)\s+([\d.]+)W\s+(\S+)/);
+      if (!x) return;
+      const p = NP.port(dev, x[1]);
+      p.poeAdmin = x[2].toLowerCase();
+      p.poeStatus = x[3].toLowerCase();
+      p.poeWatts = /^on$/i.test(x[3]) ? x[6] : '';
+      p.poeClass = /^\d/.test(x[7]) ? x[7] : '';
+    });
+    let m;
+    if ((m = text.match(/^Model: (\S+)/m))) dev.model = m[1];
+    if ((m = text.match(/^Junos: (\S+)/m)) || (m = text.match(/^JUNOS .*\[(\S+)\]/m))) dev.version = m[1];
+    if (!dev.hostname && (m = text.match(/^Hostname: (\S+)/m))) dev.hostname = m[1];
+  }
+
+  NP.registerVendor('junos', 'Juniper Junos', function (text, dev) {
+    NP.sections(text).forEach(function (s) {
+      let lines = s.text.split(/\r?\n/).map(function (l) { return l.trim(); }).filter(function (l) { return /^set /.test(l); });
+      if (!lines.length && /\{\s*$/m.test(s.text) && /;\s*$/m.test(s.text)) lines = toSet(s.text);
+      if (lines.length) parseConfig(lines, dev);
+      parseShow(s.text, dev);
+    });
+  });
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+<script>
+/* Fortinet FortiGate ("show" / "show full-configuration" / backup .conf file). */
+(function (root) {
+  'use strict';
+  const NP = root.NP;
+  const addUnique = NP.addUnique;
+
+  function tokens(s) {
+    const out = [];
+    const re = /"((?:[^"\\]|\\.)*)"|(\S+)/g;
+    let m;
+    while ((m = re.exec(s))) out.push(m[1] !== undefined ? m[1] : m[2]);
+    return out;
+  }
+
+  // -> tree of {name, set:{k:[v..]}, entries:[{name,set,blocks}], blocks:[...]}
+  function tree(text) {
+    const top = { name: '', set: {}, entries: [], blocks: [] };
+    const stack = [top];
+    text.split(/\r?\n/).forEach(function (raw) {
+      const l = raw.trim();
+      const cur = stack[stack.length - 1];
+      let m;
+      if ((m = l.match(/^config (.+)$/))) {
+        const b = { name: m[1], set: {}, entries: [], blocks: [] };
+        cur.blocks.push(b); stack.push(b);
+      } else if ((m = l.match(/^edit (.+)$/))) {
+        const e = { name: tokens(m[1])[0] || '', set: {}, entries: [], blocks: [], isEntry: true };
+        cur.entries.push(e); stack.push(e);
+      } else if (l === 'next') { if (stack.length > 1 && cur.isEntry) stack.pop(); }
+      else if (l === 'end') {
+        if (stack.length > 1 && cur.isEntry) stack.pop();
+        if (stack.length > 1) stack.pop();
+      } else if ((m = l.match(/^set (\S+)\s*(.*)$/))) cur.set[m[1]] = tokens(m[2]);
+    });
+    return top;
+  }
+  function find(node, name, out) {
+    out = out || [];
+    node.blocks.forEach(function (b) { if (b.name === name) out.push(b); find(b, name, out); });
+    node.entries.forEach(function (e) { find(e, name, out); });
+    return out;
+  }
+  const one = function (b, k) { return b && b.set[k] ? b.set[k][0] : ''; };
+
+  NP.registerVendor('fortigate', 'Fortinet FortiGate', function (text, dev) {
+    let m;
+    if ((m = text.match(/^#config-version=([^-]+)-([\d.]+)-/m))) { dev.model = dev.model || m[1]; dev.version = dev.version || m[2]; }
+    if ((m = text.match(/^Version:\s*(\S+) v([\d.]+)/m))) { dev.model = m[1]; dev.version = m[2]; }
+    if ((m = text.match(/^Serial-Number:\s*(\S+)/m))) dev.serial = m[1];
+    if ((m = text.match(/^Hostname:\s*(\S+)/m))) dev.hostname = m[1];
+    if (!/^\s*config /m.test(text)) return;
+    const t = tree(text);
+
+    find(t, 'system global').forEach(function (b) {
+      if (one(b, 'hostname')) dev.hostname = one(b, 'hostname');
+      if (one(b, 'timezone')) dev.other['Time zone'] = one(b, 'timezone');
+      if (one(b, 'admin-sport')) dev.other['Admin HTTPS port'] = one(b, 'admin-sport');
+    });
+    find(t, 'system dns').forEach(function (b) {
+      ['primary', 'secondary'].forEach(function (k) { if (one(b, k) && one(b, k) !== '0.0.0.0') addUnique(dev.dns, one(b, k)); });
+      if (one(b, 'domain')) dev.domain = one(b, 'domain');
+    });
+    find(t, 'system ntp').forEach(function (b) {
+      if (one(b, 'ntpsync')) dev.other['NTP sync'] = one(b, 'ntpsync');
+      if (one(b, 'type') === 'fortiguard') addUnique(dev.ntp, 'FortiGuard');
+      find(b, 'ntpserver').forEach(function (n) {
+        n.entries.forEach(function (e) { addUnique(dev.ntp, one(e, 'server')); });
+      });
+    });
+    ['log syslogd setting', 'log syslogd2 setting', 'log syslogd3 setting'].forEach(function (n) {
+      find(t, n).forEach(function (b) { if (one(b, 'status') === 'enable') addUnique(dev.syslog, one(b, 'server')); });
+    });
+    find(t, 'system snmp sysinfo').forEach(function (b) {
+      dev.snmp.location = one(b, 'location') || dev.snmp.location;
+      dev.snmp.contact = one(b, 'contact-info') || dev.snmp.contact;
+    });
+    if (find(t, 'system snmp community').some(function (b) { return b.entries.length; })) addUnique(dev.snmp.versions, 'v2c');
+    if (find(t, 'system snmp user').some(function (b) { return b.entries.length; })) addUnique(dev.snmp.versions, 'v3');
+    find(t, 'router static').forEach(function (b) {
+      b.entries.forEach(function (e) {
+        const dst = e.set.dst ? e.set.dst.join(' ') : '0.0.0.0 0.0.0.0';
+        if (/^0\.0\.0\.0[ \/]0(\.0\.0\.0)?$/.test(dst) && one(e, 'gateway') && !dev.gateway) {
+          dev.gateway = one(e, 'gateway') + (one(e, 'device') ? ' (' + one(e, 'device') + ')' : '');
+        }
+      });
+    });
+    find(t, 'router multicast').forEach(function (b) {
+      if (one(b, 'multicast-routing') === 'enable') dev.multicast.routing = 'enabled';
+    });
+    find(t, 'system settings').forEach(function (b) {
+      if (one(b, 'multicast-forward')) addUnique(dev.multicast.notes, 'multicast-forward ' + one(b, 'multicast-forward'));
+      if (one(b, 'opmode')) dev.other['Operation mode'] = one(b, 'opmode');
+    });
+    find(t, 'system admin').forEach(function (b) {
+      b.entries.forEach(function (e) { NP.addOther(dev, 'Admin users', e.name); });
+    });
+    find(t, 'system ha').forEach(function (b) {
+      if (one(b, 'mode') && one(b, 'mode') !== 'standalone') dev.other.HA = one(b, 'mode') + (one(b, 'group-name') ? ' (' + one(b, 'group-name') + ')' : '');
+    });
+    find(t, 'system dhcp server').forEach(function (b) {
+      b.entries.forEach(function (e) { if (one(e, 'interface')) NP.addOther(dev, 'DHCP server on', one(e, 'interface')); });
+    });
+
+    const zones = {};
+    find(t, 'system zone').forEach(function (b) {
+      b.entries.forEach(function (e) { (e.set.interface || []).forEach(function (i) { zones[i] = e.name; }); });
+    });
+
+    find(t, 'system interface').forEach(function (b) {
+      b.entries.forEach(function (e) {
+        const p = NP.port(dev, e.name);
+        const type = one(e, 'type');
+        p.kind = { aggregate: 'lag', 'redundant': 'lag', loopback: 'loopback', tunnel: 'tunnel', vlan: 'svi' }[type] || p.kind;
+        if (!type && one(e, 'vlanid')) p.kind = 'svi';
+        p.description = [one(e, 'alias'), one(e, 'description')].filter(Boolean).join(' - ') || p.description;
+        p.adminUp = one(e, 'status') !== 'down';
+        if (e.set.ip && e.set.ip[0] && e.set.ip[0] !== '0.0.0.0') p.ip = NP.cidr(e.set.ip[0], e.set.ip[1]);
+        else if (one(e, 'mode') && one(e, 'mode') !== 'static') p.ip = one(e, 'mode');
+        if (one(e, 'vlanid')) { p.mode = 'vlan'; p.tagged = one(e, 'vlanid'); if (one(e, 'interface')) NP.addNote(p, 'on ' + one(e, 'interface')); }
+        else if (p.ip && p.kind !== 'loopback' && p.kind !== 'tunnel') p.mode = 'routed';
+        (e.set.member || []).forEach(function (mbr) {
+          const mp = NP.port(dev, mbr);
+          if (type === 'aggregate' || type === 'redundant') mp.lag = e.name; else NP.addNote(mp, 'member of ' + e.name);
+        });
+        if (type && !/^(physical|vlan)$/.test(type)) NP.addNote(p, 'type ' + type);
+        if (one(e, 'role')) NP.addNote(p, 'role ' + one(e, 'role'));
+        if (zones[e.name]) NP.addNote(p, 'zone ' + zones[e.name]);
+        if (e.set.allowaccess && e.set.allowaccess.length) {
+          NP.addNote(p, 'access ' + e.set.allowaccess.join('/'));
+          if (!dev.mgmtIp && /\d+\.\d+/.test(p.ip) && p.adminUp && /https|ssh/.test(e.set.allowaccess.join(' '))) {
+            dev.mgmtIp = p.ip + ' (' + p.name + ')';
+          }
+        }
+        if (one(e, 'vdom') && one(e, 'vdom') !== 'root') NP.addNote(p, 'vdom ' + one(e, 'vdom'));
+        if (one(e, 'speed') && one(e, 'speed') !== 'auto') NP.addNote(p, 'speed ' + one(e, 'speed'));
+        if (one(e, 'stp') === 'enable') NP.addFlag(p, 'stp', 'stp on');
+        if (one(e, 'lldp-reception') === 'enable') NP.addNote(p, 'lldp rx');
+      });
+    });
+    ['system virtual-switch', 'system switch-interface'].forEach(function (n) {
+      find(t, n).forEach(function (b) {
+        b.entries.forEach(function (e) {
+          (e.set.member || []).forEach(function (mbr) { NP.addNote(NP.port(dev, mbr), 'member of ' + e.name); });
+          find(e, 'port').forEach(function (pb) {
+            pb.entries.forEach(function (pe) { NP.addNote(NP.port(dev, pe.name), 'member of ' + e.name); });
+          });
+        });
+      });
+    });
+    if (!dev.stp.enabled) dev.stp.enabled = 'n/a (firewall)';
+  });
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+<script>
+/* MikroTik RouterOS ("/export" output). */
+(function (root) {
+  'use strict';
+  const NP = root.NP;
+  const addUnique = NP.addUnique;
+
+  function kv(s) {
+    const out = {};
+    const re = /([\w\-.]+)=("((?:[^"\\]|\\.)*)"|\S*)/g;
+    let m;
+    while ((m = re.exec(s))) out[m[1]] = m[3] !== undefined ? m[3] : m[2];
+    return out;
+  }
+  const yes = function (v) { return v === 'yes' || v === 'true'; };
+
+  NP.registerVendor('mikrotik', 'MikroTik RouterOS', function (text, dev) {
+    let m;
+    if ((m = text.match(/by RouterOS (\S+)/))) dev.version = m[1];
+    if ((m = text.match(/^# model = (.+)$/m))) dev.model = m[1].trim();
+    if ((m = text.match(/^# serial number = (\S+)/m))) dev.serial = m[1];
+
+    // join "\" continuation lines
+    const lines = [];
+    let buf = '';
+    text.split(/\r?\n/).forEach(function (raw) {
+      const l = raw.replace(/\s+$/, '');
+      const part = buf ? l.replace(/^\s+/, '') : l;
+      if (/\\$/.test(part)) { buf += part.slice(0, -1); return; }
+      lines.push(buf + part);
+      buf = '';
+    });
+
+    const rename = {};                 // default-name -> current name
+    const pvid = {}, tagged = {}, untaggedExtra = {};
+    const bridges = {};
+    let path = '';
+    const touch = function (n) { const p = NP.port(dev, n); if (p.adminUp === null) p.adminUp = true; return p; };
+
+    lines.forEach(function (line) {
+      let l = line.trim();
+      if (!l || l[0] === '#') return;
+      if (l[0] === '/') {
+        const sp = l.search(/ (add|set|remove)\b/);
+        if (sp < 0) { path = l; return; }
+        path = l.slice(0, sp); l = l.slice(sp + 1);
+      }
+      const a = kv(l);
+      const find = l.match(/\[\s*find\s+([^\]]*)\]/);
+      const f = find ? kv(find[1]) : {};
+
+      if (path === '/interface ethernet') {
+        const def = f['default-name'] || a['default-name'];
+        const name = a.name || def;
+        if (!name) return;
+        if (def && a.name) rename[def] = a.name;
+        const p = touch(name);
+        if (a.comment) p.description = a.comment;
+        if (yes(a.disabled)) p.adminUp = false;
+        if (a['poe-out']) p.poeAdmin = a['poe-out'] === 'off' ? 'disabled' : a['poe-out'];
+        if (a.speed) NP.addNote(p, 'speed ' + a.speed);
+        if (a['auto-negotiation'] === 'no') NP.addNote(p, 'autoneg off');
+        if (def && a.name && def !== a.name) NP.addNote(p, 'was ' + def);
+      } else if (path === '/interface bridge') {
+        if (!/^add\b/.test(l) || !a.name) return;
+        bridges[a.name] = a;
+        const p = touch(a.name);
+        p.kind = 'lag'; p.mode = 'bridge';
+        if (a.comment) p.description = a.comment;
+        dev.stp.enabled = a['protocol-mode'] === 'none' ? 'no' : 'yes';
+        dev.stp.mode = a['protocol-mode'] || 'rstp (default)';
+        if (a.priority) addUnique(dev.stp.priority, a.name + ': ' + (/^0x/i.test(a.priority) ? parseInt(a.priority, 16) : a.priority));
+        addUnique(dev.stp.notes, a.name + ': VLAN filtering ' + (yes(a['vlan-filtering']) ? 'on' : 'off'));
+        if (yes(a['igmp-snooping'])) { dev.multicast.igmpSnooping = 'enabled'; addUnique(dev.multicast.notes, 'snooping on ' + a.name); }
+        if (yes(a['multicast-querier'])) dev.multicast.querier = 'enabled';
+      } else if (path === '/interface bonding') {
+        if (!a.name) return;
+        const p = touch(a.name);
+        p.kind = 'lag';
+        if (a.comment) p.description = a.comment;
+        if (a.mode) NP.addNote(p, a.mode);
+        (a.slaves || '').split(',').filter(Boolean).forEach(function (s) { touch(s).lag = a.name; });
+      } else if (path === '/interface vlan') {
+        if (!a.name) return;
+        const p = touch(a.name);
+        p.kind = 'svi'; p.mode = 'vlan'; p.tagged = a['vlan-id'] || '';
+        if (a.interface) NP.addNote(p, 'on ' + a.interface);
+        if (a.comment) p.description = a.comment;
+        if (yes(a.disabled)) p.adminUp = false;
+        if (a['vlan-id']) NP.addVlan(dev, a['vlan-id'], a.name);
+      } else if (path === '/interface bridge port') {
+        if (!a.interface) return;
+        const p = touch(a.interface);
+        pvid[p.key] = a.pvid || '1';
+        if (a.comment && !p.description) p.description = a.comment;
+        if (a.edge === 'yes') NP.addFlag(p, 'stp', 'edge');
+        if (yes(a['bpdu-guard'])) NP.addFlag(p, 'stp', 'bpduguard');
+        if (a['restricted-role'] === 'yes') NP.addFlag(p, 'stp', 'rootguard');
+        if (a['frame-types'] && a['frame-types'] !== 'admit-all') NP.addNote(p, a['frame-types']);
+        if (a.bridge) NP.addNote(p, 'bridge ' + a.bridge);
+        if (yes(a.disabled)) NP.addNote(p, 'bridge port disabled');
+      } else if (path === '/interface bridge vlan') {
+        const ids = NP.parseVlanList(a['vlan-ids'] || '');
+        ids.forEach(function (id) { NP.addVlan(dev, id); });
+        (a.tagged || '').split(',').filter(Boolean).forEach(function (n) {
+          const p = touch(n);
+          (tagged[p.key] = tagged[p.key] || []).push.apply(tagged[p.key], ids);
+        });
+        (a.untagged || '').split(',').filter(Boolean).forEach(function (n) {
+          const p = touch(n);
+          (untaggedExtra[p.key] = untaggedExtra[p.key] || []).push.apply(untaggedExtra[p.key], ids);
+        });
+      } else if (path === '/ip address') {
+        if (!a.interface || !a.address) return;
+        const p = touch(a.interface);
+        if (!p.ip) p.ip = a.address;
+        if (a.comment && !p.description) p.description = a.comment;
+      } else if (path === '/ip dhcp-client') {
+        if (a.interface) { const p = touch(a.interface); if (!p.ip) p.ip = 'dhcp'; }
+      } else if (path === '/ip dns') {
+        (a.servers || '').split(',').filter(Boolean).forEach(function (s) { addUnique(dev.dns, s); });
+      } else if (path === '/ip route') {
+        if (a.gateway && (!a['dst-address'] || a['dst-address'] === '0.0.0.0/0') && !dev.gateway) dev.gateway = a.gateway;
+      } else if (path === '/system identity') {
+        if (a.name) dev.hostname = a.name;
+      } else if (path === '/system ntp client') {
+        if (a.enabled) dev.other['NTP client'] = yes(a.enabled) ? 'enabled' : 'disabled';
+        ['primary-ntp', 'secondary-ntp'].forEach(function (k) { if (a[k] && a[k] !== '0.0.0.0') addUnique(dev.ntp, a[k]); });
+        (a.servers || a['server-dns-names'] || '').split(',').filter(Boolean).forEach(function (s) { addUnique(dev.ntp, s); });
+      } else if (path === '/system ntp client servers') {
+        if (a.address) addUnique(dev.ntp, a.address);
+      } else if (path === '/system clock') {
+        if (a['time-zone-name']) dev.other['Time zone'] = a['time-zone-name'];
+      } else if (path === '/system logging action') {
+        if (a.remote && a.remote !== '0.0.0.0') addUnique(dev.syslog, a.remote);
+      } else if (path === '/snmp') {
+        if (yes(a.enabled)) addUnique(dev.snmp.versions, 'enabled');
+        if (a.location) dev.snmp.location = a.location;
+        if (a.contact) dev.snmp.contact = a.contact;
+      } else if (path === '/routing igmp-proxy' || path === '/routing pimsm instance') {
+        dev.multicast.routing = path.split(' ').pop() + ' configured';
+      } else if (path === '/user') {
+        if (a.name) NP.addOther(dev, 'Local users', a.name);
+      } else if (path === '/ip service') {
+        const svc = (l.match(/^set (\S+)/) || [])[1];
+        if (svc && yes(a.disabled)) NP.addOther(dev, 'Disabled services', svc);
+      } else if (path === '/interface list member') {
+        if (a.interface && a.list) NP.addNote(touch(a.interface), 'list ' + a.list);
+      }
+    });
+
+    dev.ports.forEach(function (p) {
+      if (pvid[p.key] === undefined && !tagged[p.key]) return;
+      if (p.kind === 'svi') return;
+      const t = tagged[p.key] || [];
+      if (pvid[p.key] !== undefined) {
+        p.untagged = pvid[p.key];
+        p.tagged = NP.compressVlans(t);
+        p.mode = t.length ? 'trunk' : 'access';
+      } else if (p.mode === 'bridge') p.tagged = NP.compressVlans(t);
+    });
+    if (!dev.multicast.igmpSnooping && Object.keys(bridges).length) dev.multicast.igmpSnooping = 'disabled (default)';
+    void rename; void untaggedExtra;
+  });
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+<script>
+/* Made-up sample inputs: used by the "Load sample" menu and by the tests. */
+(function (root) {
+  'use strict';
+  const NP = root.NP;
+  const S = NP.samples = {};
+
+  S.ios = { label: 'Cisco IOS switch (config + show commands)', text: String.raw`SW-ACCESS-01#show running-config
+Building configuration...
+
+Current configuration : 5120 bytes
+!
+version 15.2
+service timestamps log datetime msec
+!
+hostname SW-ACCESS-01
+!
+aaa new-model
+username admin privilege 15 secret 9 $9$abcdefghijkl
+!
+ip domain-name corp.example.com
+ip name-server 10.10.0.53 10.10.0.54
+!
+spanning-tree mode rapid-pvst
+spanning-tree portfast bpduguard default
+spanning-tree extend system-id
+spanning-tree vlan 1-4094 priority 32768
+!
+vlan 10
+ name USERS
+!
+vlan 20
+ name VOICE
+!
+vlan 30
+ name WIFI
+!
+vlan 99
+ name MGMT
+!
+interface Port-channel1
+ description Uplink to CORE-01
+ switchport trunk native vlan 99
+ switchport trunk allowed vlan 10,20,30,99
+ switchport mode trunk
+!
+interface GigabitEthernet1/0/1
+ description Reception PC + phone
+ switchport access vlan 10
+ switchport mode access
+ switchport voice vlan 20
+ spanning-tree portfast
+!
+interface GigabitEthernet1/0/2
+ description AP-Lobby
+ switchport trunk native vlan 99
+ switchport trunk allowed vlan 30,99
+ switchport mode trunk
+ spanning-tree portfast trunk
+!
+interface GigabitEthernet1/0/3
+ description Printer 2nd floor
+ switchport access vlan 10
+ switchport mode access
+ power inline never
+ spanning-tree portfast
+ spanning-tree bpduguard enable
+!
+interface GigabitEthernet1/0/4
+ description SPARE
+ switchport access vlan 10
+ switchport mode access
+ shutdown
+!
+interface TenGigabitEthernet1/1/1
+ description CORE-01 Te1/0/1
+ switchport trunk native vlan 99
+ switchport trunk allowed vlan 10,20,30,99
+ switchport mode trunk
+ channel-group 1 mode active
+!
+interface TenGigabitEthernet1/1/2
+ description CORE-01 Te2/0/1
+ switchport trunk native vlan 99
+ switchport trunk allowed vlan 10,20,30,99
+ switchport mode trunk
+ channel-group 1 mode active
+!
+interface Vlan1
+ no ip address
+ shutdown
+!
+interface Vlan99
+ description Management
+ ip address 10.10.99.11 255.255.255.0
+!
+ip default-gateway 10.10.99.1
+no ip http server
+ip http secure-server
+ip ssh version 2
+!
+logging host 10.10.0.60
+snmp-server community s3cret RO
+snmp-server location Building A / IDF 2
+snmp-server contact netops@example.com
+!
+ntp server 10.10.0.1 prefer
+ntp server 10.10.0.2
+!
+end
+
+SW-ACCESS-01#show interfaces status
+
+Port      Name               Status       Vlan       Duplex  Speed Type
+Gi1/0/1   Reception PC + pho connected    10         a-full a-1000 10/100/1000BaseTX
+Gi1/0/2   AP-Lobby           connected    trunk      a-full a-1000 10/100/1000BaseTX
+Gi1/0/3   Printer 2nd floor  notconnect   10           auto   auto 10/100/1000BaseTX
+Gi1/0/4   SPARE              disabled     10           auto   auto 10/100/1000BaseTX
+Te1/1/1   CORE-01 Te1/0/1    connected    trunk        full    10G SFP-10GBase-SR
+Te1/1/2   CORE-01 Te2/0/1    connected    trunk        full    10G SFP-10GBase-SR
+Po1       Uplink to CORE-01  connected    trunk      a-full    10G
+
+SW-ACCESS-01#show power inline
+
+Module   Available     Used     Remaining
+          (Watts)     (Watts)    (Watts)
+------   ---------   --------   ---------
+1           740.0       21.9       718.1
+Interface Admin  Oper       Power   Device              Class Max
+                            (Watts)
+--------- ------ ---------- ------- ------------------- ----- ----
+Gi1/0/1   auto   on         6.5     IP Phone 8841       2     30.0
+Gi1/0/2   auto   on         15.4    AIR-AP2802I-B-K9    4     30.0
+Gi1/0/3   off    off        0.0     n/a                 n/a   30.0
+Gi1/0/4   auto   off        0.0     n/a                 n/a   30.0
+
+SW-ACCESS-01#show cdp neighbors
+Capability Codes: R - Router, T - Trans Bridge, B - Source Route Bridge
+                  S - Switch, H - Host, I - IGMP, r - Repeater, P - Phone
+
+Device ID        Local Intrfce     Holdtme    Capability  Platform  Port ID
+CORE-01.corp.example.com
+                 Ten 1/1/1         156             R S I  C9500-24Y Ten 1/0/1
+CORE-01.corp.example.com
+                 Ten 1/1/2         171             R S I  C9500-24Y Ten 2/0/1
+AP-Lobby         Gig 1/0/2         134              R T   AIR-AP280 Gig 0
+
+Total cdp entries displayed : 3
+SW-ACCESS-01#show version
+Cisco IOS Software, C2960X Software (C2960X-UNIVERSALK9-M), Version 15.2(7)E7, RELEASE SOFTWARE (fc2)
+SW-ACCESS-01 uptime is 41 weeks, 2 days, 3 hours, 12 minutes
+cisco WS-C2960X-48FPD-L (APM86XXX) processor (revision A0) with 524288K bytes of memory.
+Model number                    : WS-C2960X-48FPD-L
+System serial number            : FOC1234X5YZ
+`};
+
+  S.nxos = { label: 'Cisco NX-OS', text: String.raw`!Command: show running-config
+version 9.3(8) Bios:version 05.45
+switchname DC-LEAF-01
+feature lacp
+feature interface-vlan
+feature lldp
+feature vpc
+ip domain-name dc.example.com
+ip name-server 10.20.0.53 use-vrf management
+ntp server 10.20.0.1 use-vrf management
+logging server 10.20.0.60
+snmp-server location DC1 Row 4
+spanning-tree mode mst
+spanning-tree port type edge bpduguard default
+vlan 1,100,200
+vlan 100
+  name SERVERS
+vlan 200
+  name STORAGE
+
+interface Vlan100
+  no shutdown
+  ip address 10.100.0.2/24
+
+interface port-channel10
+  description vPC to ESX-01
+  switchport mode trunk
+  switchport trunk allowed vlan 100,200
+  spanning-tree port type edge trunk
+  vpc 10
+
+interface Ethernet1/1
+  description ESX-01 vmnic0
+  switchport mode trunk
+  switchport trunk allowed vlan 100,200
+  channel-group 10 mode active
+
+interface Ethernet1/2
+  description Backup server
+  switchport access vlan 100
+  spanning-tree port type edge
+
+interface Ethernet1/49
+  description SPINE-01 Eth1/1
+  no switchport
+  ip address 10.255.0.1/31
+  no shutdown
+
+interface mgmt0
+  vrf member management
+  ip address 10.20.99.21/24
+`};
+
+  S.aoscx = { label: 'Aruba AOS-CX', text: String.raw`!Version ArubaOS-CX FL.10.10.1020
+hostname CX-IDF-3
+ntp server 10.30.0.1 iburst
+ip dns domain-name campus.example.com
+ip dns server-address 10.30.0.53
+logging 10.30.0.60
+vlan 1
+vlan 10
+    name STAFF
+vlan 20
+    name VOICE
+    voice
+vlan 40
+    name CCTV
+spanning-tree
+spanning-tree priority 8
+interface mgmt
+    no shutdown
+    ip static 10.30.99.13/24
+interface lag 1
+    description Uplink to core
+    no shutdown
+    no routing
+    vlan trunk native 1
+    vlan trunk allowed 10,20,40
+    lacp mode active
+interface 1/1/1
+    description Desk 3-101
+    no shutdown
+    no routing
+    vlan access 10
+    spanning-tree port-type admin-edge
+    spanning-tree bpdu-guard
+interface 1/1/2
+    description Camera east door
+    no shutdown
+    no routing
+    vlan access 40
+interface 1/1/3
+    no routing
+    vlan access 10
+interface 1/1/49
+    description Core 1/1/5
+    no shutdown
+    lag 1
+interface vlan 10
+    ip address 10.30.10.3/24
+ip route 0.0.0.0/0 10.30.10.1
+CX-IDF-3# show interface brief
+--------------------------------------------------------------------------------------------------------
+Port      Native  Mode   Type           Enabled Status  Reason                  Speed    Description
+          VLAN                                                                  (Mb/s)
+--------------------------------------------------------------------------------------------------------
+1/1/1     10      access 1GbT           yes     up                              1000     Desk 3-101
+1/1/2     40      access 1GbT           yes     up                              100      Camera east door
+1/1/3     10      access 1GbT           no      down    Administratively down   --       --
+1/1/49    1       trunk  SFP+DA3        yes     up                              10000    Core 1/1/5
+`};
+
+  S.arubaos = { label: 'ArubaOS-Switch / HP ProCurve', text: String.raw`HP-2530-IDF1# show running-config
+
+Running configuration:
+
+; J9772A Configuration Editor; Created on release #YA.16.10.0012
+; Ver #14:41.44.00.04.19.02.13.98.82.34.61.18.28.f3.84.9c.63.ff.37.27:05
+hostname "HP-2530-IDF1"
+trunk 49-50 trk1 lacp
+timesync ntp
+ntp unicast
+ntp server 10.40.0.1 iburst
+ntp enable
+ip default-gateway 10.40.99.1
+ip dns domain-name "office.example.com"
+ip dns server-address priority 1 10.40.0.53
+logging 10.40.0.60
+interface 1
+   name "AP Front Office"
+   exit
+interface 2
+   name "Door controller"
+   exit
+interface 3
+   name "Unused"
+   disable
+   no power-over-ethernet
+   exit
+snmp-server community "public" unrestricted
+snmp-server location "IDF1 rack 2"
+vlan 1
+   name "DEFAULT_VLAN"
+   no untagged 1-48
+   untagged Trk1
+   no ip address
+   exit
+vlan 10
+   name "DATA"
+   untagged 3-48
+   tagged 1,Trk1
+   ip igmp
+   exit
+vlan 20
+   name "VOICE"
+   tagged 3-24,Trk1
+   voice
+   exit
+vlan 99
+   name "MGMT"
+   untagged 1-2
+   tagged Trk1
+   ip address 10.40.99.21 255.255.255.0
+   exit
+spanning-tree
+spanning-tree 1-48 admin-edge-port bpdu-protection
+spanning-tree Trk1 priority 4
+spanning-tree priority 8
+HP-2530-IDF1# show interfaces brief
+
+ Status and Counters - Port Status
+
+                          | Intrusion                           MDI   Flow  Bcast
+  Port         Type       | Alert     Enabled Status Mode       Mode  Ctrl  Limit
+  ------------ ---------- + --------- ------- ------ ---------- ----- ----- ------
+  1            100/1000T  | No        Yes     Up     1000FDx    MDIX  off   0
+  2            100/1000T  | No        Yes     Up     100FDx     MDI   off   0
+  3            100/1000T  | No        No      Down   1000FDx    Auto  off   0
+  4            100/1000T  | No        Yes     Down   1000FDx    Auto  off   0
+  49-Trk1      SFP+SR     | No        Yes     Up     10GigFD    NA    off   0
+
+HP-2530-IDF1# show power-over-ethernet brief
+
+ Status and Counters - Port Power Status
+
+  Available: 370 W  Used: 12 W  Remaining: 358 W
+
+  PoE    | Power  Power    Alloc Alloc Actual Configured  Detection   Power Pre-std
+  Port   | Enable Priority By    Power Power  Type        Status      Class Detect
+  ------ + ------ -------- ----- ----- ------ ----------- ----------- ----- ------
+  1      | Yes    low      usage 17 W  9.8 W              Delivering  4     off
+  2      | Yes    low      usage 17 W  2.1 W              Delivering  2     off
+  3      | No     low      usage 17 W  0.0 W              Disabled    0     off
+  4      | Yes    low      usage 17 W  0.0 W              Searching   0     off
+`};
+
+  S.comware = { label: 'HPE Comware / H3C', text: String.raw`<CW-STACK-1>display current-configuration
+#
+ version 7.1.070, Release 6126P20
+#
+ sysname CW-STACK-1
+#
+ igmp-snooping
+#
+ dns server 10.50.0.53
+ dns domain branch.example.com
+#
+ stp mode rstp
+ stp instance 0 priority 4096
+ stp bpdu-protection
+ stp global enable
+#
+vlan 1
+#
+vlan 10
+ name OFFICE
+ igmp-snooping enable
+#
+vlan 20
+ name PHONES
+#
+vlan 99
+ name MGMT
+#
+interface Bridge-Aggregation1
+ description To-Core
+ port link-type trunk
+ port trunk permit vlan 1 10 20 99
+#
+interface Vlan-interface99
+ ip address 10.50.99.5 255.255.255.0
+#
+interface GigabitEthernet1/0/1
+ description Desk-A1
+ port access vlan 10
+ stp edged-port
+ poe enable
+#
+interface GigabitEthernet1/0/2
+ description Phone+PC
+ port link-type hybrid
+ port hybrid vlan 20 tagged
+ port hybrid vlan 10 untagged
+ port hybrid pvid vlan 10
+ voice-vlan 20 enable
+ stp edged-port
+ poe enable
+#
+interface GigabitEthernet1/0/3
+ shutdown
+#
+interface Ten-GigabitEthernet1/0/49
+ description Core-Te1
+ port link-type trunk
+ port trunk permit vlan 1 10 20 99
+ port link-aggregation group 1
+#
+ ip route-static 0.0.0.0 0 10.50.99.1
+#
+ info-center loghost 10.50.0.60
+#
+ snmp-agent sys-info location Branch comms room
+ snmp-agent sys-info version v2c v3
+#
+ ntp-service unicast-server 10.50.0.1
+#
+return
+<CW-STACK-1>display interface brief
+Brief information on interfaces in bridge mode:
+Link: ADM - administratively down; Stby - standby
+Speed: (a) - auto
+Duplex: (a)/A - auto; H - half; F - full
+Type: A - access; T - trunk; H - hybrid
+Interface            Link Speed   Duplex Type PVID Description
+BAGG1                UP   10G(a)  F(a)   T    1    To-Core
+GE1/0/1              UP   1G(a)   F(a)   A    10   Desk-A1
+GE1/0/2              DOWN auto    A      H    10   Phone+PC
+GE1/0/3              ADM  auto    A      A    1
+XGE1/0/49            UP   10G     F      T    1    Core-Te1
+`};
+
+  S.junos = { label: 'Juniper Junos (display set)', text: String.raw`admin@EX-FLOOR2> show configuration | display set
+set version 21.4R3-S5.4
+set system host-name EX-FLOOR2
+set system domain-name campus.example.org
+set system name-server 10.60.0.53
+set system name-server 10.60.0.54
+set system ntp server 10.60.0.1 prefer
+set system syslog host 10.60.0.60 any notice
+set system services ssh
+set snmp location "Floor 2 IDF"
+set snmp community monitor authorization read-only
+set interfaces interface-range DESKS member-range ge-0/0/2 to ge-0/0/5
+set interfaces interface-range DESKS unit 0 family ethernet-switching interface-mode access
+set interfaces interface-range DESKS unit 0 family ethernet-switching vlan members STAFF
+set interfaces ge-0/0/0 description "AP-F2-North"
+set interfaces ge-0/0/0 native-vlan-id 99
+set interfaces ge-0/0/0 unit 0 family ethernet-switching interface-mode trunk
+set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members WIFI
+set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members MGMT
+set interfaces ge-0/0/1 description "Meeting room panel"
+set interfaces ge-0/0/1 disable
+set interfaces ge-0/0/1 unit 0 family ethernet-switching interface-mode access
+set interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members STAFF
+set interfaces xe-0/1/0 description "DIST-1 xe-0/0/10"
+set interfaces xe-0/1/0 ether-options 802.3ad ae0
+set interfaces ae0 description "Uplink to DIST"
+set interfaces ae0 aggregated-ether-options lacp active
+set interfaces ae0 unit 0 family ethernet-switching interface-mode trunk
+set interfaces ae0 unit 0 family ethernet-switching vlan members all
+set interfaces irb unit 99 family inet address 10.60.99.12/24
+set vlans STAFF vlan-id 10
+set vlans VOICE vlan-id 20
+set vlans WIFI vlan-id 30
+set vlans MGMT vlan-id 99
+set vlans MGMT l3-interface irb.99
+set switch-options voip interface ge-0/0/2.0 vlan VOICE
+set routing-options static route 0.0.0.0/0 next-hop 10.60.99.1
+set protocols rstp bridge-priority 32k
+set protocols rstp interface ge-0/0/1 edge
+set protocols rstp interface ge-0/0/2 edge
+set protocols rstp bpdu-block-on-edge
+set protocols igmp-snooping vlan STAFF
+set protocols lldp interface all
+set poe interface all
+
+admin@EX-FLOOR2> show interfaces terse
+Interface               Admin Link Proto    Local                 Remote
+ge-0/0/0                up    up
+ge-0/0/0.0              up    up   eth-switch
+ge-0/0/1                down  down
+ge-0/0/2                up    up
+ge-0/0/3                up    down
+xe-0/1/0                up    up
+ae0                     up    up
+irb.99                  up    up   inet     10.60.99.12/24
+
+admin@EX-FLOOR2> show lldp neighbors
+Local Interface    Parent Interface    Chassis Id          Port info          System Name
+ge-0/0/0           -                   a8:bd:27:11:22:33   eth0               AP-F2-North
+xe-0/1/0           ae0                 44:f4:77:aa:bb:cc   xe-0/0/10          DIST-1
+`};
+
+  S.fortigate = { label: 'Fortinet FortiGate', text: String.raw`#config-version=FGT60F-7.2.8-FW-build1639-240313:opmode=0:vdom=0:user=admin
+config system global
+    set hostname "FW-BRANCH-01"
+    set timezone 12
+    set admin-sport 8443
+end
+config system interface
+    edit "wan1"
+        set vdom "root"
+        set mode dhcp
+        set allowaccess ping
+        set type physical
+        set alias "ISP fibre"
+        set role wan
+    next
+    edit "wan2"
+        set vdom "root"
+        set status down
+        set type physical
+        set role wan
+    next
+    edit "internal1"
+        set vdom "root"
+        set ip 192.168.10.1 255.255.255.0
+        set allowaccess ping https ssh
+        set type physical
+        set alias "LAN switch"
+        set role lan
+    next
+    edit "guest"
+        set vdom "root"
+        set ip 192.168.50.1 255.255.255.0
+        set allowaccess ping
+        set alias "Guest WiFi"
+        set role lan
+        set interface "internal1"
+        set vlanid 50
+    next
+end
+config system dns
+    set primary 1.1.1.1
+    set secondary 9.9.9.9
+    set domain "branch.example.net"
+end
+config system ntp
+    set ntpsync enable
+    set type custom
+    config ntpserver
+        edit 1
+            set server "time.example.net"
+        next
+    end
+end
+config log syslogd setting
+    set status enable
+    set server "192.168.10.60"
+end
+config system zone
+    edit "LAN"
+        set interface "internal1" "guest"
+    next
+end
+config router static
+    edit 1
+        set gateway 203.0.113.1
+        set device "wan1"
+    next
+end
+`};
+
+  S.mikrotik = { label: 'MikroTik RouterOS (/export)', text: String.raw`# 2025-03-02 10:11:12 by RouterOS 7.14.2
+# software id = ABCD-1234
+#
+# model = CRS328-24P-4S+
+# serial number = HF1234ABCDE
+/interface bridge
+add igmp-snooping=yes name=bridge1 priority=0x4000 protocol-mode=rstp \
+    vlan-filtering=yes
+/interface ethernet
+set [ find default-name=ether1 ] comment="AP workshop" poe-out=auto-on
+set [ find default-name=ether2 ] comment="Spare" disabled=yes poe-out=off
+set [ find default-name=sfp-sfpplus1 ] comment="Uplink core"
+/interface vlan
+add interface=bridge1 name=vlan99-mgmt vlan-id=99
+/interface bridge port
+add bridge=bridge1 interface=ether1 pvid=99
+add bridge=bridge1 edge=yes frame-types=admit-only-untagged-and-priority-tagged \
+    interface=ether2 pvid=10
+add bridge=bridge1 edge=yes interface=ether3 pvid=10
+add bridge=bridge1 interface=sfp-sfpplus1
+/interface bridge vlan
+add bridge=bridge1 tagged=bridge1,sfp-sfpplus1 untagged=ether2,ether3 vlan-ids=10
+add bridge=bridge1 tagged=sfp-sfpplus1,ether1 vlan-ids=30
+add bridge=bridge1 tagged=bridge1,sfp-sfpplus1 untagged=ether1 vlan-ids=99
+/ip address
+add address=10.70.99.5/24 interface=vlan99-mgmt network=10.70.99.0
+/ip dns
+set servers=10.70.0.53,1.1.1.1
+/ip route
+add gateway=10.70.99.1
+/system identity
+set name=MT-WORKSHOP
+/system ntp client
+set enabled=yes
+/system ntp client servers
+add address=10.70.0.1
+/snmp
+set enabled=yes location="Workshop cabinet"
+`};
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+<script>
+/* Summary rows, CSV, label rows, JSON backup. No DOM in here so it is testable in Node. */
+(function (root) {
+  'use strict';
+  const NP = root.NP;
+
+  NP.csv = function (rows) {
+    return rows.map(function (r) {
+      return r.map(function (c) {
+        c = String(c == null ? '' : c);
+        return /[",\r\n]/.test(c) || /^\s|\s$/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c;
+      }).join(',');
+    }).join('\r\n') + '\r\n';
+  };
+
+  NP.vendorLabel = function (dev) {
+    return NP.vendors[dev.vendor] ? NP.vendors[dev.vendor].label : dev.vendor || '';
+  };
+
+  NP.portStats = function (dev) {
+    const phys = dev.ports.filter(function (p) { return p.kind === 'physical'; });
+    const watts = phys.reduce(function (s, p) { return s + (parseFloat(p.poeWatts) || 0); }, 0);
+    return {
+      physical: phys.length,
+      up: phys.filter(function (p) { return p.link === 'up'; }).length,
+      down: phys.filter(function (p) { return p.link && p.link !== 'up' && p.adminUp !== false; }).length,
+      disabled: phys.filter(function (p) { return p.adminUp === false; }).length,
+      linkKnown: phys.some(function (p) { return p.link; }),
+      poePorts: phys.filter(function (p) { return parseFloat(p.poeWatts) > 0; }).length,
+      poeWatts: Math.round(watts * 10) / 10
+    };
+  };
+
+  // -> [{title, rows:[[label, value], ...]}], empty values dropped
+  NP.summary = function (dev) {
+    const st = NP.portStats(dev);
+    const sec = [
+      { title: 'System', rows: [
+        ['Hostname', dev.hostname], ['Platform', NP.vendorLabel(dev)], ['Model', dev.model],
+        ['Software', dev.version], ['Serial', dev.serial], ['Management IP', dev.mgmtIp],
+        ['Default gateway', dev.gateway], ['Domain', dev.domain]] },
+      { title: 'Services', rows: [
+        ['DNS servers', dev.dns.join(', ')], ['NTP servers', dev.ntp.join(', ')],
+        ['Syslog servers', dev.syslog.join(', ')], ['SNMP', dev.snmp.versions.join(', ')],
+        ['SNMP location', dev.snmp.location], ['SNMP contact', dev.snmp.contact]] },
+      { title: 'Spanning tree', rows: [
+        ['Enabled', dev.stp.enabled], ['Mode', dev.stp.mode], ['Bridge priority', dev.stp.priority.join('; ')],
+        ['Notes', dev.stp.notes.join('; ')]] },
+      { title: 'Multicast', rows: [
+        ['IGMP snooping', dev.multicast.igmpSnooping], ['Querier', dev.multicast.querier],
+        ['Multicast routing', dev.multicast.routing], ['Notes', dev.multicast.notes.join('; ')]] },
+      { title: 'Ports', rows: [
+        ['Physical ports', st.physical || ''],
+        ['Link up / down / disabled', st.linkKnown ? st.up + ' / ' + st.down + ' / ' + st.disabled : (st.disabled ? 'link state not loaded; ' + st.disabled + ' disabled' : '')],
+        ['PoE in use', st.poePorts ? st.poePorts + ' ports, ' + st.poeWatts + ' W' : ''],
+        ['VLANs defined', dev.vlans.length || '']] },
+      { title: 'Other', rows: Object.keys(dev.other).map(function (k) { return [k, dev.other[k]]; }) }
+    ];
+    sec.forEach(function (s) { s.rows = s.rows.filter(function (r) { return r[1] !== '' && r[1] != null; }); });
+    return sec.filter(function (s) { return s.rows.length; });
+  };
+
+  NP.summaryRows = function (dev) {
+    const rows = [['Section', 'Item', 'Value']];
+    NP.summary(dev).forEach(function (s) { s.rows.forEach(function (r) { rows.push([s.title, r[0], r[1]]); }); });
+    dev.vlans.forEach(function (v) { rows.push(['VLANs', v.id, v.name]); });
+    return rows;
+  };
+
+  NP.portRows = function (devs, colIds, filter) {
+    const cols = NP.columns.filter(function (c) { return !colIds || colIds.includes(c.id); });
+    const rows = [['Device'].concat(cols.map(function (c) { return c.label; }))];
+    devs.forEach(function (dev) {
+      dev.ports.filter(filter || function () { return true; }).forEach(function (p) {
+        rows.push([dev.hostname].concat(cols.map(function (c) { return c.get(p); })));
+      });
+    });
+    return rows;
+  };
+
+  // ------------------------------------------------------------------ labels
+  NP.labelTokens = {
+    host: function (d) { return d.hostname; },
+    port: function (d, p) { return p.short; },
+    portfull: function (d, p) { return p.name; },
+    num: function (d, p) { return NP.portNum(p.name); },
+    desc: function (d, p) { return p.description; },
+    vlan: function (d, p) { return p.untagged; },
+    tagged: function (d, p) { return p.tagged; },
+    voice: function (d, p) { return p.voiceVlan; },
+    mode: function (d, p) { return p.mode; },
+    neighbor: function (d, p) { return p.neighbor; },
+    nport: function (d, p) { return p.neighborPort; },
+    ip: function (d, p) { return p.ip; },
+    lag: function (d, p) { return p.lag; },
+    speed: function (d, p) { return p.speed; }
+  };
+  NP.labelPresets = {
+    port: { label: 'Port labels (faceplate / patch panel)', lines: ['{port}', '{desc}', ''] },
+    cable: { label: 'Cable labels (both ends)', lines: ['{host} {port}', '{neighbor|desc} {nport}', ''] },
+    vlan: { label: 'Port number + VLAN', lines: ['{num}', '[VLAN {vlan}]', '{desc}'] }
+  };
+
+  // "{a|b}" = first non-empty of a, b.  "[text {a}]" = dropped entirely when a is empty.
+  NP.fillTemplate = function (tpl, dev, p) {
+    const sub = function (s) {
+      let empty = false;
+      const out = s.replace(/\{([^}]+)\}/g, function (all, names) {
+        let val = '';
+        names.split('|').some(function (n) {
+          const f = NP.labelTokens[n.trim().toLowerCase()];
+          val = f ? String(f(dev, p) || '') : '';
+          return val;
+        });
+        if (!val) empty = true;
+        return val;
+      });
+      return { text: out, empty: empty };
+    };
+    const withOpt = String(tpl || '').replace(/\[([^\]]*)\]/g, function (all, inner) {
+      const r = sub(inner);
+      return r.empty ? '' : r.text;
+    });
+    return sub(withOpt).text.replace(/\s+/g, ' ').trim();
+  };
+
+  // opts: {lines:[..], physicalOnly, upOnly, describedOnly, skipDisabled}
+  NP.labelFilter = function (opts) {
+    return function (p) {
+      if (opts.physicalOnly && p.kind !== 'physical') return false;
+      if (opts.upOnly && p.link !== 'up') return false;
+      if (opts.describedOnly && !p.description && !p.neighbor) return false;
+      if (opts.skipDisabled && p.adminUp === false) return false;
+      return true;
+    };
+  };
+  NP.labelRows = function (devs, opts) {
+    const lines = (opts.lines || []).map(function (l, i) { return { tpl: l, name: 'Line' + (i + 1) }; })
+      .filter(function (l) { return l.tpl && l.tpl.trim(); });
+    const rows = [lines.map(function (l) { return l.name; }).concat(['Device', 'Port', 'Description', 'VLAN'])];
+    const keep = NP.labelFilter(opts);
+    devs.forEach(function (dev) {
+      dev.ports.filter(keep).forEach(function (p) {
+        const filled = lines.map(function (l) { return NP.fillTemplate(l.tpl, dev, p); });
+        if (!filled.some(Boolean)) return;
+        rows.push(filled.concat([dev.hostname, p.short, p.description, p.untagged]));
+      });
+    });
+    return rows;
+  };
+
+  // ------------------------------------------------------------------ backup
+  NP.backup = function (devices) {
+    return JSON.stringify({ format: 'portsheet-backup', version: 1, exported: new Date().toISOString(), devices: devices }, null, 1);
+  };
+  NP.restore = function (json) {
+    const data = typeof json === 'string' ? JSON.parse(json) : json;
+    if (!data || data.format !== 'portsheet-backup' || !Array.isArray(data.devices)) {
+      throw new Error('That file is not a PortSheet backup.');
+    }
+    return data.devices.map(function (d) {
+      const dev = Object.assign(NP.newDevice(), d);
+      dev.ports = (d.ports || []).map(function (p) { return Object.assign(NP.newPort(p.name || '?'), p); });
+      return dev;
+    });
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+<script>
+/* PortSheet UI. All rendering goes through h() / textContent: pasted configs are untrusted text. */
+(function () {
+  'use strict';
+  const NP = window.NP;
+  const $ = function (id) { return document.getElementById(id); };
+  const STORE = 'portsheet.v1';
+
+  const state = {
+    devices: [], current: null, tab: 'ports',
+    cols: NP.columns.filter(function (c) { return c.on; }).map(function (c) { return c.id; }),
+    search: '', physOnly: false, hideDown: false, sort: null,
+    label: { preset: 'port', lines: NP.labelPresets.port.lines.slice(), scope: 'device',
+      physicalOnly: true, upOnly: false, describedOnly: false, skipDisabled: true }
+  };
+
+  function h(tag, attrs) {
+    const el = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (k) {
+      const v = attrs[k];
+      if (v === false || v == null) return;
+      if (k === 'class') el.className = v;
+      else if (k === 'text') el.textContent = v;
+      else if (k.slice(0, 2) === 'on') el.addEventListener(k.slice(2), v);
+      else if (k === 'checked' || k === 'value' || k === 'selected' || k === 'disabled') el[k] = v;
+      else el.setAttribute(k, v === true ? '' : v);
+    });
+    const add = function (c) {
+      if (c == null || c === false) return;
+      if (Array.isArray(c)) c.forEach(add);
+      else el.appendChild(typeof c === 'object' ? c : document.createTextNode(String(c)));
+    };
+    for (let i = 2; i < arguments.length; i++) add(arguments[i]);
+    return el;
+  }
+
+  // ------------------------------------------------------------- persistence
+  function save() {
+    try {
+      localStorage.setItem(STORE, JSON.stringify({
+        devices: state.devices, current: state.current, cols: state.cols, label: state.label }));
+    } catch (e) { /* private window or quota: carry on without persistence */ }
+  }
+  function load() {
+    try {
+      const d = JSON.parse(localStorage.getItem(STORE) || 'null');
+      if (!d) return;
+      state.devices = NP.restore({ format: 'portsheet-backup', devices: d.devices || [] });
+      state.current = d.current;
+      if (Array.isArray(d.cols) && d.cols.length) state.cols = d.cols;
+      if (d.label) Object.assign(state.label, d.label);
+    } catch (e) { /* ignore corrupt storage */ }
+  }
+  const cur = function () {
+    return state.devices.find(function (d) { return d.id === state.current; }) || null;
+  };
+
+  function download(name, text, type) {
+    const blob = new Blob([text], { type: type || 'text/plain' });
+    const a = h('a', { href: URL.createObjectURL(blob), download: name });
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+  }
+  const fileSafe = function (s) { return String(s || 'device').replace(/[^\w.\-]+/g, '_'); };
+
+  function msg(text, kind) {
+    const el = $('msg');
+    el.textContent = text; el.className = 'msg ' + (kind || '');
+  }
+
+  // ------------------------------------------------------------------ ingest
+  function ingest(text, name) {
+    const r = NP.ingest(text, {
+      vendor: $('selVendor').value, target: $('selTarget').value,
+      devices: state.devices, current: cur(), name: name });
+    if (r.isNew) state.devices.push(r.dev);
+    state.current = r.dev.id;
+    return r;
+  }
+  function parseText(text, name) {
+    if (!text.trim()) { msg('Paste something first.', 'err'); return; }
+    try {
+      const r = ingest(text, name);
+      msg((r.isNew ? 'Added ' : 'Merged into ') + (r.dev.hostname || 'unnamed device') + ' as ' +
+        NP.vendors[r.vendor].label + ': ' + r.dev.ports.length + ' ports.', 'ok');
+      $('txtInput').value = '';
+    } catch (e) { msg(e.message, 'err'); }
+    save(); render();
+  }
+  function readFiles(files) {
+    const list = Array.from(files);
+    let done = 0, ok = 0;
+    const errs = [];
+    if (!list.length) return;
+    list.forEach(function (f) {
+      const fr = new FileReader();
+      fr.onload = function () {
+        try { ingest(String(fr.result), f.name); ok++; } catch (e) { errs.push(f.name + ': ' + e.message); }
+        if (++done === list.length) {
+          msg(ok + ' of ' + list.length + ' file(s) parsed.' + (errs.length ? ' ' + errs.join(' ') : ''), errs.length ? 'err' : 'ok');
+          save(); render();
+        }
+      };
+      fr.readAsText(f);
+    });
+  }
+
+  // ---------------------------------------------------------------- sidebar
+  function renderDevices() {
+    const ul = $('deviceList');
+    ul.replaceChildren();
+    if (!state.devices.length) { ul.appendChild(h('li', { class: 'empty', text: 'No devices yet.' })); return; }
+    state.devices.forEach(function (d) {
+      ul.appendChild(h('li', { class: d.id === state.current ? 'sel' : '' },
+        h('button', { class: 'pick', onclick: function () { state.current = d.id; state.sort = null; save(); render(); } },
+          h('b', { text: d.hostname || '(unnamed)' }),
+          h('span', { text: NP.vendorLabel(d) + ' · ' + d.ports.length + ' ports' })),
+        h('button', { class: 'link', title: 'Remove this device', 'aria-label': 'Remove ' + (d.hostname || 'device'),
+          onclick: function () {
+            if (!confirm('Remove ' + (d.hostname || 'this device') + '?')) return;
+            state.devices = state.devices.filter(function (x) { return x !== d; });
+            if (state.current === d.id) state.current = state.devices.length ? state.devices[0].id : null;
+            save(); render();
+          } }, '✕')));
+    });
+  }
+
+  // ------------------------------------------------------------------- views
+  function render() {
+    renderDevices();
+    const view = $('view');
+    view.replaceChildren();
+    const dev = cur();
+    if (!dev) {
+      view.appendChild(h('section', { class: 'card welcome' },
+        h('h1', { text: 'Turn device output into a port sheet' }),
+        h('p', { text: 'Paste a running config, show-command output, or a whole terminal session on the left.' }),
+        h('ol', {},
+          h('li', { text: 'Config gives VLANs, descriptions, spanning tree, DNS, NTP and the rest.' }),
+          h('li', { text: 'Add interface status, PoE and neighbor output for the same device to fill in link state, power draw and what is plugged in.' }),
+          h('li', { text: 'Export the table as CSV, or build label rows for P-touch Editor on the Labels tab.' })),
+        h('p', { class: 'hint', text: 'Not sure what it looks like? Pick one of the samples under the Parse button.' })));
+      return;
+    }
+    const tabs = [['overview', 'Overview'], ['ports', 'Ports (' + dev.ports.length + ')'], ['labels', 'Labels']];
+    view.appendChild(h('section', { class: 'card' },
+      h('div', { class: 'devhead' },
+        h('h1', { text: dev.hostname || '(unnamed device)' }),
+        h('span', { class: 'sub', text: [NP.vendorLabel(dev), dev.model, dev.version].filter(Boolean).join(' · ') }),
+        h('button', { onclick: function () {
+          const n = prompt('Device name', dev.hostname);
+          if (n !== null) { dev.hostname = n.trim(); save(); render(); }
+        } }, 'Rename')),
+      h('div', { class: 'tabs', role: 'tablist' }, tabs.map(function (t) {
+        return h('button', { role: 'tab', 'aria-selected': String(state.tab === t[0]),
+          onclick: function () { state.tab = t[0]; render(); } }, t[1]);
+      }))));
+    if (state.tab === 'overview') overview(view, dev);
+    else if (state.tab === 'labels') labels(view, dev);
+    else ports(view, dev);
+  }
+
+  function overview(view, dev) {
+    const grid = h('div', { class: 'grid' });
+    NP.summary(dev).forEach(function (s) {
+      grid.appendChild(h('section', { class: 'card' }, h('h2', { text: s.title }),
+        h('dl', { class: 'kv' }, s.rows.map(function (r) {
+          return [h('dt', { text: r[0] }), h('dd', { text: String(r[1]) })];
+        }))));
+    });
+    view.appendChild(grid);
+    if (dev.vlans.length) {
+      view.appendChild(h('section', { class: 'card' }, h('h2', { text: 'VLANs' }),
+        h('div', { class: 'chips' }, dev.vlans.map(function (v) {
+          return h('span', { class: 'chip' }, h('b', { text: v.id }), v.name ? ' ' + v.name : '');
+        }))));
+    }
+    view.appendChild(h('section', { class: 'card' },
+      h('div', { class: 'toolbar' },
+        h('button', { onclick: function () {
+          download(fileSafe(dev.hostname) + '-summary.csv', '﻿' + NP.csv(NP.summaryRows(dev)), 'text/csv');
+        } }, 'Export summary CSV'),
+        h('button', { onclick: function () { window.print(); } }, 'Print')),
+      h('h2', { text: 'Loaded input' }),
+      h('div', { class: 'chips' }, dev.sources.map(function (s) {
+        return h('span', { class: 'chip', text: s.name + ' (' + s.lines + ' lines)' });
+      }))));
+  }
+
+  function pill(text) {
+    if (!text) return '';
+    const cls = text === 'up' || text === 'enabled' || text === 'on' || text === 'delivering' ? 'up'
+      : text === 'disabled' ? 'off' : /^err|fault|deny|denied/i.test(text) ? 'warn' : 'down';
+    return h('span', { class: 'pill ' + cls, text: text });
+  }
+
+  function visiblePorts(dev) {
+    const q = state.search.trim().toLowerCase();
+    let list = dev.ports.filter(function (p) {
+      if (state.physOnly && p.kind !== 'physical') return false;
+      if (state.hideDown && p.link !== 'up') return false;
+      if (!q) return true;
+      return NP.columns.some(function (c) { return String(c.get(p)).toLowerCase().includes(q); });
+    });
+    if (state.sort) {
+      const col = NP.columns.find(function (c) { return c.id === state.sort.id; });
+      if (col) {
+        list = list.slice().sort(function (a, b) {
+          const x = String(col.get(a)).toLowerCase(), y = String(col.get(b)).toLowerCase();
+          if (!x || !y) return x ? -1 : y ? 1 : 0;          // blanks always last
+          return NP.naturalCompare(x, y) * state.sort.dir;
+        });
+      }
+    }
+    return list;
+  }
+
+  function ports(view, dev) {
+    const cols = NP.columns.filter(function (c) { return state.cols.includes(c.id); });
+    const list = visiblePorts(dev);
+    const check = function (label, key) {
+      return h('label', { class: 'check' },
+        h('input', { type: 'checkbox', checked: state[key], onchange: function (e) { state[key] = e.target.checked; render(); } }), label);
+    };
+    const search = h('input', { type: 'search', placeholder: 'Filter ports…', value: state.search, 'aria-label': 'Filter ports',
+      oninput: function (e) {
+        state.search = e.target.value; render();
+        const el = document.querySelector('.toolbar input[type=search]');
+        el.focus(); el.setSelectionRange(el.value.length, el.value.length);
+      } });
+    const colPicker = h('details', { class: 'cols' }, h('summary', { text: 'Columns' }),
+      h('div', { class: 'pop' }, NP.columns.map(function (c) {
+        return h('label', { class: 'check' },
+          h('input', { type: 'checkbox', checked: state.cols.includes(c.id), onchange: function (e) {
+            state.cols = NP.columns.map(function (x) { return x.id; }).filter(function (id) {
+              return id === c.id ? e.target.checked : state.cols.includes(id);
+            });
+            save(); render();
+            document.querySelector('details.cols').open = true;
+          } }), c.label);
+      })));
+    const inView = function (p) { return list.includes(p); };
+    const toolbar = h('div', { class: 'toolbar' }, search, check('Physical only', 'physOnly'), check('Link up only', 'hideDown'),
+      colPicker, h('span', { class: 'count', text: list.length + ' of ' + dev.ports.length + ' shown' }), h('span', { class: 'spacer' }),
+      h('button', { title: 'The rows and columns currently shown', onclick: function () {
+        download(fileSafe(dev.hostname) + '-ports.csv', '﻿' + NP.csv(NP.portRows([dev], state.cols, inView)), 'text/csv');
+      } }, 'Export CSV'),
+      h('button', { title: 'Every column, every port', onclick: function () {
+        download(fileSafe(dev.hostname) + '-ports-full.csv', '﻿' + NP.csv(NP.portRows([dev])), 'text/csv');
+      } }, 'Export all columns'),
+      h('button', { title: 'Tab-separated, pastes straight into a spreadsheet', onclick: function (e) {
+        const tsv = NP.portRows([dev], state.cols, inView).map(function (r) {
+          return r.map(function (c) { return String(c).replace(/[\t\r\n]+/g, ' '); }).join('\t');
+        }).join('\n');
+        const btn = e.target;
+        navigator.clipboard.writeText(tsv).then(function () { btn.textContent = 'Copied'; },
+          function () { btn.textContent = 'Copy failed'; });
+      } }, 'Copy'),
+      h('button', { onclick: function () { window.print(); } }, 'Print'));
+
+    const thead = h('thead', {}, h('tr', {}, cols.map(function (c) {
+      const s = state.sort && state.sort.id === c.id ? (state.sort.dir > 0 ? 'ascending' : 'descending') : null;
+      return h('th', { 'aria-sort': s, scope: 'col', onclick: function () {
+        if (!state.sort || state.sort.id !== c.id) state.sort = { id: c.id, dir: 1 };
+        else if (state.sort.dir === 1) state.sort.dir = -1;
+        else state.sort = null;
+        render();
+      } }, c.label);
+    })));
+    const tbody = h('tbody', {}, list.map(function (p) {
+      return h('tr', {}, cols.map(function (c) {
+        const v = c.get(p);
+        if (c.id === 'link' || c.id === 'admin' || c.id === 'poeStatus') return h('td', {}, pill(v));
+        const cls = c.id === 'description' || c.id === 'notes' || c.id === 'stp' ? 'wrap'
+          : c.id === 'name' || c.id === 'short' || c.id === 'ip' || c.id === 'tagged' ? 'mono' : '';
+        return h('td', { class: cls, text: v == null ? '' : String(v) });
+      }));
+    }));
+    view.appendChild(h('section', { class: 'card' }, toolbar,
+      list.length ? h('div', { class: 'tablewrap' }, h('table', {}, thead, tbody))
+        : h('p', { class: 'empty', text: 'No ports match.' })));
+  }
+
+  function labels(view, dev) {
+    const L = state.label;
+    const devs = L.scope === 'all' ? state.devices : [dev];
+    const rows = NP.labelRows(devs, L);
+    const set = function (fn) { return function (e) { fn(e.target); save(); render(); }; };
+    const check = function (label, key) {
+      return h('label', { class: 'check' },
+        h('input', { type: 'checkbox', checked: L[key], onchange: set(function (t) { L[key] = t.checked; }) }), label);
+    };
+    const lineInput = function (i) {
+      return h('label', {}, 'Line ' + (i + 1),
+        h('input', { type: 'text', value: L.lines[i] || '', 'data-line': i,
+          onchange: set(function (t) { L.lines[i] = t.value; L.preset = 'custom'; }) }));
+    };
+    const form = h('div', { class: 'labelform' },
+      h('label', {}, 'Label type',
+        h('select', { onchange: set(function (t) {
+          L.preset = t.value;
+          if (NP.labelPresets[t.value]) L.lines = NP.labelPresets[t.value].lines.slice();
+        }) }, Object.keys(NP.labelPresets).map(function (k) {
+          return h('option', { value: k, selected: L.preset === k, text: NP.labelPresets[k].label });
+        }), h('option', { value: 'custom', selected: L.preset === 'custom', text: 'Custom' }))),
+      h('label', {}, 'Devices',
+        h('select', { onchange: set(function (t) { L.scope = t.value; }) },
+          h('option', { value: 'device', selected: L.scope === 'device', text: 'This device only' }),
+          h('option', { value: 'all', selected: L.scope === 'all', text: 'All loaded devices (' + state.devices.length + ')' }))),
+      lineInput(0), lineInput(1), lineInput(2));
+    const head = rows[0];
+    view.appendChild(h('section', { class: 'card' },
+      form,
+      h('div', { class: 'opts' }, check('Physical ports only', 'physicalOnly'), check('Link up only', 'upOnly'),
+        check('Only ports with a description or neighbor', 'describedOnly'), check('Skip disabled ports', 'skipDisabled')),
+      h('p', { class: 'tokens' }, 'Fields: ',
+        Object.keys(NP.labelTokens).map(function (t) { return [h('code', { text: '{' + t + '}' }), ' ']; }),
+        h('br'), h('code', { text: '{neighbor|desc}' }), ' uses the first one that has a value. ',
+        h('code', { text: '[VLAN {vlan}]' }), ' is left out when the field inside is empty.'),
+      h('div', { class: 'toolbar' },
+        h('span', { class: 'count', text: (rows.length - 1) + ' label(s)' }), h('span', { class: 'spacer' }),
+        h('button', { class: 'primary', disabled: rows.length < 2, onclick: function () {
+          const name = (L.scope === 'all' ? 'all-devices' : fileSafe(dev.hostname)) + '-labels.csv';
+          download(name, NP.csv(rows), 'text/csv');
+        } }, 'Export label CSV')),
+      rows.length > 1
+        ? h('div', { class: 'tablewrap' }, h('table', { class: 'labelprev' },
+            h('thead', {}, h('tr', {}, head.map(function (c) { return h('th', { class: 'nosort', scope: 'col', text: c }); }))),
+            h('tbody', {}, rows.slice(1).map(function (r) {
+              return h('tr', {}, r.map(function (c) { return h('td', { text: c }); }));
+            }))))
+        : h('p', { class: 'empty', text: 'No ports match these options.' }),
+      h('p', { class: 'hint', text: 'In P-touch Editor: File > Database > Connect, choose this CSV, tick "Header row contains field names", then drag the Line fields onto the label and print all records.' })));
+  }
+
+  // -------------------------------------------------------------------- wire
+  function init() {
+    NP.vendorOrder.forEach(function (id) {
+      $('selVendor').appendChild(h('option', { value: id, text: NP.vendors[id].label }));
+    });
+    Object.keys(NP.samples).forEach(function (id) {
+      $('selSample').appendChild(h('option', { value: id, text: NP.samples[id].label }));
+    });
+    $('btnParse').addEventListener('click', function () { parseText($('txtInput').value, 'pasted text'); });
+    $('btnFiles').addEventListener('click', function () { $('fileInput').click(); });
+    $('fileInput').addEventListener('change', function (e) { readFiles(e.target.files); e.target.value = ''; });
+    $('selSample').addEventListener('change', function (e) {
+      if (!e.target.value) return;
+      $('txtInput').value = NP.samples[e.target.value].text;
+      e.target.value = '';
+      msg('Sample loaded. Press Parse.', '');
+    });
+    const ta = $('txtInput');
+    ta.addEventListener('dragover', function (e) { e.preventDefault(); ta.classList.add('drag'); });
+    ta.addEventListener('dragleave', function () { ta.classList.remove('drag'); });
+    ta.addEventListener('drop', function (e) {
+      ta.classList.remove('drag');
+      if (e.dataTransfer.files && e.dataTransfer.files.length) { e.preventDefault(); readFiles(e.dataTransfer.files); }
+    });
+    $('btnBackup').addEventListener('click', function () {
+      if (!state.devices.length) { msg('Nothing to back up yet.', 'err'); return; }
+      download('portsheet-backup-' + new Date().toISOString().slice(0, 10) + '.json', NP.backup(state.devices), 'application/json');
+    });
+    $('btnImport').addEventListener('click', function () { $('fileBackup').click(); });
+    $('fileBackup').addEventListener('change', function (e) {
+      const f = e.target.files[0];
+      if (!f) return;
+      const fr = new FileReader();
+      fr.onload = function () {
+        try {
+          const devs = NP.restore(String(fr.result));
+          devs.forEach(function (d) {
+            const i = state.devices.findIndex(function (x) { return x.id === d.id; });
+            if (i >= 0) state.devices[i] = d; else state.devices.push(d);
+          });
+          if (devs.length) state.current = devs[0].id;
+          msg('Imported ' + devs.length + ' device(s).', 'ok');
+        } catch (err) { msg(err.message, 'err'); }
+        save(); render();
+      };
+      fr.readAsText(f);
+      e.target.value = '';
+    });
+    $('btnClear').addEventListener('click', function () {
+      if (!state.devices.length || !confirm('Remove all ' + state.devices.length + ' device(s) from this browser?')) return;
+      state.devices = []; state.current = null; save(); render();
+    });
+    load();
+    if (!cur() && state.devices.length) state.current = state.devices[0].id;
+    render();
+  }
+  init();
+})();
+</script>
+</body>
+</html>

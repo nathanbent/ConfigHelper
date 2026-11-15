@@ -1,0 +1,608 @@
+/* Made-up sample inputs: used by the "Load sample" menu and by the tests. */
+(function (root) {
+  'use strict';
+  const NP = root.NP;
+  const S = NP.samples = {};
+
+  S.ios = { label: 'Cisco IOS switch (config + show commands)', text: String.raw`SW-ACCESS-01#show running-config
+Building configuration...
+
+Current configuration : 5120 bytes
+!
+version 15.2
+service timestamps log datetime msec
+!
+hostname SW-ACCESS-01
+!
+aaa new-model
+username admin privilege 15 secret 9 $9$abcdefghijkl
+!
+ip domain-name corp.example.com
+ip name-server 10.10.0.53 10.10.0.54
+!
+spanning-tree mode rapid-pvst
+spanning-tree portfast bpduguard default
+spanning-tree extend system-id
+spanning-tree vlan 1-4094 priority 32768
+!
+vlan 10
+ name USERS
+!
+vlan 20
+ name VOICE
+!
+vlan 30
+ name WIFI
+!
+vlan 99
+ name MGMT
+!
+interface Port-channel1
+ description Uplink to CORE-01
+ switchport trunk native vlan 99
+ switchport trunk allowed vlan 10,20,30,99
+ switchport mode trunk
+!
+interface GigabitEthernet1/0/1
+ description Reception PC + phone
+ switchport access vlan 10
+ switchport mode access
+ switchport voice vlan 20
+ spanning-tree portfast
+!
+interface GigabitEthernet1/0/2
+ description AP-Lobby
+ switchport trunk native vlan 99
+ switchport trunk allowed vlan 30,99
+ switchport mode trunk
+ spanning-tree portfast trunk
+!
+interface GigabitEthernet1/0/3
+ description Printer 2nd floor
+ switchport access vlan 10
+ switchport mode access
+ power inline never
+ spanning-tree portfast
+ spanning-tree bpduguard enable
+!
+interface GigabitEthernet1/0/4
+ description SPARE
+ switchport access vlan 10
+ switchport mode access
+ shutdown
+!
+interface TenGigabitEthernet1/1/1
+ description CORE-01 Te1/0/1
+ switchport trunk native vlan 99
+ switchport trunk allowed vlan 10,20,30,99
+ switchport mode trunk
+ channel-group 1 mode active
+!
+interface TenGigabitEthernet1/1/2
+ description CORE-01 Te2/0/1
+ switchport trunk native vlan 99
+ switchport trunk allowed vlan 10,20,30,99
+ switchport mode trunk
+ channel-group 1 mode active
+!
+interface Vlan1
+ no ip address
+ shutdown
+!
+interface Vlan99
+ description Management
+ ip address 10.10.99.11 255.255.255.0
+!
+ip default-gateway 10.10.99.1
+no ip http server
+ip http secure-server
+ip ssh version 2
+!
+logging host 10.10.0.60
+snmp-server community s3cret RO
+snmp-server location Building A / IDF 2
+snmp-server contact netops@example.com
+!
+ntp server 10.10.0.1 prefer
+ntp server 10.10.0.2
+!
+end
+
+SW-ACCESS-01#show interfaces status
+
+Port      Name               Status       Vlan       Duplex  Speed Type
+Gi1/0/1   Reception PC + pho connected    10         a-full a-1000 10/100/1000BaseTX
+Gi1/0/2   AP-Lobby           connected    trunk      a-full a-1000 10/100/1000BaseTX
+Gi1/0/3   Printer 2nd floor  notconnect   10           auto   auto 10/100/1000BaseTX
+Gi1/0/4   SPARE              disabled     10           auto   auto 10/100/1000BaseTX
+Te1/1/1   CORE-01 Te1/0/1    connected    trunk        full    10G SFP-10GBase-SR
+Te1/1/2   CORE-01 Te2/0/1    connected    trunk        full    10G SFP-10GBase-SR
+Po1       Uplink to CORE-01  connected    trunk      a-full    10G
+
+SW-ACCESS-01#show power inline
+
+Module   Available     Used     Remaining
+          (Watts)     (Watts)    (Watts)
+------   ---------   --------   ---------
+1           740.0       21.9       718.1
+Interface Admin  Oper       Power   Device              Class Max
+                            (Watts)
+--------- ------ ---------- ------- ------------------- ----- ----
+Gi1/0/1   auto   on         6.5     IP Phone 8841       2     30.0
+Gi1/0/2   auto   on         15.4    AIR-AP2802I-B-K9    4     30.0
+Gi1/0/3   off    off        0.0     n/a                 n/a   30.0
+Gi1/0/4   auto   off        0.0     n/a                 n/a   30.0
+
+SW-ACCESS-01#show cdp neighbors
+Capability Codes: R - Router, T - Trans Bridge, B - Source Route Bridge
+                  S - Switch, H - Host, I - IGMP, r - Repeater, P - Phone
+
+Device ID        Local Intrfce     Holdtme    Capability  Platform  Port ID
+CORE-01.corp.example.com
+                 Ten 1/1/1         156             R S I  C9500-24Y Ten 1/0/1
+CORE-01.corp.example.com
+                 Ten 1/1/2         171             R S I  C9500-24Y Ten 2/0/1
+AP-Lobby         Gig 1/0/2         134              R T   AIR-AP280 Gig 0
+
+Total cdp entries displayed : 3
+SW-ACCESS-01#show version
+Cisco IOS Software, C2960X Software (C2960X-UNIVERSALK9-M), Version 15.2(7)E7, RELEASE SOFTWARE (fc2)
+SW-ACCESS-01 uptime is 41 weeks, 2 days, 3 hours, 12 minutes
+cisco WS-C2960X-48FPD-L (APM86XXX) processor (revision A0) with 524288K bytes of memory.
+Model number                    : WS-C2960X-48FPD-L
+System serial number            : FOC1234X5YZ
+`};
+
+  S.nxos = { label: 'Cisco NX-OS', text: String.raw`!Command: show running-config
+version 9.3(8) Bios:version 05.45
+switchname DC-LEAF-01
+feature lacp
+feature interface-vlan
+feature lldp
+feature vpc
+ip domain-name dc.example.com
+ip name-server 10.20.0.53 use-vrf management
+ntp server 10.20.0.1 use-vrf management
+logging server 10.20.0.60
+snmp-server location DC1 Row 4
+spanning-tree mode mst
+spanning-tree port type edge bpduguard default
+vlan 1,100,200
+vlan 100
+  name SERVERS
+vlan 200
+  name STORAGE
+
+interface Vlan100
+  no shutdown
+  ip address 10.100.0.2/24
+
+interface port-channel10
+  description vPC to ESX-01
+  switchport mode trunk
+  switchport trunk allowed vlan 100,200
+  spanning-tree port type edge trunk
+  vpc 10
+
+interface Ethernet1/1
+  description ESX-01 vmnic0
+  switchport mode trunk
+  switchport trunk allowed vlan 100,200
+  channel-group 10 mode active
+
+interface Ethernet1/2
+  description Backup server
+  switchport access vlan 100
+  spanning-tree port type edge
+
+interface Ethernet1/49
+  description SPINE-01 Eth1/1
+  no switchport
+  ip address 10.255.0.1/31
+  no shutdown
+
+interface mgmt0
+  vrf member management
+  ip address 10.20.99.21/24
+`};
+
+  S.aoscx = { label: 'Aruba AOS-CX', text: String.raw`!Version ArubaOS-CX FL.10.10.1020
+hostname CX-IDF-3
+ntp server 10.30.0.1 iburst
+ip dns domain-name campus.example.com
+ip dns server-address 10.30.0.53
+logging 10.30.0.60
+vlan 1
+vlan 10
+    name STAFF
+vlan 20
+    name VOICE
+    voice
+vlan 40
+    name CCTV
+spanning-tree
+spanning-tree priority 8
+interface mgmt
+    no shutdown
+    ip static 10.30.99.13/24
+interface lag 1
+    description Uplink to core
+    no shutdown
+    no routing
+    vlan trunk native 1
+    vlan trunk allowed 10,20,40
+    lacp mode active
+interface 1/1/1
+    description Desk 3-101
+    no shutdown
+    no routing
+    vlan access 10
+    spanning-tree port-type admin-edge
+    spanning-tree bpdu-guard
+interface 1/1/2
+    description Camera east door
+    no shutdown
+    no routing
+    vlan access 40
+interface 1/1/3
+    no routing
+    vlan access 10
+interface 1/1/49
+    description Core 1/1/5
+    no shutdown
+    lag 1
+interface vlan 10
+    ip address 10.30.10.3/24
+ip route 0.0.0.0/0 10.30.10.1
+CX-IDF-3# show interface brief
+--------------------------------------------------------------------------------------------------------
+Port      Native  Mode   Type           Enabled Status  Reason                  Speed    Description
+          VLAN                                                                  (Mb/s)
+--------------------------------------------------------------------------------------------------------
+1/1/1     10      access 1GbT           yes     up                              1000     Desk 3-101
+1/1/2     40      access 1GbT           yes     up                              100      Camera east door
+1/1/3     10      access 1GbT           no      down    Administratively down   --       --
+1/1/49    1       trunk  SFP+DA3        yes     up                              10000    Core 1/1/5
+`};
+
+  S.arubaos = { label: 'ArubaOS-Switch / HP ProCurve', text: String.raw`HP-2530-IDF1# show running-config
+
+Running configuration:
+
+; J9772A Configuration Editor; Created on release #YA.16.10.0012
+; Ver #14:41.44.00.04.19.02.13.98.82.34.61.18.28.f3.84.9c.63.ff.37.27:05
+hostname "HP-2530-IDF1"
+trunk 49-50 trk1 lacp
+timesync ntp
+ntp unicast
+ntp server 10.40.0.1 iburst
+ntp enable
+ip default-gateway 10.40.99.1
+ip dns domain-name "office.example.com"
+ip dns server-address priority 1 10.40.0.53
+logging 10.40.0.60
+interface 1
+   name "AP Front Office"
+   exit
+interface 2
+   name "Door controller"
+   exit
+interface 3
+   name "Unused"
+   disable
+   no power-over-ethernet
+   exit
+snmp-server community "public" unrestricted
+snmp-server location "IDF1 rack 2"
+vlan 1
+   name "DEFAULT_VLAN"
+   no untagged 1-48
+   untagged Trk1
+   no ip address
+   exit
+vlan 10
+   name "DATA"
+   untagged 3-48
+   tagged 1,Trk1
+   ip igmp
+   exit
+vlan 20
+   name "VOICE"
+   tagged 3-24,Trk1
+   voice
+   exit
+vlan 99
+   name "MGMT"
+   untagged 1-2
+   tagged Trk1
+   ip address 10.40.99.21 255.255.255.0
+   exit
+spanning-tree
+spanning-tree 1-48 admin-edge-port bpdu-protection
+spanning-tree Trk1 priority 4
+spanning-tree priority 8
+HP-2530-IDF1# show interfaces brief
+
+ Status and Counters - Port Status
+
+                          | Intrusion                           MDI   Flow  Bcast
+  Port         Type       | Alert     Enabled Status Mode       Mode  Ctrl  Limit
+  ------------ ---------- + --------- ------- ------ ---------- ----- ----- ------
+  1            100/1000T  | No        Yes     Up     1000FDx    MDIX  off   0
+  2            100/1000T  | No        Yes     Up     100FDx     MDI   off   0
+  3            100/1000T  | No        No      Down   1000FDx    Auto  off   0
+  4            100/1000T  | No        Yes     Down   1000FDx    Auto  off   0
+  49-Trk1      SFP+SR     | No        Yes     Up     10GigFD    NA    off   0
+
+HP-2530-IDF1# show power-over-ethernet brief
+
+ Status and Counters - Port Power Status
+
+  Available: 370 W  Used: 12 W  Remaining: 358 W
+
+  PoE    | Power  Power    Alloc Alloc Actual Configured  Detection   Power Pre-std
+  Port   | Enable Priority By    Power Power  Type        Status      Class Detect
+  ------ + ------ -------- ----- ----- ------ ----------- ----------- ----- ------
+  1      | Yes    low      usage 17 W  9.8 W              Delivering  4     off
+  2      | Yes    low      usage 17 W  2.1 W              Delivering  2     off
+  3      | No     low      usage 17 W  0.0 W              Disabled    0     off
+  4      | Yes    low      usage 17 W  0.0 W              Searching   0     off
+`};
+
+  S.comware = { label: 'HPE Comware / H3C', text: String.raw`<CW-STACK-1>display current-configuration
+#
+ version 7.1.070, Release 6126P20
+#
+ sysname CW-STACK-1
+#
+ igmp-snooping
+#
+ dns server 10.50.0.53
+ dns domain branch.example.com
+#
+ stp mode rstp
+ stp instance 0 priority 4096
+ stp bpdu-protection
+ stp global enable
+#
+vlan 1
+#
+vlan 10
+ name OFFICE
+ igmp-snooping enable
+#
+vlan 20
+ name PHONES
+#
+vlan 99
+ name MGMT
+#
+interface Bridge-Aggregation1
+ description To-Core
+ port link-type trunk
+ port trunk permit vlan 1 10 20 99
+#
+interface Vlan-interface99
+ ip address 10.50.99.5 255.255.255.0
+#
+interface GigabitEthernet1/0/1
+ description Desk-A1
+ port access vlan 10
+ stp edged-port
+ poe enable
+#
+interface GigabitEthernet1/0/2
+ description Phone+PC
+ port link-type hybrid
+ port hybrid vlan 20 tagged
+ port hybrid vlan 10 untagged
+ port hybrid pvid vlan 10
+ voice-vlan 20 enable
+ stp edged-port
+ poe enable
+#
+interface GigabitEthernet1/0/3
+ shutdown
+#
+interface Ten-GigabitEthernet1/0/49
+ description Core-Te1
+ port link-type trunk
+ port trunk permit vlan 1 10 20 99
+ port link-aggregation group 1
+#
+ ip route-static 0.0.0.0 0 10.50.99.1
+#
+ info-center loghost 10.50.0.60
+#
+ snmp-agent sys-info location Branch comms room
+ snmp-agent sys-info version v2c v3
+#
+ ntp-service unicast-server 10.50.0.1
+#
+return
+<CW-STACK-1>display interface brief
+Brief information on interfaces in bridge mode:
+Link: ADM - administratively down; Stby - standby
+Speed: (a) - auto
+Duplex: (a)/A - auto; H - half; F - full
+Type: A - access; T - trunk; H - hybrid
+Interface            Link Speed   Duplex Type PVID Description
+BAGG1                UP   10G(a)  F(a)   T    1    To-Core
+GE1/0/1              UP   1G(a)   F(a)   A    10   Desk-A1
+GE1/0/2              DOWN auto    A      H    10   Phone+PC
+GE1/0/3              ADM  auto    A      A    1
+XGE1/0/49            UP   10G     F      T    1    Core-Te1
+`};
+
+  S.junos = { label: 'Juniper Junos (display set)', text: String.raw`admin@EX-FLOOR2> show configuration | display set
+set version 21.4R3-S5.4
+set system host-name EX-FLOOR2
+set system domain-name campus.example.org
+set system name-server 10.60.0.53
+set system name-server 10.60.0.54
+set system ntp server 10.60.0.1 prefer
+set system syslog host 10.60.0.60 any notice
+set system services ssh
+set snmp location "Floor 2 IDF"
+set snmp community monitor authorization read-only
+set interfaces interface-range DESKS member-range ge-0/0/2 to ge-0/0/5
+set interfaces interface-range DESKS unit 0 family ethernet-switching interface-mode access
+set interfaces interface-range DESKS unit 0 family ethernet-switching vlan members STAFF
+set interfaces ge-0/0/0 description "AP-F2-North"
+set interfaces ge-0/0/0 native-vlan-id 99
+set interfaces ge-0/0/0 unit 0 family ethernet-switching interface-mode trunk
+set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members WIFI
+set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members MGMT
+set interfaces ge-0/0/1 description "Meeting room panel"
+set interfaces ge-0/0/1 disable
+set interfaces ge-0/0/1 unit 0 family ethernet-switching interface-mode access
+set interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members STAFF
+set interfaces xe-0/1/0 description "DIST-1 xe-0/0/10"
+set interfaces xe-0/1/0 ether-options 802.3ad ae0
+set interfaces ae0 description "Uplink to DIST"
+set interfaces ae0 aggregated-ether-options lacp active
+set interfaces ae0 unit 0 family ethernet-switching interface-mode trunk
+set interfaces ae0 unit 0 family ethernet-switching vlan members all
+set interfaces irb unit 99 family inet address 10.60.99.12/24
+set vlans STAFF vlan-id 10
+set vlans VOICE vlan-id 20
+set vlans WIFI vlan-id 30
+set vlans MGMT vlan-id 99
+set vlans MGMT l3-interface irb.99
+set switch-options voip interface ge-0/0/2.0 vlan VOICE
+set routing-options static route 0.0.0.0/0 next-hop 10.60.99.1
+set protocols rstp bridge-priority 32k
+set protocols rstp interface ge-0/0/1 edge
+set protocols rstp interface ge-0/0/2 edge
+set protocols rstp bpdu-block-on-edge
+set protocols igmp-snooping vlan STAFF
+set protocols lldp interface all
+set poe interface all
+
+admin@EX-FLOOR2> show interfaces terse
+Interface               Admin Link Proto    Local                 Remote
+ge-0/0/0                up    up
+ge-0/0/0.0              up    up   eth-switch
+ge-0/0/1                down  down
+ge-0/0/2                up    up
+ge-0/0/3                up    down
+xe-0/1/0                up    up
+ae0                     up    up
+irb.99                  up    up   inet     10.60.99.12/24
+
+admin@EX-FLOOR2> show lldp neighbors
+Local Interface    Parent Interface    Chassis Id          Port info          System Name
+ge-0/0/0           -                   a8:bd:27:11:22:33   eth0               AP-F2-North
+xe-0/1/0           ae0                 44:f4:77:aa:bb:cc   xe-0/0/10          DIST-1
+`};
+
+  S.fortigate = { label: 'Fortinet FortiGate', text: String.raw`#config-version=FGT60F-7.2.8-FW-build1639-240313:opmode=0:vdom=0:user=admin
+config system global
+    set hostname "FW-BRANCH-01"
+    set timezone 12
+    set admin-sport 8443
+end
+config system interface
+    edit "wan1"
+        set vdom "root"
+        set mode dhcp
+        set allowaccess ping
+        set type physical
+        set alias "ISP fibre"
+        set role wan
+    next
+    edit "wan2"
+        set vdom "root"
+        set status down
+        set type physical
+        set role wan
+    next
+    edit "internal1"
+        set vdom "root"
+        set ip 192.168.10.1 255.255.255.0
+        set allowaccess ping https ssh
+        set type physical
+        set alias "LAN switch"
+        set role lan
+    next
+    edit "guest"
+        set vdom "root"
+        set ip 192.168.50.1 255.255.255.0
+        set allowaccess ping
+        set alias "Guest WiFi"
+        set role lan
+        set interface "internal1"
+        set vlanid 50
+    next
+end
+config system dns
+    set primary 1.1.1.1
+    set secondary 9.9.9.9
+    set domain "branch.example.net"
+end
+config system ntp
+    set ntpsync enable
+    set type custom
+    config ntpserver
+        edit 1
+            set server "time.example.net"
+        next
+    end
+end
+config log syslogd setting
+    set status enable
+    set server "192.168.10.60"
+end
+config system zone
+    edit "LAN"
+        set interface "internal1" "guest"
+    next
+end
+config router static
+    edit 1
+        set gateway 203.0.113.1
+        set device "wan1"
+    next
+end
+`};
+
+  S.mikrotik = { label: 'MikroTik RouterOS (/export)', text: String.raw`# 2025-03-02 10:11:12 by RouterOS 7.14.2
+# software id = ABCD-1234
+#
+# model = CRS328-24P-4S+
+# serial number = HF1234ABCDE
+/interface bridge
+add igmp-snooping=yes name=bridge1 priority=0x4000 protocol-mode=rstp \
+    vlan-filtering=yes
+/interface ethernet
+set [ find default-name=ether1 ] comment="AP workshop" poe-out=auto-on
+set [ find default-name=ether2 ] comment="Spare" disabled=yes poe-out=off
+set [ find default-name=sfp-sfpplus1 ] comment="Uplink core"
+/interface vlan
+add interface=bridge1 name=vlan99-mgmt vlan-id=99
+/interface bridge port
+add bridge=bridge1 interface=ether1 pvid=99
+add bridge=bridge1 edge=yes frame-types=admit-only-untagged-and-priority-tagged \
+    interface=ether2 pvid=10
+add bridge=bridge1 edge=yes interface=ether3 pvid=10
+add bridge=bridge1 interface=sfp-sfpplus1
+/interface bridge vlan
+add bridge=bridge1 tagged=bridge1,sfp-sfpplus1 untagged=ether2,ether3 vlan-ids=10
+add bridge=bridge1 tagged=sfp-sfpplus1,ether1 vlan-ids=30
+add bridge=bridge1 tagged=bridge1,sfp-sfpplus1 untagged=ether1 vlan-ids=99
+/ip address
+add address=10.70.99.5/24 interface=vlan99-mgmt network=10.70.99.0
+/ip dns
+set servers=10.70.0.53,1.1.1.1
+/ip route
+add gateway=10.70.99.1
+/system identity
+set name=MT-WORKSHOP
+/system ntp client
+set enabled=yes
+/system ntp client servers
+add address=10.70.0.1
+/snmp
+set enabled=yes location="Workshop cabinet"
+`};
+})(typeof globalThis !== 'undefined' ? globalThis : this);
