@@ -26,6 +26,8 @@
     return out;
   }
 
+  NP.braceToSet = toSet;                 // PAN-OS uses the same brace layout
+
   function expandRange(a, b) {
     const x = a.match(/^(.*?)(\d+)$/), y = b.match(/^(.*?)(\d+)$/);
     if (!x || !y || x[1] !== y[1] || +y[2] < +x[2]) return [a, b];

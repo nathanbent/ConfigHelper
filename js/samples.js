@@ -1052,6 +1052,92 @@ MED type codes:
   port23      Up      CORE-01              120   BR          -         Te1/0/45
 `};
 
+  S.paloalto = { label: 'Palo Alto PAN-OS (set format)', text: String.raw`admin@PA-EDGE-01# show
+set deviceconfig system hostname PA-EDGE-01
+set deviceconfig system ip-address 10.98.99.5
+set deviceconfig system netmask 255.255.255.0
+set deviceconfig system default-gateway 10.98.99.1
+set deviceconfig system domain edge.example.org
+set deviceconfig system dns-setting servers primary 10.98.0.53
+set deviceconfig system dns-setting servers secondary 9.9.9.9
+set deviceconfig system ntp-servers primary-ntp-server ntp-server-address 10.98.0.1
+set deviceconfig system timezone US/Central
+set deviceconfig system service disable-telnet yes
+set deviceconfig system service disable-http yes
+set deviceconfig system snmp-setting snmp-system location "Edge rack 2"
+set deviceconfig system snmp-setting access-setting version v3 users monitor view all
+set mgt-config users admin phash $1$abcdefgh$ijklmnopqrstuvwx
+set mgt-config users netops permissions role-based superuser yes
+set network profiles interface-management-profile allow-ping ping yes
+set network profiles interface-management-profile allow-mgmt https yes
+set network profiles interface-management-profile allow-mgmt ssh yes
+set network profiles interface-management-profile allow-mgmt ping yes
+set network interface ethernet ethernet1/1 layer3 ip 203.0.113.2/30
+set network interface ethernet ethernet1/1 layer3 interface-management-profile allow-ping
+set network interface ethernet ethernet1/1 comment "ISP fibre"
+set network interface ethernet ethernet1/2 layer3 units ethernet1/2.10 tag 10
+set network interface ethernet ethernet1/2 layer3 units ethernet1/2.10 ip 10.98.10.1/24
+set network interface ethernet ethernet1/2 layer3 units ethernet1/2.10 comment "Staff"
+set network interface ethernet ethernet1/2 layer3 units ethernet1/2.10 interface-management-profile allow-mgmt
+set network interface ethernet ethernet1/2 layer3 units ethernet1/2.20 tag 20
+set network interface ethernet ethernet1/2 layer3 units ethernet1/2.20 ip 10.98.20.1/24
+set network interface ethernet ethernet1/2 layer3 units ethernet1/2.20 comment "Guest wifi"
+set network interface ethernet ethernet1/2 comment "LAN trunk to core"
+set network interface ethernet ethernet1/3 link-state down
+set network interface ethernet ethernet1/3 tap
+set network interface ethernet ethernet1/5 aggregate-group ae1
+set network interface ethernet ethernet1/6 aggregate-group ae1
+set network interface aggregate-ethernet ae1 layer3 ip 10.98.30.1/24
+set network interface aggregate-ethernet ae1 comment "DMZ switch"
+set network interface loopback units loopback.1 ip 10.255.98.1/32
+set network virtual-router default interface [ ethernet1/1 ethernet1/2.10 ethernet1/2.20 ae1 loopback.1 ]
+set network virtual-router default routing-table ip static-route default-route destination 0.0.0.0/0
+set network virtual-router default routing-table ip static-route default-route nexthop ip-address 203.0.113.1
+set zone untrust network layer3 ethernet1/1
+set zone trust network layer3 ethernet1/2.10
+set zone guest network layer3 ethernet1/2.20
+set zone dmz network layer3 [ ae1 ]
+set shared log-settings syslog central server srv1 server 10.98.0.60
+set rulebase security rules allow-out from trust
+set rulebase security rules allow-out to untrust
+set rulebase security rules allow-out action allow
+set address web-server ip-netmask 10.98.30.10
+admin@PA-EDGE-01> show system info
+
+hostname: PA-EDGE-01
+ip-address: 10.98.99.5
+model: PA-440
+serial: 000000000001
+sw-version: 10.2.4-h4
+
+admin@PA-EDGE-01> show interface all
+
+total configured hardware interfaces: 6
+
+name                    id    speed/duplex/state            mac address
+--------------------------------------------------------------------------------
+ethernet1/1             16    1000/full/up                  00:00:5e:00:53:10
+ethernet1/2             17    1000/full/up                  00:00:5e:00:53:11
+ethernet1/3             18    ukn/ukn/down(power-down)      00:00:5e:00:53:12
+ethernet1/5             20    10000/full/up                 00:00:5e:00:53:14
+ethernet1/6             21    ukn/ukn/down(autoneg)         00:00:5e:00:53:15
+ae1                     48    10000/full/up                 00:00:5e:00:53:30
+
+aggregation groups: 1
+ae1 members:
+  ethernet1/5 ethernet1/6
+
+total configured logical interfaces: 5
+
+name                id    vsys zone             forwarding               tag    address
+------------------- ----- ---- ---------------- ------------------------ ------ ------------------
+ethernet1/1         16    1    untrust          vr:default               0      203.0.113.2/30
+ethernet1/2.10      256   1    trust            vr:default               10     10.98.10.1/24
+ethernet1/2.20      257   1    guest            vr:default               20     10.98.20.1/24
+ae1                 48    1    dmz              vr:default               0      10.98.30.1/24
+loopback.1          3     1                     vr:default               0      10.255.98.1/32
+`};
+
   S.mikrotik = { label: 'MikroTik RouterOS (/export)', text: String.raw`# 2025-03-02 10:11:12 by RouterOS 7.14.2
 # software id = ABCD-1234
 #

@@ -173,6 +173,12 @@
       { cmd: 'diagnose switch physical-ports summary', gives: 'link state, speed, duplex' },
       { cmd: 'get switch poe inline', gives: 'PoE state and watts' },
       { cmd: 'get switch lldp neighbors-summary', gives: 'what is plugged in' }] },
+    paloalto: { pager: 'set cli pager off\nset cli config-output-format set', cmds: [
+      { cmd: 'configure', gives: 'enter configuration mode (needed to print the config)' },
+      { cmd: 'show', gives: 'interfaces, zones, virtual routers, DNS, NTP, syslog (or upload the exported running-config.xml instead)' },
+      { cmd: 'exit', gives: 'leave configuration mode' },
+      { cmd: 'show system info', gives: 'model, software version, serial' },
+      { cmd: 'show interface all', gives: 'link state, speed, zone, addresses' }] },
     mikrotik: { pager: '', cmds: [
       { cmd: '/export', gives: 'bridge ports, VLANs, addresses, DNS, NTP and the rest (on RouterOS 6 use "/export hide-sensitive")' }] }
   };

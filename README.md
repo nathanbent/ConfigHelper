@@ -79,6 +79,7 @@ Loaded devices are remembered in the browser's local storage; use **Export backu
 | Juniper Junos | `show configuration` (curly or `display set`) | `show interfaces terse`, `show lldp neighbors`, `show poe interface` |
 | Fortinet FortiGate | `show` / backup `.conf`, including FortiLink-managed switches (each becomes its own device) | `get system status` |
 | Fortinet FortiSwitch (standalone) | `show` | `get system status`, `diagnose switch physical-ports summary`, `get switch poe inline`, `get switch lldp neighbors-summary` |
+| Palo Alto PAN-OS | exported `running-config.xml`, `set` format, or the default brace format | `show system info`, `show interface all` |
 | MikroTik RouterOS | `/export` | |
 
 Tested against real output so far: Cisco Catalyst 3850 on IOS-XE 16.12 (`test/fixtures/`). Everything else
@@ -86,7 +87,7 @@ was written against the vendors' documented formats and the made-up samples in `
 gaps on real devices; when you find one, add the output (sanitised) to `test/fixtures/` with a test and fix
 the parser.
 
-Not covered yet: Palo Alto, pfSense/OPNsense, UniFi, EdgeOS/VyOS.
+Not covered yet: pfSense/OPNsense, UniFi, EdgeOS/VyOS.
 
 ## Labels and P-touch Editor
 

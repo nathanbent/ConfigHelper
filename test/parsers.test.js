@@ -351,6 +351,109 @@ test('Fortinet FortiSwitch', () => {
   assert.equal(port(d, 'internal').kind, 'svi');
 });
 
+test('Palo Alto PAN-OS (set format + show commands)', () => {
+  const d = run('paloalto').dev;
+  assert.deepEqual([d.hostname, d.model, d.version, d.serial], ['PA-EDGE-01', 'PA-440', '10.2.4-h4', '000000000001']);
+  assert.deepEqual([d.domain, d.dns.join(), d.ntp.join(), d.syslog.join(), d.gateway], ['edge.example.org', '10.98.0.53,9.9.9.9', '10.98.0.1', '10.98.0.60', '10.98.99.1 (mgmt)']);
+  assert.match(d.mgmtIp, /^10\.98\.99\.5\/24 \(mgmt\)/);
+  assert.deepEqual([d.other['Default route'], d.other.Zones, d.other['Admin users'], d.other.Telnet, d.snmp.versions.join()],
+    ['203.0.113.1 (default)', 'untrust, trust, guest, dmz', 'admin, netops', 'disabled', 'v3']);
+  const e1 = port(d, 'ethernet1/1');
+  assert.deepEqual([e1.description, e1.mode, e1.ip, e1.link, e1.speed, e1.notes], ['ISP fibre', 'routed', '203.0.113.2/30', 'up', '1G', 'zone untrust; vr default; access ping (allow-ping)']);
+  const s10 = port(d, 'ethernet1/2.10');
+  assert.deepEqual([s10.kind, s10.mode, s10.tagged, s10.ip, s10.description], ['svi', 'vlan', '10', '10.98.10.1/24', 'Staff']);
+  assert.match(s10.notes, /on ethernet1\/2; zone trust; vr default; access https\/ssh\/ping \(allow-mgmt\)/);
+  assert.deepEqual([port(d, 'ethernet1/3').adminUp, port(d, 'ethernet1/3').mode, port(d, 'ethernet1/3').link], [false, 'tap', 'down']);
+  assert.deepEqual([port(d, 'ethernet1/5').lag, port(d, 'ethernet1/5').mode, port(d, 'ethernet1/5').speed], ['ae1', '', '10G']);
+  const ae = port(d, 'ae1');
+  assert.deepEqual([ae.kind, ae.mode, ae.ip, ae.description, ae.link], ['lag', 'routed', '10.98.30.1/24', 'DMZ switch', 'up']);
+  assert.equal(port(d, 'loopback.1').kind, 'loopback');
+  assert.equal(d.vlans.map(v => v.id + ':' + v.name).join(), '10:Staff,20:Guest wifi');
+  // policies and objects are reported as sections, never with their contents; the password hash is not kept anywhere
+  assert.deepEqual(d.unparsed.map(e => e.text + ' x' + e.count).sort(), ['set address web-server … x1', 'set rulebase security … x3']);
+  assert.ok(!JSON.stringify(d).includes('abcdefgh'));
+  assert.deepEqual(NP.checks(d).map(f => f.id), ['unusedenabled']);              // ethernet1/6 is enabled with no link
+});
+
+test('Palo Alto PAN-OS: XML export and brace format give the same result as set format', () => {
+  const xml = `<?xml version="1.0"?>
+<config version="10.2.0" urldb="paloaltonetworks" detail-version="10.2.4">
+  <mgt-config><users><entry name="admin"><phash>$1$abcdefgh$ijklmnopqrstuvwx</phash></entry></users></mgt-config>
+  <shared><log-settings><syslog><entry name="central"><server><entry name="srv1"><server>10.98.0.60</server></entry></server></entry></syslog></log-settings></shared>
+  <devices><entry name="localhost.localdomain">
+    <deviceconfig><system>
+      <hostname>PA-XML</hostname><ip-address>10.98.99.6</ip-address><netmask>255.255.255.0</netmask><default-gateway>10.98.99.1</default-gateway>
+      <dns-setting><servers><primary>10.98.0.53</primary></servers></dns-setting>
+      <ntp-servers><primary-ntp-server><ntp-server-address>10.98.0.1</ntp-server-address></primary-ntp-server></ntp-servers>
+      <service><disable-http>no</disable-http><disable-telnet>yes</disable-telnet></service>
+    </system></deviceconfig>
+    <network>
+      <profiles><interface-management-profile><entry name="mgmt &amp; ping"><https>yes</https><http>yes</http><ping>yes</ping></entry></interface-management-profile></profiles>
+      <interface><ethernet>
+        <entry name="ethernet1/1"><layer3><ip><entry name="198.51.100.2/30"/></ip><interface-management-profile>mgmt &amp; ping</interface-management-profile></layer3><comment>Internet &lt;primary&gt;</comment></entry>
+        <entry name="ethernet1/2"><layer3><units>
+          <entry name="ethernet1/2.30"><tag>30</tag><ip><entry name="10.98.30.1/24"/></ip><comment>Servers</comment></entry>
+        </units></layer3></entry>
+        <entry name="ethernet1/4"><link-state>down</link-state><layer2/></entry>
+      </ethernet></interface>
+      <virtual-router><entry name="default"><interface><member>ethernet1/1</member><member>ethernet1/2.30</member></interface>
+        <routing-table><ip><static-route><entry name="dflt"><nexthop><ip-address>198.51.100.1</ip-address></nexthop><destination>0.0.0.0/0</destination></entry></static-route></ip></routing-table>
+      </entry></virtual-router>
+    </network>
+    <vsys><entry name="vsys1"><zone>
+      <entry name="untrust"><network><layer3><member>ethernet1/1</member></layer3></network></entry>
+      <entry name="servers"><network><layer3><member>ethernet1/2.30</member></layer3></network></entry>
+    </zone><rulebase><security><rules><entry name="r1"><action>allow</action></entry></rules></security></rulebase></entry></vsys>
+  </entry></devices>
+</config>`;
+  const r = NP.ingest(xml, { devices: [] });
+  const d = r.dev;
+  assert.equal(r.vendor, 'paloalto');
+  assert.deepEqual([d.hostname, d.version, d.dns.join(), d.ntp.join(), d.syslog.join(), d.other['HTTP server'], d.other.Zones], ['PA-XML', '10.2.4', '10.98.0.53', '10.98.0.1', '10.98.0.60', 'enabled', 'untrust, servers']);
+  const e1 = port(d, 'ethernet1/1');
+  assert.deepEqual([e1.description, e1.mode, e1.ip, e1.notes], ['Internet <primary>', 'routed', '198.51.100.2/30', 'zone untrust; vr default; access https/http/ping (mgmt & ping)']);
+  const s30 = port(d, 'ethernet1/2.30');
+  assert.deepEqual([s30.tagged, s30.ip, s30.description], ['30', '10.98.30.1/24', 'Servers']);
+  assert.deepEqual([port(d, 'ethernet1/4').adminUp, port(d, 'ethernet1/4').mode], [false, 'layer2']);
+  assert.equal(d.other['Default route'], '198.51.100.1 (default)');
+  assert.ok(!JSON.stringify(d).includes('abcdefgh'));
+  // HTTP management left on, and admin access on the untrust interface, are both flagged
+  assert.deepEqual(NP.checks(d).map(f => f.id).sort(), ['fgclear', 'fgwanadmin', 'http', 'nosyslog'].filter(x => x !== 'nosyslog').sort());
+
+  const brace = `deviceconfig {
+  system {
+    hostname PA-BRACE;
+    dns-setting {
+      servers {
+        primary 10.98.0.53;
+      }
+    }
+  }
+}
+network {
+  interface {
+    ethernet {
+      ethernet1/1 {
+        layer3 {
+          ip {
+            192.0.2.2/30;
+          }
+        }
+        comment "Uplink";
+      }
+    }
+  }
+  virtual-router {
+    default {
+      interface [ ethernet1/1 ];
+    }
+  }
+}`;
+  const b = NP.ingest(brace, { devices: [] }).dev;
+  assert.deepEqual([b.vendor, b.hostname, b.dns.join()], ['paloalto', 'PA-BRACE', '10.98.0.53']);
+  assert.deepEqual([port(b, 'ethernet1/1').ip, port(b, 'ethernet1/1').description, port(b, 'ethernet1/1').notes], ['192.0.2.2/30', 'Uplink', 'vr default']);
+});
+
 test('MikroTik RouterOS', () => {
   const d = run('mikrotik').dev;
   assert.equal(d.hostname, 'MT-WORKSHOP');
