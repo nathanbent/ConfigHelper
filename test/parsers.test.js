@@ -288,7 +288,7 @@ test('FortiGate: FortiLink-managed switches become their own devices', () => {
   const up = port(sw, 'port23');
   assert.deepEqual([up.lag, up.mode, up.untagged], ['_FlInK1_MLAG0_', '', '']);
   const tr = port(sw, '_FlInK1_MLAG0_');
-  assert.deepEqual([tr.kind, tr.neighbor], ['lag', 'FW-BRANCH-01']);
+  assert.deepEqual([tr.kind, tr.neighbor, tr.mode, tr.tagged], ['lag', 'FW-BRANCH-01', 'FortiLink', 'all']);
   assert.deepEqual(sw.vlans.map(v => v.id + ':' + v.name), ['10:staff', '20:voice', '40:cameras']);
   // pasting the FortiGate config again updates the same switch devices rather than duplicating them
   const again = NP.ingest(NP.samples.fortigate.text, { devices });

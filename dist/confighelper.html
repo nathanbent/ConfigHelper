@@ -2126,6 +2126,10 @@ A whole terminal session works too, for example:
                 const name = Object.keys(vlanId).find(function (k) { return vlanId[k] === id; });
                 NP.addVlan(c, id, name);
               });
+              // auto-built FortiLink / inter-switch trunks carry every VLAN; they have no VLAN settings here
+              if (isTrunk && !e.set.vlan && (one(e, 'isl-peer-device-name') || /^_FlInK/i.test(e.name))) {
+                p.mode = 'FortiLink'; p.untagged = ''; p.tagged = 'all';
+              }
               if (e.set['untagged-vlans']) NP.addNote(p, 'also untagged: ' + show(resolve(e.set['untagged-vlans']), ''));
 
               if (one(e, 'edge-port') === 'disable') NP.addFlag(p, 'stp', 'edge off');
