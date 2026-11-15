@@ -2,6 +2,7 @@
   "name": "confighelper",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "description": "Turn switch/router/firewall configs and show output into port tables and label-maker CSVs. Runs entirely in the browser.",
   "scripts": {
     "test": "node --test test/parsers.test.js",

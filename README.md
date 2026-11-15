@@ -140,3 +140,7 @@ Layout:
 To add a vendor: write `js/parsers/<name>.js` that fills a device via `NP.port(dev, name)` and friends,
 add a detection rule in `js/detect.js`, add a `<script>` tag in `index.html` and the file in `test/load.js`,
 then add a sample and a test.
+
+## Licence
+
+MIT. See `LICENSE`.
