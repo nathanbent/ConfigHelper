@@ -179,6 +179,8 @@
       { cmd: 'exit', gives: 'leave configuration mode' },
       { cmd: 'show system info', gives: 'model, software version, serial' },
       { cmd: 'show interface all', gives: 'link state, speed, zone, addresses' }] },
+    pfsense: { pager: '', cmds: [
+      { cmd: 'cat /conf/config.xml', gives: 'the whole configuration. Easier: in the web interface use Diagnostics > Backup & Restore (pfSense) or System > Configuration > Backups (OPNsense), download the XML and drop the file on the box below' }] },
     mikrotik: { pager: '', cmds: [
       { cmd: '/export', gives: 'bridge ports, VLANs, addresses, DNS, NTP and the rest (on RouterOS 6 use "/export hide-sensitive")' }] }
   };

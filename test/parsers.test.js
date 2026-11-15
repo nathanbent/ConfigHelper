@@ -454,6 +454,39 @@ network {
   assert.deepEqual([port(b, 'ethernet1/1').ip, port(b, 'ethernet1/1').description, port(b, 'ethernet1/1').notes], ['192.0.2.2/30', 'Uplink', 'vr default']);
 });
 
+test('prompt detection is not fooled by words or XML that merely start like a command', () => {
+  const cmds = t => NP.sections(t).map(s => s.cmd);
+  assert.deepEqual(cmds('<name>shopkeeper</name>\n<domain>shop.example.net</domain>\n<x>display</x>\nsw1#shutdown now\nsw1>getting started'), ['']);
+  assert.deepEqual(cmds('<SW1>display current-configuration\n sysname SW1\n<SW1>dis int brief\nx\nsw1#sh run\ny\nfw # get system status\nz\n[admin@mt] > /export\nq'),
+    ['display current-configuration', 'dis int brief', 'sh run', 'get system status', '/export']);
+});
+
+test('pfSense / OPNsense config.xml', () => {
+  const d = run('pfsense').dev;
+  assert.deepEqual([d.hostname, d.domain, d.model, d.dns.join(), d.ntp.join(), d.syslog.join()],
+    ['fw-shop', 'shop.example.net', 'pfSense', '1.1.1.1,9.9.9.9', '2.pfsense.pool.ntp.org,time.example.net', '192.168.40.60']);
+  assert.deepEqual([d.gateway, d.mgmtIp, d.other['Web interface'], d.other.SSH, d.other['Admin users'], d.other['DHCP server on'], d.snmp.versions.join(), d.snmp.location],
+    ['203.0.113.1 (WANGW)', '192.168.40.1/24 (LAN)', 'https port 8443', 'enabled', 'admin, shopkeeper', 'lan', 'v2c', 'Back office']);
+  const wan = port(d, 'igb0');
+  assert.deepEqual([wan.kind, wan.description, wan.ip, wan.adminUp, wan.notes], ['physical', 'WAN', 'dhcp', true, 'assigned as wan; role wan; blocks private nets']);
+  assert.deepEqual([port(d, 'igb1').description, port(d, 'igb1').ip, port(d, 'igb1').mode], ['LAN', '192.168.40.1/24', 'routed']);
+  const g = port(d, 'igb1.20');
+  assert.deepEqual([g.kind, g.mode, g.tagged, g.description, g.ip, g.notes], ['svi', 'vlan', '20', 'GUESTWIFI', '192.168.41.1/24', 'on igb1; assigned as opt1']);
+  const lag = port(d, 'lagg0');
+  assert.deepEqual([lag.kind, lag.adminUp, lag.description, lag.ip, lag.notes], ['lag', false, 'NASLINK', '192.168.42.1/24', 'lacp; assigned as opt2']);   // no <enable>: disabled
+  assert.deepEqual([port(d, 'igb2').lag, port(d, 'igb3').lag, port(d, 'igb2').mode], ['lagg0', 'lagg0', '']);
+  assert.equal(d.vlans.map(v => v.id + ':' + v.name).join(), '20:Guest wifi');
+  assert.deepEqual(d.unparsed.map(e => [e.ctx, e.text, e.inner]), [['section', '<filter>', 8]]);        // rules: named, counted, not read
+  assert.ok(!JSON.stringify(d).includes('$2y$') && !JSON.stringify(d).includes('shopmon') && !JSON.stringify(d).includes('Guests cannot'));
+  // OPNsense: same shape, <enable>1</enable>
+  const opn = NP.ingest('<?xml version="1.0"?>\n<opnsense>\n<system><hostname>opn1</hostname><domain>lab.example</domain></system>\n' +
+    '<interfaces><wan><if>vtnet0</if><enable>1</enable><ipaddr>dhcp</ipaddr></wan><lan><if>vtnet1</if><enable>0</enable><ipaddr>10.9.0.1</ipaddr><subnet>24</subnet></lan></interfaces>\n</opnsense>', { devices: [] }).dev;
+  assert.deepEqual([opn.vendor, opn.model, opn.hostname, port(opn, 'vtnet0').adminUp, port(opn, 'vtnet1').adminUp, port(opn, 'vtnet1').ip], ['pfsense', 'OPNsense', 'opn1', true, false, '10.9.0.1/24']);
+  // the sanitizer strips secrets kept as XML element content
+  const s = NP.sanitize(NP.samples.pfsense.text);
+  assert.ok(s.same && !s.text.includes('$2y$') && !s.text.includes('shopmon') && !s.text.includes('fw-shop') && s.text.includes('<if>igb0</if>'));
+});
+
 test('MikroTik RouterOS', () => {
   const d = run('mikrotik').dev;
   assert.equal(d.hostname, 'MT-WORKSHOP');

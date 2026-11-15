@@ -357,13 +357,14 @@
   // ------------------------------------------------------- input splitting
   // A paste may be a whole terminal session ("sw1#show run ... sw1#show int status ...").
   // Split it at the prompt lines so each command's output is handled on its own.
-  const PROMPT = /^\s*((?:[\w.\-:\/()@~]+\s?[#>]|\[[^\]\n]+\]\s?>?|<[\w.\-]+>))\s*((?:show|sho|sh|display|disp|dis|get|diagnose|diag|do|export|print|\/[a-z])[^\n]*)$/i;
+  const PROMPT = /^\s*((?:[\w.\-:\/()@~]+\s?[#>]|\[[^\]\n]+\]\s?>?|<[\w.\-]+>))\s*((?:(?:show|sho|sh|display|disp|dis|get|diagnose|diag|do|export|print)\b|\/[a-z])[^\n]*)$/i;
 
   NP.sections = function (text) {
     const out = [];
     let cur = { cmd: '', host: '', lines: [] };
     String(text).split(/\r?\n/).forEach(function (line) {
-      const m = line.match(PROMPT);
+      // (an XML line such as "<name>shopkeeper</name>" is not a "<SWITCH>" prompt followed by a command)
+      const m = /<\/[\w.\-:]+>\s*$/.test(line) ? null : line.match(PROMPT);
       if (m) {
         if (cur.lines.some(function (l) { return l.trim(); })) out.push(cur);
         const host = m[1].replace(/[#>\s]+$/, '').replace(/^[\[<]|[\]>]$/g, '')

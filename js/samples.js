@@ -1138,6 +1138,107 @@ ae1                 48    1    dmz              vr:default               0      
 loopback.1          3     1                     vr:default               0      10.255.98.1/32
 `};
 
+  S.pfsense = { label: 'pfSense (config.xml)', text: String.raw`<?xml version="1.0"?>
+<pfsense>
+	<version>22.9</version>
+	<system>
+		<hostname>fw-shop</hostname>
+		<domain>shop.example.net</domain>
+		<dnsserver>1.1.1.1</dnsserver>
+		<dnsserver>9.9.9.9</dnsserver>
+		<timezone>America/Chicago</timezone>
+		<timeservers>2.pfsense.pool.ntp.org time.example.net</timeservers>
+		<webgui>
+			<protocol>https</protocol>
+			<port>8443</port>
+		</webgui>
+		<ssh>
+			<enable>enabled</enable>
+		</ssh>
+		<user>
+			<name>admin</name>
+			<bcrypt-hash>$2y$10$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012</bcrypt-hash>
+		</user>
+		<user>
+			<name>shopkeeper</name>
+			<bcrypt-hash>$2y$10$zyxwvutsrqponmlkjihgfedcbaZYXWVUTSRQPONMLKJIHGFEDCBA987</bcrypt-hash>
+		</user>
+	</system>
+	<interfaces>
+		<wan>
+			<enable></enable>
+			<if>igb0</if>
+			<descr><![CDATA[WAN]]></descr>
+			<ipaddr>dhcp</ipaddr>
+			<blockpriv></blockpriv>
+		</wan>
+		<lan>
+			<enable></enable>
+			<if>igb1</if>
+			<descr><![CDATA[LAN]]></descr>
+			<ipaddr>192.168.40.1</ipaddr>
+			<subnet>24</subnet>
+		</lan>
+		<opt1>
+			<enable></enable>
+			<if>igb1.20</if>
+			<descr><![CDATA[GUESTWIFI]]></descr>
+			<ipaddr>192.168.41.1</ipaddr>
+			<subnet>24</subnet>
+		</opt1>
+		<opt2>
+			<if>lagg0</if>
+			<descr><![CDATA[NASLINK]]></descr>
+			<ipaddr>192.168.42.1</ipaddr>
+			<subnet>24</subnet>
+		</opt2>
+	</interfaces>
+	<vlans>
+		<vlan>
+			<if>igb1</if>
+			<tag>20</tag>
+			<descr><![CDATA[Guest wifi]]></descr>
+			<vlanif>igb1.20</vlanif>
+		</vlan>
+	</vlans>
+	<laggs>
+		<lagg>
+			<members>igb2,igb3</members>
+			<descr><![CDATA[To NAS]]></descr>
+			<laggif>lagg0</laggif>
+			<proto>lacp</proto>
+		</lagg>
+	</laggs>
+	<gateways>
+		<gateway_item>
+			<interface>wan</interface>
+			<gateway>203.0.113.1</gateway>
+			<name>WANGW</name>
+		</gateway_item>
+		<defaultgw4>WANGW</defaultgw4>
+	</gateways>
+	<syslog>
+		<enable></enable>
+		<remoteserver>192.168.40.60</remoteserver>
+	</syslog>
+	<snmpd>
+		<syslocation>Back office</syslocation>
+		<rocommunity>shopmon</rocommunity>
+		<enable></enable>
+	</snmpd>
+	<dhcpd>
+		<lan>
+			<enable></enable>
+			<range><from>192.168.40.100</from><to>192.168.40.199</to></range>
+		</lan>
+	</dhcpd>
+	<filter>
+		<rule><type>pass</type><interface>lan</interface><descr><![CDATA[Default allow LAN]]></descr></rule>
+		<rule><type>block</type><interface>opt1</interface><descr><![CDATA[Guests cannot reach LAN]]></descr></rule>
+	</filter>
+</pfsense>
+`};
+
   S.mikrotik = { label: 'MikroTik RouterOS (/export)', text: String.raw`# 2025-03-02 10:11:12 by RouterOS 7.14.2
 # software id = ABCD-1234
 #

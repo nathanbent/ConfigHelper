@@ -111,6 +111,8 @@
     // certificate / key blobs
     sec(/^[ \t]+(?:[0-9A-Fa-f]{8} ){2,}[0-9A-Fa-f]{1,8}[ \t]*\n(?:[ \t]+(?:[0-9A-Fa-f]{8}[ \t]*)+\n)*/gm, '  00000000 00000000\n');
     sec(/-----BEGIN [A-Z ]+-----[\s\S]*?-----END [A-Z ]+-----/g, '-----REMOVED-----');
+    // XML configs keep secrets as element content: <bcrypt-hash>, <password>, <prv>, <pre-shared-key>, <rocommunity> ...
+    sec(/<([\w.\-]*(?:password|passwd|secret|hash|psk|community|prv|crt|key|passphrase)[\w.\-]*)>(?!removed<)([\s\S]*?)<\/\1>/gi, '<$1>removed</$1>');
     sec(/\bENC\s+\S+/g, 'ENC removed');
     sec(/\b(password|secret|passphrase|key|community|psksecret|passwd)=("[^"]*"|\S+)/gi, '$1=removed');
     sec(/\b(secret|password|passwd|key|key-string|community|auth|priv|md5|sha\d*|psk|passphrase|pre-shared-key|encrypted-password|cipher|simple|hash|super-user-password)\b(\s+\d)?\s+(?!removed\b)("[^"]*"|\S+)/gi,
