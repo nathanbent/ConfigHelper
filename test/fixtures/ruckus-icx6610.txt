@@ -1,0 +1,598 @@
+SSH@H14xx-xxxx-xxxx>en
+Password:
+SSH@H14xx-xxxx-xxxx#skip-page-display
+Disable page display mode
+SSH@H14xx-xxxx-xxxx#show running-config
+Current configuration:
+!
+ver 08.0.30uT7f3
+!
+stack unit 1
+  module 1 icx6610-24p-poe-port-management-module
+  module 2 icx6610-qsfp-10-port-160g-module
+  module 3 icx6610-8-port-10g-dual-mode-module
+!
+global-stp
+!
+!
+lag D56xx-xxx dynamic id 120
+ ports ethernet 1/1/20 to 1/1/24
+ primary-port 1/1/20
+ deploy
+ port-name ==D3xxx-xxx-xxx== ethernet 1/1/20
+ port-name ==D24xx-xxx== ethernet 1/1/21
+ port-name ==D24xx-xxx== ethernet 1/1/22
+ port-name ==D24xx-xxx== ethernet 1/1/23
+ port-name ==D24xx-xxx== ethernet 1/1/24
+!
+lag D57xx-xxx dynamic id 117
+ ports ethernet 1/1/17 to 1/1/18
+ primary-port 1/1/17
+ deploy
+ port-name ==D2xxx-xxx-xxx== ethernet 1/1/17
+ port-name ==D22xx-xxx== ethernet 1/1/18
+!
+lag D66xx-x dynamic id 224
+ ports ethernet 1/2/4 to 1/2/5
+ primary-port 1/2/4
+ deploy
+ port-name <D5xxx-x-xxx-xxx> ethernet 1/2/4
+ port-name <D26xx-x-xxx> ethernet 1/2/5
+!
+lag D67xxxx dynamic id 137
+ ports ethernet 1/3/7 to 1/3/8
+ primary-port 1/3/7
+ deploy
+ port-name <D6xxxxx-xxx-xxx> ethernet 1/3/7
+ port-name <D27xxxx-xxx> ethernet 1/3/8
+!
+lag D58xxxx-x dynamic id 222
+ ports ethernet 1/2/2 to 1/2/3
+ primary-port 1/2/2
+ deploy
+ port-name <D4xxx-x-xxx-xxx> ethernet 1/2/2
+ port-name <D25xx-x-xxx> ethernet 1/2/3
+!
+!
+vlan 1 name DEFAULT-VLAN by port
+ router-interface ve 1
+ spanning-tree 802-1w
+ spanning-tree 802-1w priority 0
+!
+vlan 2 name V35-xxxxxxxx by port
+ tagged ethe 1/1/20 to 1/1/24 ethe 1/2/2 to 1/2/5
+ router-interface ve 2
+ spanning-tree 802-1w
+ spanning-tree 802-1w priority 0
+!
+vlan 3 name V79xx by port
+ tagged ethe 1/1/20 to 1/1/24 ethe 1/2/2 to 1/2/5 ethe 1/3/5
+ router-interface ve 3
+ spanning-tree 802-1w
+ spanning-tree 802-1w priority 0
+ multicast passive
+!
+vlan 4 name V52xxxxxxx by port
+ tagged ethe 1/2/2 to 1/2/5
+ router-interface ve 4
+ spanning-tree 802-1w
+ spanning-tree 802-1w priority 0
+!
+vlan 5 name V83 by port
+ tagged ethe 1/1/20 to 1/1/24 ethe 1/2/2 to 1/2/3
+ untagged ethe 1/1/14 to 1/1/16
+ router-interface ve 5
+ spanning-tree 802-1w
+ spanning-tree 802-1w priority 0
+!
+vlan 6 name V60x-xxxx by port
+ untagged ethe 1/1/10 to 1/1/12
+ router-interface ve 6
+ spanning-tree 802-1w
+ spanning-tree 802-1w priority 0
+!
+vlan 10 name storage by port
+ untagged ethe 1/3/7 to 1/3/8
+ router-interface ve 10
+ spanning-tree 802-1w
+ spanning-tree 802-1w priority 0
+!
+vlan 15 name V5-3xxxxxx by port
+ tagged ethe 1/2/2 to 1/2/5
+ router-interface ve 15
+ spanning-tree 802-1w
+ spanning-tree 802-1w priority 0
+!
+vlan 16 name V36xxxxxxxxx by port
+!
+vlan 17 name V49-xxxxxxx by port
+ tagged ethe 1/1/20 to 1/1/24 ethe 1/2/2 to 1/2/3
+!
+vlan 19 name V84 by port
+ tagged ethe 1/2/2 to 1/2/5
+ router-interface ve 19
+ spanning-tree 802-1w
+ spanning-tree 802-1w priority 0
+!
+vlan 20 name V7xxxxx-xxxx-xxxx by port
+ tagged ethe 1/1/1 to 1/1/2 ethe 1/1/5 ethe 1/1/13 ethe 1/2/2 to 1/2/5 ethe 1/3/2
+ untagged ethe 1/1/3 ethe 1/1/6
+ router-interface ve 20
+ spanning-tree 802-1w
+ spanning-tree 802-1w priority 0
+ multicast active
+!
+vlan 30 name V3-7xxx-xxxx by port
+ tagged ethe 1/2/2 to 1/2/5 ethe 1/3/5
+ router-interface ve 30
+ spanning-tree 802-1w
+ spanning-tree 802-1w priority 0
+!
+vlan 40 name VoIP by port
+ tagged ethe 1/1/1 ethe 1/1/5 ethe 1/1/20 to 1/1/24 ethe 1/3/2
+ multicast passive
+!
+vlan 50 name V64xxxxx by port
+ untagged ethe 1/1/4 ethe 1/1/7
+ router-interface ve 50
+ spanning-tree 802-1w
+ spanning-tree 802-1w priority 0
+!
+vlan 60 name V8xxxxxxxxxx-xxxx by port
+ tagged ethe 1/2/2 to 1/2/3
+ router-interface ve 60
+ spanning-tree 802-1w
+ spanning-tree 802-1w priority 0
+!
+vlan 70 name IoT by port
+ tagged ethe 1/1/2 ethe 1/1/13 ethe 1/2/2 to 1/2/3 ethe 1/3/1 to 1/3/2
+ router-interface ve 70
+ spanning-tree 802-1w
+ spanning-tree 802-1w priority 0
+ multicast active
+!
+vlan 100 name V20xxxxxx_xxxx by port
+ tagged ethe 1/1/2 ethe 1/1/13 ethe 1/1/20 to 1/1/24 ethe 1/2/2 to 1/2/3 ethe 1/3/2 ethe 1/3/4
+ spanning-tree 802-1w
+ spanning-tree 802-1w priority 0
+!
+vlan 111 name V54_xxxx-x by port
+ tagged ethe 1/1/20 to 1/1/24 ethe 1/2/2 to 1/2/3
+!
+vlan 230 name V55-xxxx-x by port
+ tagged ethe 1/1/20 to 1/1/24 ethe 1/2/2 to 1/2/5 ethe 1/3/5
+!
+vlan 240 name V80-x by port
+ tagged ethe 1/1/20 to 1/1/24 ethe 1/2/2 to 1/2/5
+!
+vlan 241 name V38-xxxxxxxx by port
+ tagged ethe 1/1/20 to 1/1/24 ethe 1/2/2 to 1/2/5
+!
+vlan 242 name V39-xxxxxxxx by port
+ tagged ethe 1/1/20 to 1/1/24 ethe 1/2/2 to 1/2/5
+!
+vlan 254 name V65-xxxx by port
+ tagged ethe 1/1/2 ethe 1/1/13 ethe 1/3/1 to 1/3/2
+ untagged ethe 1/1/8 to 1/1/9
+ router-interface ve 254
+ spanning-tree 802-1w
+ spanning-tree 802-1w priority 0
+!
+vlan 665 name V40xxxx-xxxx by port
+ tagged ethe 1/1/20 to 1/1/24 ethe 1/3/4
+ router-interface ve 665
+ spanning-tree 802-1w
+ spanning-tree 802-1w priority 0
+!
+vlan 666 name V74-xxx by port
+ tagged ethe 1/3/1
+ untagged ethe 1/1/17 to 1/1/19
+ spanning-tree 802-1w
+ spanning-tree 802-1w priority 0
+!
+vlan 667 name V81-x by port
+ tagged ethe 1/1/20 to 1/1/24
+ spanning-tree 802-1w
+ spanning-tree 802-1w priority 0
+!
+vlan 1601 name V8-2x by port
+ tagged ethe 1/2/2 to 1/2/5 ethe 1/2/7 ethe 1/2/9
+ router-interface ve 1601
+ spanning-tree 802-1w
+ spanning-tree 802-1w priority 0
+!
+vlan 1769 name V75-xxx by port
+ tagged ethe 1/1/2 ethe 1/1/20 to 1/1/24 ethe 1/3/2 ethe 1/3/4
+!
+vlan 4001 by port
+!
+vlan 4011 name V76xx-x by port
+ tagged ethe 1/2/2 to 1/2/5 ethe 1/3/5
+ untagged ethe 1/3/6
+!
+!
+!
+!
+!
+mtu-exceed forward
+optical-monitor
+aaa authentication web-server default local
+aaa authentication enable default local tacacs+
+aaa authentication enable implicit-user
+aaa authentication login default local tacacs+
+chassis name H15x-xxxx-xxxxx
+console timeout 60
+jumbo
+enable snmp config-tacacs
+enable aaa console
+hostname H14xx-xxxx-xxxx
+ip dhcp-client disable
+ip dns server-address 10.1.1.11 10.2.1.1
+ip route 0.0.0.0/0 10.3.255.254
+ip router-id 10.4.255.1
+ip multicast active
+ip multicast version 3
+!
+ipv6 unicast-routing
+logging host 10.1.4.9
+username admin password removed
+username U61xxxxx password removed
+tacacs-server host 10.5.11.16
+tacacs-server key 2 removed
+snmp-server community removed ro
+snmp-server community removed ro
+snmp-server contact user@example.net
+snmp-server location L28@xxxxx-xx
+snmp-server host 10.1.4.12 version v2c .....
+snmp-server group admin v3 priv removed all write all notify all
+!
+!
+clock summer-time
+clock timezone us Central
+!
+!
+ntp
+ server 10.6.223.131
+ server 10.7.200.1
+ server 10.8.78.80
+ server 10.9.62.36
+!
+!
+no web-management http
+web-management https
+web-management page-menu
+banner motd ^C removed ^C
+!
+ip multicast-routing
+ip igmp version 3
+!
+router ospf
+ area 0.0.0.0
+ default-passive-interface
+ redistribute connected
+!
+!
+!
+!
+!
+!
+router pim
+ rp-address 10.5.200.3
+ rp-address 10.3.255.253
+ rp-candidate ve 665
+ rp-candidate add 224.0.0.0 4
+!
+!
+ipv6 router ospf
+ area 0.0.0.0
+ default-passive-interface
+ redistribute connected
+!
+interface loopback 1
+ disable
+ ip address 10.4.255.1 255.255.255.255
+!
+interface management 1
+ ip address 10.10.99.11 255.255.255.0
+!
+interface ethernet 1/1/1
+ port-name _D41x-xxxx_
+ inline power
+ stp-bpdu-guard
+!
+interface ethernet 1/1/2
+ port-name _D29-xxxxxx_
+ dual-mode  254
+ no spanning-tree
+ inline power
+ stp-bpdu-guard
+!
+interface ethernet 1/1/3
+ port-name <D62xxx>
+ inline power
+ stp-bpdu-guard
+!
+interface ethernet 1/1/4
+ port-name -D21-xxxxxxx-
+ stp-bpdu-guard
+!
+interface ethernet 1/1/5
+ port-name D30xx-xxxxxx
+ dual-mode  20
+ inline power
+ stp-bpdu-guard
+!
+interface ethernet 1/1/6
+ port-name D30xx-xxxxxx
+!
+interface ethernet 1/1/7
+ port-name D6-3xx-x
+ spanning-tree 802-1w admin-edge-port
+ inline power
+ stp-bpdu-guard
+!
+interface ethernet 1/1/8
+ port-name !D16xx-xxxxxxx!
+ stp-bpdu-guard
+!
+interface ethernet 1/1/9
+ port-name !D17xx-xxxxxxx!
+ stp-bpdu-guard
+!
+interface ethernet 1/1/10
+ port-name <D42x-xx-x>
+ inline power
+ stp-bpdu-guard
+!
+interface ethernet 1/1/11
+ port-name <D43x-xx-x>
+ inline power
+ stp-bpdu-guard
+!
+interface ethernet 1/1/12
+ port-name <D44x-xx-x>
+ inline power
+ stp-bpdu-guard
+!
+interface ethernet 1/1/13
+ port-name ==D5-0xx==
+ dual-mode  254
+ inline power
+ stp-bpdu-guard
+!
+interface ethernet 1/1/14
+ port-name <D10-xxxxx-xxxx>
+ stp-bpdu-guard
+!
+interface ethernet 1/1/15
+ port-name <D11-xxxxx-xxxx>
+ stp-bpdu-guard
+!
+interface ethernet 1/1/16
+ port-name <D18-xxxx-xxxx>
+ stp-bpdu-guard
+!
+interface ethernet 1/1/17
+ port-name ==D2xxx-xxx-xxx==
+ stp-bpdu-guard
+!
+interface ethernet 1/1/19
+ port-name ==D23xx-xxx==
+ stp-bpdu-guard
+!
+interface ethernet 1/1/20
+ port-name ==D3xxx-xxx-xxx==
+ dual-mode  665
+!
+interface ethernet 1/2/1
+ port-name D31xx-xxxxxx
+ spanning-tree 802-1w admin-edge-port
+!
+interface ethernet 1/2/2
+ port-name <D4xxx-x-xxx-xxx>
+ dual-mode  4011
+ spanning-tree 802-1w admin-edge-port
+!
+interface ethernet 1/2/4
+ port-name <D5xxx-x-xxx-xxx>
+ dual-mode  4011
+ spanning-tree 802-1w admin-edge-port
+!
+interface ethernet 1/2/6
+ port-name D31xx-xxxxxx
+ spanning-tree 802-1w admin-edge-port
+!
+interface ethernet 1/2/7
+ port-name D30xx-xxxxxx
+ spanning-tree 802-1w admin-edge-port
+!
+interface ethernet 1/2/8
+ port-name D30xx-xxxxxx
+ spanning-tree 802-1w admin-edge-port
+!
+interface ethernet 1/2/9
+ port-name D30xx-xxxxxx
+!
+interface ethernet 1/2/10
+ port-name D30xx-xxxxxx
+!
+interface ethernet 1/3/1
+ port-name ==D12xxx-xxxxx==
+ dual-mode  254
+ speed-duplex 10G-full
+ spanning-tree 802-1w admin-pt2pt-mac
+!
+interface ethernet 1/3/2
+ port-name ==D1xxxx-xx-xxxx==
+ dual-mode  254
+ speed-duplex 10G-full
+ spanning-tree 802-1w admin-pt2pt-mac
+!
+interface ethernet 1/3/3
+ port-name D30xx-xxxxxx
+ speed-duplex 10G-full
+ spanning-tree 802-1w admin-pt2pt-mac
+!
+interface ethernet 1/3/4
+ port-name D30xx-xxxxxx
+ dual-mode  665
+ speed-duplex 10G-full
+ spanning-tree 802-1w admin-pt2pt-mac
+!
+interface ethernet 1/3/5
+ port-name <D32xxxxx-x>
+ dual-mode  4011
+ speed-duplex 10G-full
+ spanning-tree 802-1w admin-edge-port
+!
+interface ethernet 1/3/6
+ port-name <D13xxxx-xxxx-x>
+ speed-duplex 10G-full
+ spanning-tree 802-1w admin-edge-port
+!
+interface ethernet 1/3/7
+ port-name <D6xxxxx-xxx-xxx>
+ speed-duplex 10G-full
+ spanning-tree 802-1w admin-edge-port
+!
+interface ve 1
+ port-name D51xxx-xxx
+ ip address 10.11.0.5 255.255.255.0
+ ip mtu 1500
+ disable
+!
+interface ve 2
+ port-name D68-xxx
+ ip address 10.1.2.1 255.255.255.0
+ ip mtu 1500
+ ipv6 address 2001:db8::1/64
+ ipv6 mtu 1500
+!
+interface ve 3
+ port-name D59xx-xxx
+ ip address 10.1.3.1 255.255.255.0
+ ip mtu 1500
+ ipv6 address 2001:db8::2/64
+ ipv6 mtu 1500
+!
+interface ve 4
+ port-name D19xxxxxxx-xxx
+ ip address 10.1.4.1 255.255.255.0
+ ip mtu 1500
+!
+interface ve 5
+ port-name D69-xxx
+ ip address 10.1.5.1 255.255.255.0
+ ip mtu 1500
+ disable
+!
+interface ve 6
+ port-name D70-xxx
+ ip address 10.1.6.1 255.255.255.0
+ ip mtu 1500
+!
+interface ve 10
+ port-name D45xxxx-xxx
+ ip address 10.1.10.1 255.255.255.0
+ ip mtu 1500
+!
+interface ve 15
+ port-name D46xxxx-xxx
+ ip address 10.1.15.1 255.255.255.0
+!
+interface ve 19
+ port-name D71-xxx
+ ip address 10.1.19.1 255.255.255.0
+ ip pim-sparse
+ ip mtu 1500
+ ipv6 address 2001:db8::3/64
+ ipv6 mtu 1500
+!
+interface ve 20
+ port-name D47xxxx-xxx
+ ip address 10.1.20.1 255.255.252.0
+ ip helper-address 1 10.1.1.11
+ ip helper-address 2 10.1.1.12
+ ip helper-address 3 10.5.11.16
+ ip mtu 1500
+ ipv6 address 2001:db8::4/64
+ ipv6 mtu 1500
+!
+interface ve 30
+ port-name D7-7xx
+ ip address 10.1.30.1 255.255.255.0
+ ip helper-address 1 10.1.1.11
+ ip helper-address 2 10.1.1.12
+ ip mtu 1500
+!
+interface ve 50
+ port-name D72-xxx
+ ip address 10.1.50.1 255.255.255.0
+ ip helper-address 1 10.1.1.11
+ ip helper-address 2 10.1.1.12
+ ip mtu 1500
+!
+interface ve 60
+ port-name D33xxxxx-xxx
+ ip address 10.1.60.1 255.255.252.0
+ ip helper-address 1 10.1.1.11
+ ip mtu 1500
+!
+interface ve 70
+ port-name D73 xxx
+ ip address 10.1.70.1 255.255.255.0
+ ip helper-address 1 10.1.1.11
+ ip helper-address 2 10.1.1.12
+ ip helper-address 3 10.5.11.16
+ ip mtu 1500
+!
+interface ve 254
+ port-name D34-xxxx-xxx
+ ip address 10.1.254.1 255.255.255.0
+ ip helper-address 1 10.1.1.11
+ ip helper-address 2 10.1.1.12
+ ip mtu 1500
+!
+interface ve 665
+ port-name D48xxxx-xxx
+ ip address 10.3.255.253 255.255.255.252
+ ip pim-sparse
+ ip mtu 9000
+ ip ospf area 0.0.0.0
+ ip ospf active
+ ipv6 address 2001:db8::5/64
+ ipv6 mtu 9000
+ ipv6 ospf area 0.0.0.0
+ ipv6 ospf active
+!
+interface ve 1601
+ port-name D7-8xx
+ ip address 10.1.1.1 255.255.255.0
+ ip mtu 1500
+ ipv6 mtu 1500
+!
+!
+router bgp
+ local-as 65412
+ neighbor 10.3.255.254 remote-as 65412
+
+ address-family ipv4 unicast
+ redistribute connected
+ exit-address-family
+
+ address-family ipv6 unicast
+ exit-address-family
+!
+!
+!
+!
+lldp med network-policy application voice tagged vlan 40 priority 5 dscp 46 ports ethe 1/1/1 to 1/1/12
+lldp run
+!
+!
+ip ssh  interactive-authentication no
+!
+!
+end
+
+SSH@H14xx-xxxx-xxxx#

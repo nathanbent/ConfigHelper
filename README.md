@@ -15,9 +15,9 @@ Online: https://nathanbent.github.io/ConfigHelper/ (deployed from `main` by GitH
 Offline: Open `dist/confighelper.html` in a browser. That single file is the whole app; copy it anywhere.
 (`index.html` also works directly and is the one to use while editing the source.)
 
-1. Optional: choose a platform to see the commands to run on the device, with a **Copy all** button.
+1. Optional: choose a brand, then a platform (Dell > OS10, Fortinet > FortiSwitch FortiLink-managed ...) to see the commands to run on the device, with a **Copy all** button.
 2. Paste a config, show output, or a whole terminal session, or drop text files on the box. Press **Parse**.
-3. Paste more output for the same device later; it merges by hostname (taken from the config or the CLI prompt). If the paste has no hostname, it goes into the selected device.
+3. Paste more output for the same device later; it merges by hostname (taken from the config or the CLI prompt). If the paste has no hostname, it goes into the selected device. One paste holding sessions from several devices is cut where the prompt's hostname changes, and each device is added on its own.
 4. Use the **Ports** tab to filter, sort, pick columns and export. Use **Labels** to build label rows.
 
 **Edit** on the Ports tab lets you change descriptions, neighbors and notes, and untick ports to leave them out
@@ -74,23 +74,27 @@ works** panel: what the view is for, what it needs, what you get and its limits.
 | Cisco NX-OS | `show running-config` | `show interface status`, `show lldp neighbors`, `show cdp neighbors detail`, `show version` |
 | Arista EOS | `show running-config` | `show interfaces status`, `show lldp neighbors`, `show version` |
 | Dell OS6 (N-series) | `show running-config` | `show interfaces status`, `show power inline`, `show lldp remote-device all`, `show version` |
+| Dell OS9 (S/Z-series, FTOS) | `show running-config` | `show interfaces status`, `show lldp neighbors`, `show version` |
 | Dell OS10 | `show running-configuration` | |
 | Aruba AOS-CX | `show running-config` | `show interface brief`, `show lldp neighbor-info` |
 | ArubaOS-Switch / HP ProCurve | `show running-config` | `show interfaces brief`, `show power-over-ethernet brief`, `show lldp info remote-device` |
 | Ruckus ICX (FastIron) | `show running-config` | `show interfaces brief`, `show inline power`, `show lldp neighbors [detail]`, `show version` |
 | HPE Comware / H3C | `display current-configuration` | `display interface brief` |
-| Juniper Junos | `show configuration` (curly or `display set`) | `show interfaces terse`, `show lldp neighbors`, `show poe interface` |
-| Fortinet FortiGate | `show` / backup `.conf`, including FortiLink-managed switches (each becomes its own device) | `get system status` |
-| Fortinet FortiSwitch (standalone) | `show` | `get system status`, `diagnose switch physical-ports summary`, `get switch poe inline`, `get switch lldp neighbors-summary` |
+| Juniper Junos | `show configuration` (curly or `display set`) | `show interfaces terse`, `show lldp neighbors`, `show poe interface`, `show version`, `show chassis hardware` |
+| Fortinet FortiGate | backup `.conf` / `show`, or only the sections that are read (`show system interface`, `show system zone`, `show system dns`, `show system ntp`, `show log syslogd setting`, `show system snmp sysinfo`, `show router static`, `show system ha`) | `get system status` |
+| Fortinet FortiSwitch, FortiLink-managed | on the FortiGate: `show switch-controller managed-switch`, `show system interface`, `show switch-controller stp-settings` (each switch becomes its own device; config only, no link state) | |
+| Fortinet FortiSwitch, on the switch itself (standalone, or logged in to a managed one) | `show` | `get system status`, `diagnose switch physical-ports summary`, `get switch poe inline`, `get switch lldp neighbors-summary` |
 | Palo Alto PAN-OS | exported `running-config.xml`, `set` format, or the default brace format | `show system info`, `show interface all` |
 | pfSense / OPNsense | exported `config.xml` | |
 | Ubiquiti UniFi | controller JSON: device list (`stat/device`), ideally with the network list (`rest/networkconf`) | `mca-dump` on the switch |
 | MikroTik RouterOS | `/export` | |
 
-Tested against real output so far: Cisco Catalyst 3850 on IOS-XE 16.12 (`test/fixtures/`). Everything else
+Tested against real output so far (`test/fixtures/`): Cisco Catalyst 3850 on IOS-XE 16.12, Juniper EX2300-C on Junos 25.2, Ruckus ICX6610 on FastIron 08.0.30 (config only). Everything else
 was written against the vendors' documented formats and the made-up samples in `js/samples.js`, so expect
 gaps on real devices; when you find one, add the output (sanitised) to `test/fixtures/` with a test and fix
 the parser.
+
+Dell OS9 was written from memory of the format and has not seen real output yet.
 
 Not covered yet: EdgeOS/VyOS.
 

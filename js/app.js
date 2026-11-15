@@ -121,13 +121,27 @@
     el.textContent = text; el.className = 'msg ' + (kind || '');
   }
 
+  // The Platform list holds platform ids (see NP.platforms); parsers are keyed by parser id.
+  function pickedParser() { return NP.platformParser($('selVendor').value); }
+
   // ------------------------------------------------------------------ ingest
+  // A paste may hold sessions from several devices: each is taken on its own.
   function ingest(text, name) {
+    const parts = $('selTarget').value === 'auto' || $('selTarget').value === 'new' ? NP.splitDevices(text) : [text];
+    if (parts.length === 1) return ingestOne(text, name);
+    const done = [], errs = [];
+    parts.forEach(function (t) { try { done.push(ingestOne(t, name)); } catch (e) { errs.push(e.message); } });
+    if (!done.length) throw new Error(errs[0]);
+    const last = done[done.length - 1];
+    last.others = done.slice(0, -1);
+    return last;
+  }
+  function ingestOne(text, name) {
     let target = $('selTarget').value;
     if (target === 'snapshot') {
       const dev = cur();
       if (!dev) throw new Error('Select a device first, then paste its newer output as a new snapshot.');
-      const vendor = $('selVendor').value === 'auto' ? (NP.detect(text) || dev.vendor) : $('selVendor').value;
+      const vendor = pickedParser() === 'auto' ? (NP.detect(text) || dev.vendor) : pickedParser();
       NP.ingest(text, { vendor: vendor, devices: [], target: 'new' });      // throws if the paste is unusable: nothing is touched
       NP.snapshot(dev, 'Before ' + new Date().toLocaleString());
       NP.resetParsed(dev);
@@ -136,7 +150,7 @@
       state.tab = 'compare';
     }
     const r = NP.ingest(text, {
-      vendor: $('selVendor').value, target: target,
+      vendor: pickedParser(), target: target,
       devices: state.devices, current: cur(), name: name });
     state.undo = null;
     if (r.isNew) state.devices.push(r.dev);
@@ -149,8 +163,11 @@
     if (!text.trim()) { msg('Paste something first.', 'err'); return; }
     try {
       const r = ingest(text, name);
-      msg((r.isNew ? 'Added ' : 'Merged into ') + (r.dev.hostname || 'unnamed device') + ' as ' +
-        NP.vendors[r.vendor].label + ': ' + r.dev.ports.length + ' ports.' +
+      const said = function (x) {
+        return (x.isNew ? 'Added ' : 'Merged into ') + (x.dev.hostname || 'unnamed device') + ' as ' +
+          NP.vendors[x.vendor].label + ': ' + x.dev.ports.length + ' ports.';
+      };
+      msg((r.others || []).map(function (x) { return said(x) + ' '; }).join('') + said(r) +
         (r.extra && r.extra.length ? ' Also ' + r.extra.length + ' FortiLink-managed switch(es): ' +
           r.extra.map(function (x) { return x.dev.hostname; }).join(', ') + '.' : '') +
         (r.cleaned && r.cleaned.length ? ' Cleaned up first: ' + r.cleaned.join('; ') + '.' : ''), 'ok');
@@ -183,14 +200,15 @@
     let vendor = $('selVendor').value;
     const dev = cur();
     const fromDevice = vendor === 'auto' && dev && $('selTarget').value !== 'new';
-    if (fromDevice) vendor = dev.vendor;
+    // a switch that came out of a FortiGate config is refreshed by pasting the FortiGate config again
+    if (fromDevice) vendor = dev.vendor === 'fortiswitch' && dev.other['Managed by'] ? 'fortilink' : dev.vendor;
     const c = NP.commands[vendor];
     if (!c) {
       $('cmdSummary').textContent = 'Commands to run';
       box.appendChild(h('p', { text: 'Choose a platform above to see which commands to run on the device.' }));
       return;
     }
-    $('cmdSummary').textContent = 'Commands to run on ' + NP.vendors[vendor].label;
+    $('cmdSummary').textContent = 'Commands to run: ' + NP.platformLabel(vendor);
     if (fromDevice) box.appendChild(h('p', { text: 'Based on the selected device, ' + (dev.hostname || 'unnamed') + '.' }));
     box.appendChild(h('ol', {},
       c.pager ? h('li', {}, h('code', { text: c.pager }), h('span', { text: 'turns off paging so output is not cut at --More--' })) : null,
@@ -202,6 +220,7 @@
       setTimeout(function () { btn.textContent = 'Copy all'; }, 1500);
     } }, 'Copy all'));
     box.appendChild(h('p', { text: 'Paste the block into the device session, then paste the whole session output below.' }));
+    if (c.note) box.appendChild(h('p', { text: c.note }));
   }
 
   // ---------------------------------------------------------------- sidebar
@@ -779,8 +798,17 @@
   // -------------------------------------------------------------------- wire
   function init() {
     $('inputHelp').replaceChildren(helpPanel('input'));
-    NP.vendorOrder.forEach(function (id) {
-      $('selVendor').appendChild(h('option', { value: id, text: NP.vendors[id].label + (NP.verified[id] ? '' : ' (experimental)') }));
+    NP.brands().forEach(function (b) { $('selBrand').appendChild(h('option', { value: b, text: b })); });
+    $('selBrand').addEventListener('change', function (e) {
+      const sel = $('selVendor'), brand = e.target.value;
+      sel.replaceChildren();
+      if (brand === 'auto') sel.appendChild(h('option', { value: 'auto', text: 'Auto-detect' }));
+      NP.platforms.filter(function (p) { return p.brand === brand; }).forEach(function (p) {
+        sel.appendChild(h('option', { value: p.id, text: p.name + (NP.verified[p.parser || p.id] ? '' : ' (experimental)') }));
+      });
+      sel.disabled = sel.options.length < 2;
+      $('lblVendor').hidden = brand === 'auto';
+      sel.dispatchEvent(new Event('change'));
     });
     Object.keys(NP.samples).forEach(function (id) {
       $('selSample').appendChild(h('option', { value: id, text: NP.samples[id].label }));
@@ -793,7 +821,7 @@
     $('btnSanitize').addEventListener('click', function () {
       const el = $('sanMsg'), ta = $('txtInput');
       if (!ta.value.trim()) { el.textContent = 'Paste the output into the box above first.'; el.className = 'msg err'; return; }
-      const r = NP.sanitize(ta.value, { vendor: $('selVendor').value, names: $('sanNames').checked, descriptions: $('sanDesc').checked,
+      const r = NP.sanitize(ta.value, { vendor: pickedParser(), names: $('sanNames').checked, descriptions: $('sanDesc').checked,
         vlanNames: $('sanVlan').checked, addresses: $('sanAddr').checked });
       ta.value = r.text;
       const c = r.counts;
@@ -817,7 +845,7 @@
     $('btnReport').addEventListener('click', function () {
       const el = $('repMsg'), ta = $('txtInput');
       if (!ta.value.trim()) { el.textContent = 'Paste the original device output into the box above first.'; el.className = 'msg err'; return; }
-      const r = NP.problemReport(ta.value, { vendor: $('selVendor').value, names: $('sanNames').checked, descriptions: $('sanDesc').checked,
+      const r = NP.problemReport(ta.value, { vendor: pickedParser(), names: $('sanNames').checked, descriptions: $('sanDesc').checked,
         vlanNames: $('sanVlan').checked, addresses: $('sanAddr').checked, note: $('repNote').value, agent: navigator.userAgent });
       lastReport = r.text;
       download('confighelper-report.txt', r.text, 'text/plain');

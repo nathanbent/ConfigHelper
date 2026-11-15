@@ -22,6 +22,8 @@
     ['arubaos', /^; \S+ Configuration Editor/m, /^\s+(untagged|tagged) [\w,\-\/]+\s*$/m,
       /Port\s+Type\s+\|\s+(Intrusion\s+)?Alert/, /PoE\s+\|\s+Power/],
     ['aoscx', /^!Version ArubaOS-CX/m, /^interface \d+\/\d+\/\d+\s*$/m, /^\s+vlan (access|trunk) /m],
+    ['os9', /^! Version 9\.\d/m, /^interface (GigabitEthernet|TenGigabitEthernet|twentyFiveGigE|fortyGigE|hundredGigE|ManagementEthernet) \d+\/\d+/m,
+      /^Dell Application Software Version/m, /^stack-unit \d+ provision /m, /^\s*Loc PortID\s+Rem Host Name/m],
     ['os6', /^!System Description "Dell/m, /^!System Software Version/m, /^\s*switchport general /m,
       /^interface (Gi|Te|Tw|Fo)\d+\/\d+\/\d+\s*$/m, /^Machine Type\.+ ?Dell/m, /^Port\s+Description\s+Duplex\s+Speed\s+Neg/m,
       /^Interface\s+RemID\s+Chassis ID/m],

@@ -23,8 +23,8 @@
       <h2>Add device output</h2>
       <div id="inputHelp"></div>
       <div class="row2">
-        <label>Platform
-          <select id="selVendor"><option value="auto">Auto-detect</option></select>
+        <label>Brand
+          <select id="selBrand"><option value="auto">Auto-detect</option></select>
         </label>
         <label>Add to
           <select id="selTarget">
@@ -33,6 +33,9 @@
             <option value="new">New device</option>
             <option value="snapshot">Selected device, as a new snapshot</option>
           </select>
+        </label>
+        <label class="wide" id="lblVendor" hidden>Platform
+          <select id="selVendor"><option value="auto">Auto-detect</option></select>
         </label>
       </div>
       <details id="cmdBox" class="cmds">
@@ -96,6 +99,7 @@ A whole terminal session works too, for example:
 <script src="js/detect.js"></script>
 <script src="js/parsers/ioslike.js"></script>
 <script src="js/parsers/os6.js"></script>
+<script src="js/parsers/os9.js"></script>
 <script src="js/parsers/arubaos.js"></script>
 <script src="js/parsers/comware.js"></script>
 <script src="js/parsers/icx.js"></script>

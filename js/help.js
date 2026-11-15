@@ -28,7 +28,7 @@
       sections: {
         'Use it for': ['Loading a switch, router or firewall, and adding more output for it later.'],
         'Give it': [
-          'A config, show-command output, or a whole terminal session, pasted or dropped as text files. Choose a platform to see the commands to run, or leave it on auto-detect.',
+          'A config, show-command output, or a whole terminal session, pasted or dropped as text files. Choose a brand and platform to see the commands to run, or leave it on auto-detect.',
           'A config alone gives VLANs, descriptions and settings. Interface status, PoE and neighbor output for the same device add link state, power draw and what is plugged in.'
         ],
         'You get': [
