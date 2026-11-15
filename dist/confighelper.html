@@ -137,6 +137,12 @@ td.editcell.edited input { border-color: var(--accent); }
 tr.excluded td { opacity: .45; }
 tr.excluded td:first-child { opacity: 1; }
 .edithint { margin: 0 0 10px; }
+.onlybar { margin: 0 0 10px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--row); font-size: 13px; }
+.finding h3 { font-size: 15px; }
+.finding p { margin: 6px 0 0; color: var(--muted); }
+.finding .findports { color: var(--ink); }
+.findhead { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.mono { font-family: var(--mono); font-size: 12.5px; }
 details.cols .pop.right { left: auto; right: 0; grid-template-columns: 1fr; width: 280px; gap: 8px; }
 details.cols .pop.right label select { width: 100%; }
 details.cols summary.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
@@ -4079,6 +4085,12 @@ set enabled=yes location="Workshop cabinet"
     if (dev.vlans.length) {
       out.push('## VLANs', '', NP.mdTable([['VLAN', 'Name']].concat(dev.vlans.map(function (v) { return [v.id, v.name]; }))));
     }
+    const found = NP.checks ? NP.checks(dev) : [];
+    if (found.length) {
+      out.push('## Checks', '', NP.mdTable([['Level', 'Finding', 'Ports']].concat(found.map(function (f) {
+        return [f.severity === 'warn' ? 'Fix' : 'Review', f.title, f.ports.map(function (p) { return p.short; }).join(', ')];
+      }))));
+    }
     const rows = NP.portRows([dev], colIds).map(function (r) { return r.slice(1); });
     out.push('## Ports', '', NP.mdTable(rows));
     return out.join('\n');
@@ -4102,6 +4114,174 @@ set enabled=yes location="Workshop cabinet"
 })(typeof globalThis !== 'undefined' ? globalThis : this);
 </script>
 <script>
+/* Config checks: things worth a second look, worked out from the parsed model (so they are
+ * the same for every vendor). Each check only fires when the data it needs was actually loaded.
+ * Findings are prompts to review, not verdicts: the tool cannot know intent. */
+(function (root) {
+  'use strict';
+  const NP = root.NP;
+
+  const IOS_FAMILY = ['ios', 'nxos', 'eos', 'os10'];
+  // platforms where an edge port is something you configure per port (elsewhere it is automatic or on by default)
+  const EXPLICIT_EDGE = ['ios', 'nxos', 'eos', 'os10', 'aoscx', 'arubaos', 'comware', 'junos', 'icx'];
+
+  NP.checks = function (dev) {
+    const out = [];
+    const add = function (id, severity, title, detail, ports) {
+      out.push({ id: id, severity: severity, title: title, detail: detail,
+        ports: (ports || []).map(function (p) { return { key: p.key, short: p.short }; }) });
+    };
+    const all = NP.eports(dev, true);
+    const phys = all.filter(function (p) { return p.kind === 'physical' && p.link !== 'not present'; });
+    const l2 = all.filter(function (p) { return (p.kind === 'physical' || p.kind === 'lag') && p.link !== 'not present'; });
+    const linkKnown = phys.some(function (p) { return p.link; });
+    const managed = !!dev.other['Managed by'];                       // FortiLink child: services live on the FortiGate
+    const isSwitch = dev.vendor !== 'fortigate';
+    const configSeen = !!(dev.stp.mode || dev.vlans.length || dev.dns.length || dev.ntp.length || Object.keys(dev.other).length);
+    const stpNotes = dev.stp.notes.join(' | ');
+    const has = function (p, flag) { return p.stp.split(', ').some(function (f) { return f === flag || f.indexOf(flag + ' ') === 0; }); };
+    const live = function (p) { return p.adminUp !== false && (!linkKnown || p.link === 'up'); };
+
+    // ------------------------------------------------------------ port state
+    let list = phys.filter(function (p) { return p.link === 'err-disabled'; });
+    if (list.length) add('errdisabled', 'warn', 'Ports shut down by the switch (err-disabled)',
+      'The switch disabled these ports itself, usually after a BPDU guard, port-security or link-flap event. Find the cause before re-enabling.', list);
+
+    list = phys.filter(function (p) { return p.link === 'up' && p.duplex === 'half'; });
+    if (list.length) add('halfduplex', 'warn', 'Ports running at half duplex',
+      'Half duplex on a modern link nearly always means a speed/duplex mismatch or a bad cable.', list);
+
+    list = phys.filter(function (p) { return /fault|deny|denied/i.test(p.poeStatus); });
+    if (list.length) add('poefault', 'warn', 'PoE faults', 'The switch reports a PoE fault or refused power on these ports.', list);
+
+    list = phys.filter(function (p) { return p.link === 'up' && !p.description && !p.lag; });
+    if (list.length) add('nodesc', 'info', 'Connected ports with no description',
+      'These ports have link but nothing says what is plugged in. Add a description on the switch, or on the Ports tab with Edit.', list);
+
+    if (linkKnown) {
+      list = phys.filter(function (p) { return p.adminUp === true && p.link === 'down'; });
+      if (list.length) add('unusedenabled', 'info', 'Enabled ports with no link',
+        'Nothing is connected right now. Ports that are permanently unused are safer shut down, or parked in an unused VLAN.', list);
+    }
+
+    // ------------------------------------------------------------ VLANs
+    list = l2.filter(function (p) { return p.mode === 'trunk' && p.tagged === 'all' && p.adminUp !== false && !p.lag; });
+    if (list.length) add('trunkall', 'info', 'Trunks carrying every VLAN',
+      'No allowed-VLAN list is set, so every VLAN (and its broadcasts) reaches the far end. Usually fine on core uplinks; worth pruning towards APs and edge switches.', list);
+
+    list = l2.filter(function (p) { return p.mode === 'trunk' && p.untagged === '1' && p.adminUp !== false && !p.lag; });
+    if (list.length) add('native1', 'info', 'Trunks using VLAN 1 as the native VLAN',
+      'Untagged traffic on these trunks lands in VLAN 1. Many sites move the native VLAN to a dedicated unused VLAN.', list);
+
+    list = phys.filter(function (p) { return p.mode === 'access' && p.untagged === '1' && live(p) && !p.lag; });
+    if (list.length && dev.vlans.some(function (v) { return v.id !== 1; })) add('accessvlan1', 'info', 'Access ports in the default VLAN 1',
+      'These ports are ' + (linkKnown ? 'connected' : 'enabled') + ' and still in VLAN 1 although other VLANs are defined.', list);
+
+    if (dev.vlans.length && dev.vendor !== 'fortigate') {
+      const defined = {};
+      dev.vlans.forEach(function (v) { defined[v.id] = true; });
+      const missing = {};
+      list = l2.filter(function (p) {
+        const ids = [p.untagged, p.voiceVlan].filter(function (v) { return /^\d+$/.test(v); }).map(Number);
+        if (p.tagged && p.tagged !== 'all' && /^[\d,\-]+$/.test(p.tagged)) {
+          const t = NP.parseVlanList(p.tagged);
+          if (t.length <= 64) ids.push.apply(ids, t);
+        }
+        const bad = ids.filter(function (id) { return id !== 1 && !defined[id]; });
+        bad.forEach(function (id) { missing[id] = true; });
+        return bad.length > 0;
+      });
+      if (list.length) add('undefinedvlan', 'warn', 'Ports use VLANs that are not defined: ' + NP.compressVlans(Object.keys(missing).map(Number)),
+        'A port assigned to a VLAN that does not exist on the switch passes no traffic in that VLAN. (If VLANs come from VTP or another source the config does not show, ignore this.)', list);
+    }
+
+    // ------------------------------------------------------------ spanning tree
+    const stpOn = !/^no/.test(dev.stp.enabled) && !/^n\/a/.test(dev.stp.enabled);
+    if (isSwitch && configSeen && /^no/.test(dev.stp.enabled)) {
+      add('stpoff', 'warn', 'Spanning tree is disabled', 'With spanning tree off, one accidental loop can take the network down.', []);
+    }
+    if (dev.vendor === 'ios' && /^pvst\b/.test(dev.stp.mode)) {
+      add('stplegacy', 'info', 'Legacy spanning-tree mode (PVST+)', 'Classic 802.1D timers mean 30 to 50 seconds to recover from a topology change. Rapid PVST+ or MST converge in about a second.', []);
+    }
+    if (IOS_FAMILY.includes(dev.vendor) && /^mst/.test(dev.stp.mode) && dev.stp.priority.some(function (p) { return /^VLAN /.test(p); })) {
+      add('stpprio', 'info', 'Per-VLAN spanning-tree priority has no effect in MST mode',
+        'The switch runs MST, where only the per-instance priority counts (' +
+        (dev.stp.priority.filter(function (p) { return /^MST /.test(p); }).join('; ') || 'none set') + '). The "spanning-tree vlan ... priority" lines are leftovers.', []);
+    }
+    if (IOS_FAMILY.includes(dev.vendor)) {
+      list = l2.filter(function (p) { return p.mode === 'trunk' && has(p, 'edge') && !/edge \(trunk\)/.test(p.stp); });
+      if (list.length) add('portfasttrunk', 'info', 'PortFast on a trunk without the "trunk" keyword',
+        'Plain "spanning-tree portfast" is ignored on trunk ports, so these ports still go through listening and learning. Use "portfast trunk" (or "port type edge trunk") if that is what you want, or remove it.', list);
+    }
+    if (stpOn && configSeen && EXPLICIT_EDGE.includes(dev.vendor)) {
+      const edgeDefault = /portfast (edge )?default|port type edge default|all interfaces: edge/.test(stpNotes);
+      const guardDefault = /bpduguard default|bpdu-block-on-edge|bpdu-protection/.test(stpNotes);
+      if (!edgeDefault) {
+        list = phys.filter(function (p) { return p.mode === 'access' && !p.lag && live(p) && !has(p, 'edge') && !p.neighbor; });
+        if (list.length) add('noedge', 'info', 'Access ports not set as edge ports (PortFast)',
+          'Without it, a device waits through spanning-tree listening and learning at link-up (DHCP timeouts on boot), and every link flap sends a topology change through the network.', list);
+      }
+      if (!guardDefault) {
+        list = phys.filter(function (p) { return has(p, 'edge') && !has(p, 'bpduguard') && p.adminUp !== false; });
+        if (list.length) add('noguard', 'info', 'Edge ports without BPDU guard',
+          'An edge port skips the loop check at link-up. BPDU guard shuts the port if someone plugs a switch into it.', list);
+      }
+    }
+
+    // ------------------------------------------------------------ services
+    if (configSeen && !managed) {
+      if (!dev.ntp.length) add('nontp', 'warn', 'No NTP server configured', 'Without time sync, log timestamps cannot be compared across devices and certificate checks can fail.', []);
+      if (!dev.syslog.length) add('nosyslog', 'info', 'No syslog server configured', 'Logs only live in the device buffer and are lost on reload.', []);
+      if (dev.snmp.versions.includes('v2c') && !dev.snmp.versions.includes('v3')) {
+        add('snmpv2', 'info', 'SNMP uses community strings only (no v3)', 'SNMP v1/v2c sends the community string and all data in clear text.', []);
+      }
+      if (dev.other['HTTP server'] === 'enabled' || dev.other['Web management'] === 'enabled') {
+        add('http', 'warn', 'Management over plain HTTP is enabled', 'Logins to the web interface cross the network unencrypted. Disable the HTTP server and keep HTTPS.', []);
+      }
+      if (dev.other.Telnet === 'enabled' || /\b(telnet|all)\b/.test(dev.other['VTY access'] || '')) {
+        add('telnet', 'warn', 'Telnet management is allowed', 'Telnet sends passwords in clear text. Restrict remote access to SSH.', []);
+      }
+      if (dev.other['DHCP snooping'] && !all.some(function (p) { return /dhcp-snooping trust/.test(p.notes); })) {
+        add('snoopnotrust', 'warn', 'DHCP snooping is on but no port is trusted', 'With no trusted port, replies from the real DHCP server are dropped and clients get no address.', []);
+      }
+    }
+
+    // ------------------------------------------------------------ LAGs
+    const members = {};
+    all.forEach(function (p) { if (p.lag) (members[p.lag.toLowerCase()] = members[p.lag.toLowerCase()] || []).push(p); });
+    list = all.filter(function (p) {
+      return p.kind === 'lag' && [p.short, p.name].some(function (n) { const m = members[n.toLowerCase()]; return m && m.length === 1; });
+    });
+    if (list.length) add('lagsingle', 'info', 'Link aggregation groups with a single member',
+      'A LAG with one port gives no redundancy or extra capacity. Fine if the second link is planned; otherwise it may be a leftover.', list);
+
+    // ------------------------------------------------------------ firewall interfaces
+    if (dev.vendor === 'fortigate') {
+      const acc = function (p) { const m = p.notes.match(/access ([^;]+)/); return m ? m[1].split('/') : []; };
+      list = all.filter(function (p) { return acc(p).some(function (a) { return a === 'http' || a === 'telnet'; }); });
+      if (list.length) add('fgclear', 'warn', 'Interfaces allowing HTTP or Telnet administration', 'Administrative logins on these interfaces can cross the network unencrypted.', list);
+      list = all.filter(function (p) { return /role wan/.test(p.notes) && p.adminUp !== false && acc(p).some(function (a) { return /^(https|ssh|http|telnet|snmp)$/.test(a); }); });
+      if (list.length) add('fgwanadmin', 'warn', 'Administrative access enabled on WAN interfaces',
+        'The management interface is reachable from the internet side. Restrict it with trusted hosts or a local-in policy, or turn it off.', list);
+    }
+
+    const rank = { warn: 0, info: 1 };
+    return out.sort(function (a, b) { return rank[a.severity] - rank[b.severity]; });
+  };
+
+  NP.checksText = function (dev) {
+    const out = ['ConfigHelper checks for ' + (dev.hostname || 'device') + ' (' + NP.vendorLabel(dev) + ')'];
+    const c = NP.checks(dev);
+    if (!c.length) out.push('', 'Nothing flagged.');
+    c.forEach(function (f) {
+      out.push('', (f.severity === 'warn' ? '[Fix]    ' : '[Review] ') + f.title, '  ' + f.detail);
+      if (f.ports.length) out.push('  Ports (' + f.ports.length + '): ' + f.ports.map(function (p) { return p.short; }).join(', '));
+    });
+    return out.join('\n') + '\n';
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+<script>
 /* ConfigHelper UI. All rendering goes through h() / textContent: pasted configs are untrusted text. */
 (function () {
   'use strict';
@@ -4113,7 +4293,7 @@ set enabled=yes location="Workshop cabinet"
     devices: [], current: null, tab: 'ports',
     cols: NP.columns.filter(function (c) { return c.on; }).map(function (c) { return c.id; }),
     search: '', physOnly: false, hideDown: false, sort: null,
-    editing: false,
+    editing: false, only: null,          // only: {title, keys} = Ports tab limited to the ports of one check
     exp: { fmt: 'csv', cols: 'shown', rows: 'shown', devs: 'device' },
     label: { preset: 'port', per: 'port', lines: NP.labelPresets.port.lines.slice(), scope: 'device',
       physicalOnly: true, upOnly: false, describedOnly: false, skipDisabled: true,
@@ -4249,7 +4429,7 @@ set enabled=yes location="Workshop cabinet"
     if (!state.devices.length) { ul.appendChild(h('li', { class: 'empty', text: 'No devices yet.' })); return; }
     state.devices.forEach(function (d) {
       ul.appendChild(h('li', { class: d.id === state.current ? 'sel' : '' },
-        h('button', { class: 'pick', onclick: function () { state.current = d.id; state.sort = null; save(); render(); } },
+        h('button', { class: 'pick', onclick: function () { state.current = d.id; state.sort = null; state.only = null; save(); render(); } },
           h('b', { text: d.hostname || '(unnamed)' }),
           h('span', { text: NP.vendorLabel(d) + ' · ' + d.ports.length + ' ports' })),
         h('button', { class: 'link', title: 'Remove this device', 'aria-label': 'Remove ' + (d.hostname || 'device'),
@@ -4281,6 +4461,7 @@ set enabled=yes location="Workshop cabinet"
       return;
     }
     const tabs = [['overview', 'Overview'], ['ports', 'Ports (' + dev.ports.length + ')'], ['labels', 'Labels'],
+      ['checks', 'Checks (' + NP.checks(dev).length + ')'],
       ['unparsed', 'Not parsed (' + (dev.unparsed || []).length + ')']];
     view.appendChild(h('section', { class: 'card' },
       h('div', { class: 'devhead' },
@@ -4297,6 +4478,7 @@ set enabled=yes location="Workshop cabinet"
     if (state.tab === 'overview') overview(view, dev);
     else if (state.tab === 'labels') labels(view, dev);
     else if (state.tab === 'unparsed') unparsed(view, dev);
+    else if (state.tab === 'checks') checks(view, dev);
     else ports(view, dev);
   }
 
@@ -4328,6 +4510,31 @@ set enabled=yes location="Workshop cabinet"
       h('div', { class: 'chips' }, dev.sources.map(function (s) {
         return h('span', { class: 'chip', text: s.name + ' (' + s.lines + ' lines)' });
       }))));
+  }
+
+  function checks(view, dev) {
+    const found = NP.checks(dev);
+    const warn = found.filter(function (f) { return f.severity === 'warn'; }).length;
+    view.appendChild(h('section', { class: 'card' },
+      h('div', { class: 'toolbar' },
+        h('span', { class: 'count', text: found.length
+          ? warn + ' to fix, ' + (found.length - warn) + ' to review. These are prompts to look, worked out from what was loaded; the tool cannot know what is intentional.'
+          : 'Nothing flagged in what was loaded for this device.' }),
+        h('span', { class: 'spacer' }),
+        found.length ? h('button', { onclick: function (e) { copyText(NP.checksText(dev), e.target, 'Copy findings'); } }, 'Copy findings') : null)));
+    found.forEach(function (f) {
+      const shown = f.ports.slice(0, 16).map(function (p) { return p.short; }).join(', ') + (f.ports.length > 16 ? ', +' + (f.ports.length - 16) + ' more' : '');
+      view.appendChild(h('section', { class: 'card finding' },
+        h('div', { class: 'findhead' },
+          h('span', { class: 'pill ' + (f.severity === 'warn' ? 'off' : 'warn'), text: f.severity === 'warn' ? 'Fix' : 'Review' }),
+          h('h3', { text: f.title })),
+        h('p', { text: f.detail }),
+        f.ports.length ? h('p', { class: 'findports' }, h('span', { class: 'mono', text: shown }), ' ',
+          h('button', { onclick: function () {
+            state.only = { title: f.title, keys: f.ports.map(function (p) { return p.key; }) };
+            state.tab = 'ports'; state.search = ''; state.physOnly = false; state.hideDown = false; render();
+          } }, 'Show these ' + f.ports.length + ' in Ports')) : null));
+    });
   }
 
   function unparsed(view, dev) {
@@ -4365,7 +4572,9 @@ set enabled=yes location="Workshop cabinet"
 
   function portPredicate() {
     const q = state.search.trim().toLowerCase();
+    const only = state.only ? state.only.keys : null;
     return function (p) {
+      if (only && !only.includes(p.key)) return false;
       if (state.physOnly && p.kind !== 'physical') return false;
       if (state.hideDown && p.link !== 'up') return false;
       if (!q) return true;
@@ -4464,6 +4673,9 @@ set enabled=yes location="Workshop cabinet"
       colPicker, h('span', { class: 'count', text: list.length + ' of ' + dev.ports.length + ' shown' +
         (ec.fields ? ', ' + ec.fields + ' edited' : '') + (ec.excluded ? ', ' + ec.excluded + ' excluded' : '') }), h('span', { class: 'spacer' }),
       editBtn, resetBtn, expMenu, h('button', { onclick: function () { window.print(); } }, 'Print'));
+    const onlyBar = state.only ? h('p', { class: 'onlybar' }, 'Showing the ' + state.only.keys.length + ' port(s) from the check: ',
+      h('b', { text: state.only.title }), ' ',
+      h('button', { onclick: function () { state.only = null; render(); } }, 'Show all ports')) : null;
     const editHint = state.editing ? h('p', { class: 'hint edithint', text: 'Type in the outlined cells (' +
       NP.columns.filter(function (c) { return NP.editable.includes(c.id); }).map(function (c) { return c.label; }).join(', ') +
       ') and untick a port to leave it out of exports and labels. Changes are kept when you paste newer output for this device; the parsed value is shown when you hover an edited cell.' }) : null;
@@ -4500,7 +4712,7 @@ set enabled=yes location="Workshop cabinet"
         return h('td', { class: cls, text: v == null ? '' : String(v) });
       }));
     }));
-    view.appendChild(h('section', { class: 'card' }, toolbar, editHint,
+    view.appendChild(h('section', { class: 'card' }, toolbar, onlyBar, editHint,
       list.length ? h('div', { class: 'tablewrap' }, h('table', {}, thead, tbody))
         : h('p', { class: 'empty', text: 'No ports match.' })));
   }

@@ -130,6 +130,12 @@ td.editcell.edited input { border-color: var(--accent); }
 tr.excluded td { opacity: .45; }
 tr.excluded td:first-child { opacity: 1; }
 .edithint { margin: 0 0 10px; }
+.onlybar { margin: 0 0 10px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--row); font-size: 13px; }
+.finding h3 { font-size: 15px; }
+.finding p { margin: 6px 0 0; color: var(--muted); }
+.finding .findports { color: var(--ink); }
+.findhead { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.mono { font-family: var(--mono); font-size: 12.5px; }
 details.cols .pop.right { left: auto; right: 0; grid-template-columns: 1fr; width: 280px; gap: 8px; }
 details.cols .pop.right label select { width: 100%; }
 details.cols summary.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }

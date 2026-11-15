@@ -440,6 +440,57 @@ test('manual edits: laid over parsed data, used by exports and labels, kept acro
   assert.deepEqual(d.edits, {});
 });
 
+test('config checks: real 3850 findings', () => {
+  const text = require('fs').readFileSync(require('path').join(__dirname, 'fixtures', 'cisco-3850-lab.txt'), 'utf8');
+  const d = NP.ingest(text, { devices: [] }).dev;
+  const found = NP.checks(d);
+  const by = id => found.find(f => f.id === id);
+  const ports = id => by(id).ports.map(p => p.short);
+  assert.deepEqual(found.filter(f => f.severity === 'warn').map(f => f.id), ['errdisabled', 'nontp', 'http']);
+  assert.deepEqual(ports('errdisabled'), ['Gi1/0/14']);
+  assert.deepEqual(ports('portfasttrunk'), ['Te1/0/38']);
+  assert.ok(by('stpprio'));
+  assert.deepEqual(ports('native1'), ['Gi1/0/11', 'Te1/0/44', 'Te1/0/47', 'Te1/0/48', 'Te1/1/4']);
+  assert.equal(ports('trunkall').length, 9);
+  assert.equal(ports('unusedenabled').length, 45);
+  assert.ok(!by('noedge') && !by('noguard') && !by('undefinedvlan') && !by('snoopnotrust') && !by('telnet'));
+  assert.ok(!ports('unusedenabled').includes('Te1/1/5'));        // empty module slots are not "unused ports"
+  assert.match(NP.checksText(d), /\[Fix\] {4}Ports shut down by the switch[^\n]*\n[^\n]*\n {2}Ports \(1\): Gi1\/0\/14/);
+  assert.match(NP.deviceReport(d, ['name']), /## Checks\n\n\| Level \| Finding \| Ports \|/);
+});
+
+test('config checks: each rule on a small config', () => {
+  const cfg = ['hostname SW9', 'no spanning-tree vlan 30', 'vlan 10', ' name USERS', 'ip http server', 'ip dhcp snooping',
+    'snmp-server community x RO',
+    'interface GigabitEthernet0/1', ' switchport mode access', ' switchport access vlan 10', ' spanning-tree portfast',
+    'interface GigabitEthernet0/2', ' switchport mode access', ' switchport access vlan 77',
+    'interface GigabitEthernet0/3', ' description uplink', ' switchport mode trunk', ' channel-group 1 mode active',
+    'interface Port-channel1', ' switchport mode trunk', ' switchport trunk allowed vlan 10',
+    'line vty 0 4', ' transport input telnet ssh', ''].join('\n');
+  const status = 'SW9#show interfaces status\n\nPort      Name               Status       Vlan       Duplex  Speed Type\n' +
+    'Gi0/1                        connected    10         a-half  a-100 10/100/1000BaseTX\n' +
+    'Gi0/2                        connected    77         a-full a-1000 10/100/1000BaseTX\n';
+  const d = NP.ingest('SW9#show running-config\n' + cfg + status, { vendor: 'ios', devices: [] }).dev;
+  const ids = NP.checks(d).map(f => f.id).sort();
+  assert.deepEqual(ids, ['halfduplex', 'http', 'lagsingle', 'native1', 'nodesc', 'noedge', 'noguard', 'nontp', 'nosyslog',
+    'snmpv2', 'snoopnotrust', 'stplegacy', 'telnet', 'undefinedvlan']);
+  const f = NP.checks(d).find(x => x.id === 'undefinedvlan');
+  assert.match(f.title, /not defined: 77$/);
+  assert.deepEqual(f.ports.map(p => p.short), ['Gi0/2']);
+  // an edited description clears the "no description" finding
+  NP.setEdit(d, NP.portId('Gi0/1').key, 'description', 'Till 1');
+  NP.setEdit(d, NP.portId('Gi0/2').key, 'description', 'Till 2');
+  assert.ok(!NP.checks(d).some(x => x.id === 'nodesc'));
+  // nothing device-level is claimed when only show output was loaded
+  const bare = NP.ingest(status, { vendor: 'ios', devices: [] }).dev;
+  assert.deepEqual(NP.checks(bare).map(x => x.id), ['halfduplex', 'nodesc']);
+  // FortiGate: admin access on WAN, and FortiLink-managed switches are not blamed for missing NTP
+  const fg = NP.ingest(NP.samples.fortigate.text.replace('set allowaccess ping\n        set type physical\n        set alias "ISP fibre"',
+    'set allowaccess ping https http\n        set type physical\n        set alias "ISP fibre"'), { devices: [] });
+  assert.deepEqual(NP.checks(fg.dev).map(x => [x.id, x.ports.map(p => p.short).join()]), [['fgclear', 'wan1'], ['fgwanadmin', 'wan1']]);
+  assert.ok(!NP.checks(fg.extra[0].dev).some(x => x.id === 'nontp'));
+});
+
 test('forcing a vendor and unknown input', () => {
   assert.throws(() => NP.ingest('hello world\nnothing here', { devices: [] }), /vendor/);
   assert.throws(() => NP.ingest('hello world', { vendor: 'ios', devices: [] }), /Nothing recognisable/);

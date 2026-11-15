@@ -24,6 +24,12 @@ Offline: Open `dist/confighelper.html` in a browser. That single file is the who
 of exports and labels. Edits are stored separately from the parsed data, so pasting newer output for the same
 device keeps them, and **Reset edits** returns to what was parsed.
 
+The **Checks** tab flags things worth a second look, worked out from what was loaded: err-disabled ports,
+half duplex, VLANs used but not defined, PortFast on trunks, access ports without edge/BPDU guard, trunks
+carrying every VLAN or using native VLAN 1, missing NTP or syslog, plain HTTP or Telnet management, SNMP
+without v3, DHCP snooping with no trusted port, and more. Each finding lists its ports and can filter the
+Ports tab to them. They are prompts to review, not verdicts.
+
 The **Not parsed** tab on each device lists the config lines and command output the parser saw but did not use
 (with known noise left out and passwords and keys replaced by `***`). Use it to spot gaps on a new device; the
 **Copy list** button gives you something to paste into a bug report.

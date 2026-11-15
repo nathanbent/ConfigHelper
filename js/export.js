@@ -326,6 +326,12 @@
     if (dev.vlans.length) {
       out.push('## VLANs', '', NP.mdTable([['VLAN', 'Name']].concat(dev.vlans.map(function (v) { return [v.id, v.name]; }))));
     }
+    const found = NP.checks ? NP.checks(dev) : [];
+    if (found.length) {
+      out.push('## Checks', '', NP.mdTable([['Level', 'Finding', 'Ports']].concat(found.map(function (f) {
+        return [f.severity === 'warn' ? 'Fix' : 'Review', f.title, f.ports.map(function (p) { return p.short; }).join(', ')];
+      }))));
+    }
     const rows = NP.portRows([dev], colIds).map(function (r) { return r.slice(1); });
     out.push('## Ports', '', NP.mdTable(rows));
     return out.join('\n');

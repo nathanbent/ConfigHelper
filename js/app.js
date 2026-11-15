@@ -9,7 +9,7 @@
     devices: [], current: null, tab: 'ports',
     cols: NP.columns.filter(function (c) { return c.on; }).map(function (c) { return c.id; }),
     search: '', physOnly: false, hideDown: false, sort: null,
-    editing: false,
+    editing: false, only: null,          // only: {title, keys} = Ports tab limited to the ports of one check
     exp: { fmt: 'csv', cols: 'shown', rows: 'shown', devs: 'device' },
     label: { preset: 'port', per: 'port', lines: NP.labelPresets.port.lines.slice(), scope: 'device',
       physicalOnly: true, upOnly: false, describedOnly: false, skipDisabled: true,
@@ -145,7 +145,7 @@
     if (!state.devices.length) { ul.appendChild(h('li', { class: 'empty', text: 'No devices yet.' })); return; }
     state.devices.forEach(function (d) {
       ul.appendChild(h('li', { class: d.id === state.current ? 'sel' : '' },
-        h('button', { class: 'pick', onclick: function () { state.current = d.id; state.sort = null; save(); render(); } },
+        h('button', { class: 'pick', onclick: function () { state.current = d.id; state.sort = null; state.only = null; save(); render(); } },
           h('b', { text: d.hostname || '(unnamed)' }),
           h('span', { text: NP.vendorLabel(d) + ' · ' + d.ports.length + ' ports' })),
         h('button', { class: 'link', title: 'Remove this device', 'aria-label': 'Remove ' + (d.hostname || 'device'),
@@ -177,6 +177,7 @@
       return;
     }
     const tabs = [['overview', 'Overview'], ['ports', 'Ports (' + dev.ports.length + ')'], ['labels', 'Labels'],
+      ['checks', 'Checks (' + NP.checks(dev).length + ')'],
       ['unparsed', 'Not parsed (' + (dev.unparsed || []).length + ')']];
     view.appendChild(h('section', { class: 'card' },
       h('div', { class: 'devhead' },
@@ -193,6 +194,7 @@
     if (state.tab === 'overview') overview(view, dev);
     else if (state.tab === 'labels') labels(view, dev);
     else if (state.tab === 'unparsed') unparsed(view, dev);
+    else if (state.tab === 'checks') checks(view, dev);
     else ports(view, dev);
   }
 
@@ -224,6 +226,31 @@
       h('div', { class: 'chips' }, dev.sources.map(function (s) {
         return h('span', { class: 'chip', text: s.name + ' (' + s.lines + ' lines)' });
       }))));
+  }
+
+  function checks(view, dev) {
+    const found = NP.checks(dev);
+    const warn = found.filter(function (f) { return f.severity === 'warn'; }).length;
+    view.appendChild(h('section', { class: 'card' },
+      h('div', { class: 'toolbar' },
+        h('span', { class: 'count', text: found.length
+          ? warn + ' to fix, ' + (found.length - warn) + ' to review. These are prompts to look, worked out from what was loaded; the tool cannot know what is intentional.'
+          : 'Nothing flagged in what was loaded for this device.' }),
+        h('span', { class: 'spacer' }),
+        found.length ? h('button', { onclick: function (e) { copyText(NP.checksText(dev), e.target, 'Copy findings'); } }, 'Copy findings') : null)));
+    found.forEach(function (f) {
+      const shown = f.ports.slice(0, 16).map(function (p) { return p.short; }).join(', ') + (f.ports.length > 16 ? ', +' + (f.ports.length - 16) + ' more' : '');
+      view.appendChild(h('section', { class: 'card finding' },
+        h('div', { class: 'findhead' },
+          h('span', { class: 'pill ' + (f.severity === 'warn' ? 'off' : 'warn'), text: f.severity === 'warn' ? 'Fix' : 'Review' }),
+          h('h3', { text: f.title })),
+        h('p', { text: f.detail }),
+        f.ports.length ? h('p', { class: 'findports' }, h('span', { class: 'mono', text: shown }), ' ',
+          h('button', { onclick: function () {
+            state.only = { title: f.title, keys: f.ports.map(function (p) { return p.key; }) };
+            state.tab = 'ports'; state.search = ''; state.physOnly = false; state.hideDown = false; render();
+          } }, 'Show these ' + f.ports.length + ' in Ports')) : null));
+    });
   }
 
   function unparsed(view, dev) {
@@ -261,7 +288,9 @@
 
   function portPredicate() {
     const q = state.search.trim().toLowerCase();
+    const only = state.only ? state.only.keys : null;
     return function (p) {
+      if (only && !only.includes(p.key)) return false;
       if (state.physOnly && p.kind !== 'physical') return false;
       if (state.hideDown && p.link !== 'up') return false;
       if (!q) return true;
@@ -360,6 +389,9 @@
       colPicker, h('span', { class: 'count', text: list.length + ' of ' + dev.ports.length + ' shown' +
         (ec.fields ? ', ' + ec.fields + ' edited' : '') + (ec.excluded ? ', ' + ec.excluded + ' excluded' : '') }), h('span', { class: 'spacer' }),
       editBtn, resetBtn, expMenu, h('button', { onclick: function () { window.print(); } }, 'Print'));
+    const onlyBar = state.only ? h('p', { class: 'onlybar' }, 'Showing the ' + state.only.keys.length + ' port(s) from the check: ',
+      h('b', { text: state.only.title }), ' ',
+      h('button', { onclick: function () { state.only = null; render(); } }, 'Show all ports')) : null;
     const editHint = state.editing ? h('p', { class: 'hint edithint', text: 'Type in the outlined cells (' +
       NP.columns.filter(function (c) { return NP.editable.includes(c.id); }).map(function (c) { return c.label; }).join(', ') +
       ') and untick a port to leave it out of exports and labels. Changes are kept when you paste newer output for this device; the parsed value is shown when you hover an edited cell.' }) : null;
@@ -396,7 +428,7 @@
         return h('td', { class: cls, text: v == null ? '' : String(v) });
       }));
     }));
-    view.appendChild(h('section', { class: 'card' }, toolbar, editHint,
+    view.appendChild(h('section', { class: 'card' }, toolbar, onlyBar, editHint,
       list.length ? h('div', { class: 'tablewrap' }, h('table', {}, thead, tbody))
         : h('p', { class: 'empty', text: 'No ports match.' })));
   }
