@@ -99,6 +99,9 @@ test('ui', { skip: chromium ? false : 'Playwright is not installed' }, async (t)
     await tab(page, 'Labels');
     const lab = await save(page, () => page.click('button:has-text("Export label file")'));
     assert.match(lab.text, /^Line1,Line2\r\nGi1\/0\/1,Lab-Data\r\n/);
+    const lbx = await save(page, () => page.click('button:has-text("P-touch template")'));
+    assert.equal(lbx.name, 'cable-wrap-3line.lbx');
+    assert.match(lbx.text, /^PK[\s\S]*label\.xml/);
     // field buttons write into the line last clicked, at the cursor, keeping text typed but not yet saved
     const line2 = page.locator('input[data-line="1"]');
     await line2.fill('Port');
