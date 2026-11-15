@@ -22,8 +22,8 @@
     <section class="card" id="inputCard">
       <h2>Add device output</h2>
       <div class="row2">
-        <label>Platform
-          <select id="selVendor"><option value="auto">Auto-detect</option></select>
+        <label>Brand
+          <select id="selBrand"><option value="auto">Auto-detect</option></select>
         </label>
         <label>Add to
           <select id="selTarget">
@@ -32,6 +32,9 @@
             <option value="new">New device</option>
             <option value="snapshot">Selected device, as a new snapshot</option>
           </select>
+        </label>
+        <label class="wide" id="lblVendor" hidden>Platform
+          <select id="selVendor"><option value="auto">Auto-detect</option></select>
         </label>
       </div>
       <details id="cmdBox" class="cmds">

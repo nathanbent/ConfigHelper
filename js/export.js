@@ -163,10 +163,32 @@
       { cmd: 'show configuration | display set', gives: CFG },
       { cmd: 'show interfaces terse', gives: 'admin and link state' },
       { cmd: 'show lldp neighbors', gives: 'what is plugged in' },
-      { cmd: 'show poe interface', gives: 'PoE state, watts, class' }] },
-    fortigate: { pager: 'config system console\nset output standard\nend', cmds: [
-      { cmd: 'show', gives: 'interfaces, zones, DNS, NTP, syslog, routes' },
-      { cmd: 'get system status', gives: 'model, firmware version, serial' }] },
+      { cmd: 'show poe interface', gives: 'PoE state, watts, class' },
+      { cmd: 'show version', gives: 'model, software version' },
+      { cmd: 'show chassis hardware', gives: 'serial number' }] },
+    // FortiOS "show" with no argument prints the whole configuration (policies, objects, VPNs ...).
+    // These ask only for the sections that are read.
+    fortigate: { pager: 'config system console\nset output standard\nend',
+      note: 'With VDOMs enabled, enter "config global" first. A full backup .conf (or plain "show") works too: the rest of it is ignored.',
+      cmds: [
+        { cmd: 'get system status', gives: 'model, firmware version, serial, hostname' },
+        { cmd: 'show system interface', gives: 'ports, VLAN interfaces, aggregates, addresses' },
+        { cmd: 'show system zone', gives: 'which zone each interface is in' },
+        { cmd: 'show system dns', gives: 'DNS servers' },
+        { cmd: 'show system ntp', gives: 'NTP servers' },
+        { cmd: 'show log syslogd setting', gives: 'syslog server' },
+        { cmd: 'show system snmp sysinfo', gives: 'SNMP location and contact' },
+        { cmd: 'show router static', gives: 'default route' },
+        { cmd: 'show system ha', gives: 'HA mode' }] },
+    fortilink: { pager: 'config system console\nset output standard\nend',
+      note: 'Run these on the FortiGate: each managed switch becomes its own device. With VDOMs enabled, enter "config global" first. ' +
+        'Link state, PoE draw and LLDP neighbours are not in the FortiGate configuration; for those, log in to the switch itself ' +
+        '(its CLI still works while it is managed) and use the "standalone" list.',
+      cmds: [
+        { cmd: 'get system status', gives: 'FortiGate model, firmware version, hostname' },
+        { cmd: 'show system interface', gives: 'VLAN names and IDs the switch ports refer to' },
+        { cmd: 'show switch-controller managed-switch', gives: 'every managed switch: ports, VLANs, PoE, trunks' },
+        { cmd: 'show switch-controller stp-settings', gives: 'MST region shared by the switches' }] },
     fortiswitch: { pager: 'config system console\nset output standard\nend', cmds: [
       { cmd: 'show', gives: 'ports, VLANs, trunks, STP, DNS, NTP, syslog' },
       { cmd: 'get system status', gives: 'model, firmware version, serial' },
@@ -176,6 +198,34 @@
     mikrotik: { pager: '', cmds: [
       { cmd: '/export', gives: 'bridge ports, VLANs, addresses, DNS, NTP and the rest (on RouterOS 6 use "/export hide-sensitive")' }] }
   };
+  // The platform picker: brand, then operating system. "id" names the command list above; "parser" is the
+  // parser the pasted output goes to when that differs (FortiLink switches are read out of a FortiGate config).
+  NP.platforms = [
+    { id: 'eos', brand: 'Arista', name: 'EOS' },
+    { id: 'aoscx', brand: 'Aruba / HPE', name: 'AOS-CX' },
+    { id: 'arubaos', brand: 'Aruba / HPE', name: 'AOS-Switch / ProCurve' },
+    { id: 'comware', brand: 'Aruba / HPE', name: 'Comware / H3C' },
+    { id: 'ios', brand: 'Cisco', name: 'IOS / IOS-XE' },
+    { id: 'nxos', brand: 'Cisco', name: 'NX-OS' },
+    { id: 'os10', brand: 'Dell', name: 'OS10' },
+    { id: 'os6', brand: 'Dell', name: 'OS6 (N-series)' },
+    { id: 'fortigate', brand: 'Fortinet', name: 'FortiGate' },
+    { id: 'fortilink', parser: 'fortigate', brand: 'Fortinet', name: 'FortiSwitch via FortiGate (FortiLink)' },
+    { id: 'fortiswitch', brand: 'Fortinet', name: 'FortiSwitch standalone (own CLI)' },
+    { id: 'junos', brand: 'Juniper', name: 'Junos' },
+    { id: 'mikrotik', brand: 'MikroTik', name: 'RouterOS' },
+    { id: 'icx', brand: 'Ruckus / Brocade', name: 'FastIron (ICX)' }
+  ];
+  NP.platform = function (id) { return NP.platforms.find(function (p) { return p.id === id; }) || null; };
+  // platform id -> parser id ('auto' and unknown ids pass through)
+  NP.platformParser = function (id) { const p = NP.platform(id); return p ? p.parser || p.id : id; };
+  NP.platformLabel = function (id) { const p = NP.platform(id); return p ? p.brand + ' ' + p.name : id; };
+  NP.brands = function () {
+    const out = [];
+    NP.platforms.forEach(function (p) { if (!out.includes(p.brand)) out.push(p.brand); });
+    return out;
+  };
+
   // One block to paste into the terminal.
   NP.commandScript = function (vendor) {
     const c = NP.commands[vendor];

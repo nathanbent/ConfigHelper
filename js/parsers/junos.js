@@ -41,7 +41,7 @@
     const c = function (n) {
       return cfg[n] = cfg[n] || { members: [], mode: '', native: '', l2: false, ip: '', disable: false, lag: '' };
     };
-    let m;
+    let m, voiceAll = '';
 
     // pass 1: vlan names and interface-range membership
     lines.forEach(function (l) {
@@ -82,7 +82,9 @@
         else if ((x = rest.match(/^family ethernet-switching (?:interface-mode|port-mode) (\S+)/))) { s.l2 = true; s.mode = x[1]; }
         else if ((x = rest.match(/^family ethernet-switching vlan members (\S+)/))) { s.l2 = true; s.members.push(x[1]); }
         else if ((x = rest.match(/^family ethernet-switching native-vlan-id (\S+)/))) s.native = x[1];
+        else if ((x = rest.match(/^family ethernet-switching storm-control (\S+)/))) { s.l2 = true; NP.addNote(p, 'storm-control ' + x[1]); }
         else if (/^family ethernet-switching/.test(rest)) s.l2 = true;
+        else if (rest === 'family inet' || rest === 'family inet6') { /* no address set */ }
         else if ((x = rest.match(/^native-vlan-id (\d+)/))) s.native = x[1];
         else if ((x = rest.match(/^family inet address (\S+)/))) { if (!s.ip) s.ip = x[1]; }
         else if (/^family inet dhcp/.test(rest)) { if (!s.ip) s.ip = 'dhcp'; }
@@ -114,9 +116,10 @@
       else if ((m = l.match(/^set (?:switch-options|ethernet-switching-options) voip interface (\S+) vlan (\S+)/))) {
         const tgt = m[1].replace(/\.0$/, '');
         const v = String(vlanIds[m[2]] !== undefined ? vlanIds[m[2]] : m[2]);
-        if (tgt === 'access-ports') dev.other['Voice VLAN'] = v + ' on all access ports';
+        if (tgt === 'access-ports') { dev.other['Voice VLAN'] = v + ' on all access ports'; voiceAll = v; }
         else NP.port(dev, tgt).voiceVlan = v;
       }
+      else if (/^set (?:switch-options|ethernet-switching-options) voip interface \S+ forwarding-class /.test(l)) { /* QoS marking */ }
       else if ((m = l.match(/^set protocols (rstp|mstp|vstp|stp)\b(.*)$/))) {
         dev.stp.enabled = 'yes';
         if (!dev.stp.mode || m[1] !== 'stp') dev.stp.mode = m[1];
@@ -138,7 +141,11 @@
         addUnique(dev.multicast.notes, 'snooping on VLAN ' + m[1]);
       }
       else if (/^set protocols pim /.test(l)) dev.multicast.routing = 'PIM configured';
-      else if (/^set protocols lldp /.test(l)) dev.other.LLDP = 'enabled';
+      else if (/^set protocols lldp(-med)? /.test(l)) dev.other.LLDP = 'enabled';
+      else if ((m = l.match(/^set protocols igmp-snooping version (\d)/))) addUnique(dev.multicast.notes, 'snooping IGMPv' + m[1]);
+      else if (/^set protocols igmp /.test(l)) addUnique(dev.multicast.notes, 'IGMP on routed interfaces');
+      else if (/^set system syslog (file|user|console) /.test(l)) { /* local logging */ }
+      else if ((m = l.match(/^set forwarding-options storm-control-profiles (\S+)/))) NP.addOther(dev, 'Storm control profiles', m[1]);
       else if ((m = l.match(/^set protocols (ospf3?|bgp|isis|rip)\b/))) NP.addOther(dev, 'Routing protocols', m[1]);
       else if ((m = l.match(/^set poe interface (\S+)( disable)?/))) {
         if (m[1] === 'all') dev.other.PoE = m[2] ? 'disabled on all ports' : 'enabled on all ports';
@@ -176,6 +183,7 @@
           p.mode = 'access';
           p.untagged = resolve(s.members.length ? s.members : ['default']);
           p.tagged = '';
+          if (voiceAll && p.kind === 'physical' && !p.voiceVlan) p.voiceVlan = voiceAll;
         }
       } else if (s.ip && p.mode !== 'subinterface') p.mode = 'routed';
     });
@@ -185,6 +193,7 @@
 
   function parseShow(text, dev) {
     // show interfaces terse
+    const present = {};
     NP.eachTable(text, function (h) { return /^Interface\s+Admin\s+Link\s+Proto/.test(h); }, function (ln) {
       const t = ln.trim().split(/\s+/);
       if (t.length < 3 || !/^(up|down)$/.test(t[1])) return;
@@ -197,30 +206,48 @@
       if (/^ae\d/.test(name)) p.kind = 'lag';
       p.adminUp = t[1] === 'up';
       p.link = t[2] === 'up' ? 'up' : 'down';
+      present[p.key] = true;
     });
+    // configured but absent from the list: an empty uplink slot, or the other speed of a dual-speed
+    // port (ge-0/1/0 and xe-0/1/0 are the same SFP+ cage)
+    if (Object.keys(present).length) {
+      dev.ports.forEach(function (p) { if (p.kind === 'physical' && !present[p.key] && !p.link) p.link = 'not present'; });
+    }
     // show lldp neighbors
     NP.eachTable(text, function (h) { return /^Local Interface\s+Parent Interface\s+Chassis Id/.test(h); }, function (ln, header) {
-      const iPort = header.indexOf('Port info'), iSys = header.indexOf('System Name');
-      const local = ln.trim().split(/\s+/)[0];
-      if (!/\d/.test(local)) return;
-      const p = NP.port(dev, local.replace(/\.0$/, ''));
-      p.neighbor = ln.slice(iSys).trim();
-      p.neighborPort = ln.slice(iPort, iSys).trim();
+      const iSys = header.indexOf('System Name');
+      const t = [];
+      ln.replace(/\S+/g, function (w, at) { t.push({ w: w, at: at }); });
+      if (t.length < 4 || !/\d/.test(t[0].w)) return;
+      const rest = t.slice(3);
+      // the system name starts at its column, or further right when the port info ran long
+      let k = rest.findIndex(function (x, i) { return i > 0 && x.at >= iSys; });
+      if (k < 0) k = rest.length;
+      const words = function (a) { return a.map(function (x) { return x.w; }).join(' '); };
+      const p = NP.port(dev, t[0].w.replace(/\.0$/, ''));
+      // no system name advertised (a PC): the chassis id is the best name there is
+      p.neighbor = words(rest.slice(k)) || t[2].w;
+      p.neighborPort = words(rest.slice(0, k));
     });
     // show poe interface
     text.split(/\r?\n/).forEach(function (ln) {
-      const x = ln.match(/^\s*([a-z]+-\d+\/\d+\/\d+)\s+(Enabled|Disabled)\s+(\S+)\s+(\S+)\s+(\S+)\s+([\d.]+)W\s+(\S+)/);
+      const x = ln.match(/^\s*([a-z]+-\d+\/\d+\/\d+)\s+(Enabled|Disabled)\s+(\S+)\s+(?:.*\s)?([\d.]+)W\s+(\S+)\s*$/);
       if (!x) return;
       const p = NP.port(dev, x[1]);
       p.poeAdmin = x[2].toLowerCase();
       p.poeStatus = x[3].toLowerCase();
-      p.poeWatts = /^on$/i.test(x[3]) ? x[6] : '';
-      p.poeClass = /^\d/.test(x[7]) ? x[7] : '';
+      p.poeWatts = /^on$/i.test(x[3]) ? x[4] : '';
+      p.poeClass = /^\d/.test(x[5]) ? x[5] : '';
     });
     let m;
     if ((m = text.match(/^Model: (\S+)/m))) dev.model = m[1];
     if ((m = text.match(/^Junos: (\S+)/m)) || (m = text.match(/^JUNOS .*\[(\S+)\]/m))) dev.version = m[1];
     if (!dev.hostname && (m = text.match(/^Hostname: (\S+)/m))) dev.hostname = m[1];
+    // show chassis hardware
+    if (/^Hardware inventory:/m.test(text) && (m = text.match(/^Chassis\s+(\S+)\s+(\S+)/m))) {
+      dev.serial = m[1];
+      if (!dev.model) dev.model = m[2];
+    }
   }
 
   NP.registerVendor('junos', 'Juniper Junos', function (text, dev) {
