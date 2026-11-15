@@ -61,6 +61,10 @@ The **Not parsed** tab on each device lists the config lines and command output 
 (with known noise left out and passwords and keys replaced by `***`). Use it to spot gaps on a new device; the
 **Copy list** button gives you something to paste into a bug report.
 
+With eight or more devices loaded (a FortiGate brings every managed switch with it), the Devices panel gets a
+search box. Type any part of a name, platform, model, serial number, management IP or description; several
+words must all match. Enter opens the first match and the down arrow moves into the list.
+
 Loaded devices are remembered in the browser's local storage; use **Export backup** for a real copy.
 
 Every tab, the cable list and the paste panel have a one-line description and a collapsed **How this page
