@@ -42,6 +42,12 @@
       .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b\[[0-9;?]*[ -\/]*[@-~]|\x1b[@-Z\\^_=>]/g, function () { ansi++; return ''; });
     note(ansi, 'colour/cursor code(s) removed');
     text = text.replace(/\r\n/g, '\n').replace(/\r+\n/g, '\n');
+    // A pager prompt and the characters the device sends to rub it out (backspaces and spaces, or a
+    // carriage return and an erase) go as one unit. Replaying them instead is unreliable: devices do not
+    // always back up exactly as far as the prompt was wide, which shifts the next line's indentation.
+    let erased = 0;
+    text = text.replace(new RegExp(' ?' + MARK + ' ?(?:\\x08+ *\\x08*)+', 'g'), function () { erased++; return ''; });
+    text = text.replace(new RegExp(' ?' + MARK + ' ?\\r(?:[\\u0001\\u0002]| +\\r)', 'g'), function () { erased++; return ''; });
     let replayed = 0;
     if (/[\b\r\u0001\u0002]/.test(text)) {
       text = text.split('\n').map(function (l) {
@@ -75,7 +81,7 @@
     stripPrefix(/^> ?/, 'quote marks');
 
     // ---- pager prompts
-    let more = 0;
+    let more = erased;
     const out = [];
     lines.forEach(function (l) {
       const m = l.match(MARK_LINE);

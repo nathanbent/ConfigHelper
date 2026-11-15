@@ -639,7 +639,16 @@ test('messy paste cleanup', () => {
   const erase = ' --More-- ' + BS.repeat(9) + ' '.repeat(9) + BS.repeat(9);
   let r = run(cfg.slice(0, 4).join('\r\n') + '\r\n' + erase + cfg.slice(4).join('\r\n' ));
   assert.equal(want(r.dev), good);
-  assert.match(r.cleaned.join(), /overwrites replayed/);
+  assert.match(r.cleaned.join(), /1 pager prompt/);
+  // devices do not always back up exactly as far as the prompt is wide; indentation must survive either way,
+  // on sub-lines and on top-level lines, with a logger timestamp in front of everything
+  for (const [bs, sp] of [[9, 8], [9, 9], [10, 10], [8, 8]]) {
+    const rub = ' --More-- ' + BS.repeat(bs) + ' '.repeat(sp) + BS.repeat(bs);
+    const noisy = cfg.map((l, i) => '[2026-11-14 19:18:' + String(10 + i) + '] ' + (i % 2 ? rub : '') + l).join('\r\n');
+    const x = run(noisy);
+    assert.equal(want(x.dev), good, 'erase ' + bs + '/' + sp);
+    assert.match(x.cleaned.join(), /7 pager prompt/);
+  }
   // same, using carriage returns and an erase-line code, with colour codes around the prompt line
   r = run(ESC + '[1mSW7#' + ESC + '[0mshow run\n' + cfg.slice(0, 5).join('\n') + '\n --More-- \r' + ESC + '[K' + cfg.slice(5).join('\n'));
   assert.equal(want(r.dev), good);
