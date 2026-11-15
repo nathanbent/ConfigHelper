@@ -155,6 +155,7 @@
       other: {},          // free-form "Label" -> "value"
       sources: [],        // what was pasted in, for the record (names only)
       unparsed: [],       // {ctx, text, count, inner}: input the parser did not use
+      snapshots: [],      // [{label, at, data}]: frozen earlier states, for the Compare tab
       edits: {}           // port key -> {description, neighbor, ..., excluded}: manual changes, kept apart from parsed data
     };
   };

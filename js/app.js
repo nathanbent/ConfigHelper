@@ -39,9 +39,14 @@
   // ------------------------------------------------------------- persistence
   function save() {
     try {
+      state.saveFailed = false;
       localStorage.setItem(STORE, JSON.stringify({
         devices: state.devices, current: state.current, cols: state.cols, label: state.label }));
-    } catch (e) { /* private window or quota: carry on without persistence */ }
+    } catch (e) {
+      // private window or quota (snapshots are the usual cause): keep working, but say so
+      if (!state.saveFailed && state.devices.length) msg('Could not save to browser storage (it may be full). Use Export backup to keep your work, and delete old snapshots.', 'err');
+      state.saveFailed = true;
+    }
   }
   function load() {
     try {
@@ -72,8 +77,20 @@
 
   // ------------------------------------------------------------------ ingest
   function ingest(text, name) {
+    let target = $('selTarget').value;
+    if (target === 'snapshot') {
+      const dev = cur();
+      if (!dev) throw new Error('Select a device first, then paste its newer output as a new snapshot.');
+      const vendor = $('selVendor').value === 'auto' ? (NP.detect(text) || dev.vendor) : $('selVendor').value;
+      NP.ingest(text, { vendor: vendor, devices: [], target: 'new' });      // throws if the paste is unusable: nothing is touched
+      NP.snapshot(dev, 'Before ' + new Date().toLocaleString());
+      NP.resetParsed(dev);
+      target = 'current';
+      $('selTarget').value = 'auto';                                         // further pastes (status, PoE ...) merge into the new state
+      state.tab = 'compare';
+    }
     const r = NP.ingest(text, {
-      vendor: $('selVendor').value, target: $('selTarget').value,
+      vendor: $('selVendor').value, target: target,
       devices: state.devices, current: cur(), name: name });
     if (r.isNew) state.devices.push(r.dev);
     (r.extra || []).forEach(function (x) { if (x.isNew) state.devices.push(x.dev); });
@@ -178,6 +195,7 @@
     }
     const tabs = [['overview', 'Overview'], ['ports', 'Ports (' + dev.ports.length + ')'], ['labels', 'Labels'],
       ['checks', 'Checks (' + NP.checks(dev).length + ')'],
+      ['compare', 'Compare (' + (dev.snapshots || []).length + ')'],
       ['unparsed', 'Not parsed (' + (dev.unparsed || []).length + ')']];
     view.appendChild(h('section', { class: 'card' },
       h('div', { class: 'devhead' },
@@ -195,6 +213,7 @@
     else if (state.tab === 'labels') labels(view, dev);
     else if (state.tab === 'unparsed') unparsed(view, dev);
     else if (state.tab === 'checks') checks(view, dev);
+    else if (state.tab === 'compare') compare(view, dev);
     else ports(view, dev);
   }
 
@@ -251,6 +270,93 @@
             state.tab = 'ports'; state.search = ''; state.physOnly = false; state.hideDown = false; render();
           } }, 'Show these ' + f.ports.length + ' in Ports')) : null));
     });
+  }
+
+  function compare(view, dev) {
+    const snaps = dev.snapshots || [];
+    const C = state.cmp = state.cmp || { from: 0, to: 'current', live: false };
+    const fmtAt = function (s) { const d = new Date(s.at); return isNaN(d) ? '' : d.toLocaleString(); };
+    const saveBtn = h('button', { title: 'Keep a frozen copy of what is loaded for this device right now', onclick: function () {
+      const label = prompt('Name for this snapshot', 'Snapshot ' + new Date().toLocaleString());
+      if (label === null) return;
+      NP.snapshot(dev, label.trim() || undefined);
+      save(); render();
+    } }, 'Save snapshot of current state');
+
+    view.appendChild(h('section', { class: 'card' },
+      h('h2', { text: 'Snapshots' }),
+      snaps.length
+        ? h('div', { class: 'tablewrap' }, h('table', {},
+            h('thead', {}, h('tr', {}, ['Name', 'Saved', 'Ports', 'VLANs', ''].map(function (t) { return h('th', { class: 'nosort', scope: 'col', text: t }); }))),
+            h('tbody', {}, snaps.map(function (s, i) {
+              return h('tr', {}, h('td', { class: 'wrap', text: s.label }), h('td', { text: fmtAt(s) }),
+                h('td', { text: (s.data.ports || []).length }), h('td', { text: (s.data.vlans || []).length }),
+                h('td', {},
+                  h('button', { class: 'link', title: 'Rename', onclick: function () {
+                    const n = prompt('Snapshot name', s.label);
+                    if (n !== null && n.trim()) { s.label = n.trim(); save(); render(); }
+                  } }, 'Rename'), ' ',
+                  h('button', { class: 'link', title: 'Delete this snapshot', onclick: function () {
+                    if (!confirm('Delete snapshot "' + s.label + '"?')) return;
+                    snaps.splice(i, 1); C.from = 0; C.to = 'current'; save(); render();
+                  } }, 'Delete')));
+            }))))
+        : h('p', { class: 'empty', text: 'No snapshots yet for this device.' }),
+      h('div', { class: 'btnrow' }, saveBtn),
+      h('p', { class: 'hint', text: 'To compare with a later state of the device: choose "Selected device, as a new snapshot" under Add to, then paste the newer output. ' +
+        'What is loaded now is saved as a snapshot and the device starts fresh from the new paste, so removed VLANs and settings show up as removed. ' +
+        'Up to ' + NP.MAX_SNAPSHOTS + ' snapshots are kept per device; they are included in backups.' })));
+    if (!snaps.length) return;
+
+    if (C.from >= snaps.length) C.from = 0;
+    if (C.to !== 'current' && +C.to >= snaps.length) C.to = 'current';
+    const opt = function (withCurrent) {
+      return (withCurrent ? [['current', 'Current state']] : []).concat(snaps.map(function (s, i) { return [String(i), s.label]; }));
+    };
+    const from = snaps[+C.from], to = C.to === 'current' ? null : snaps[+C.to];
+    const a = from.data, b = to ? to.data : dev;
+    const fromLabel = from.label, toLabel = to ? to.label : 'Current state';
+    const d = NP.diff(a, b, { live: C.live });
+    const e = function (v) { return v === '' ? h('span', { class: 'none', text: '(none)' }) : v; };
+    const setC = function (k) { return function (v) { C[k] = v; render(); }; };
+
+    view.appendChild(h('section', { class: 'card' },
+      h('div', { class: 'labelform' },
+        h('label', {}, 'From (older)', sel(String(C.from), opt(false), setC('from'))),
+        h('label', {}, 'To (newer)', sel(String(C.to), opt(true), setC('to')))),
+      h('div', { class: 'opts' },
+        h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: C.live, onchange: function (ev) { C.live = ev.target.checked; render(); } }),
+          'Also compare live state (link, speed, PoE draw, neighbors)')),
+      h('div', { class: 'toolbar' },
+        h('span', { class: 'count', text: d.total ? d.total + ' difference(s): ' + d.settings.length + ' device settings, ' +
+          (d.vlansAdded.length + d.vlansRemoved.length + d.vlansRenamed.length) + ' VLANs, ' +
+          (d.ports.length + d.portsAdded.length + d.portsRemoved.length) + ' ports' : 'No differences between these two.' }),
+        h('span', { class: 'spacer' }),
+        h('button', { onclick: function (ev) { copyText(NP.diffMarkdown(d, (dev.hostname || 'Device') + ' changes', fromLabel, toLabel), ev.target, 'Copy'); } }, 'Copy'),
+        h('button', { onclick: function () {
+          download(fileSafe(dev.hostname) + '-changes.md', NP.diffMarkdown(d, (dev.hostname || 'Device') + ' changes', fromLabel, toLabel), 'text/markdown');
+        } }, 'Export changes')),
+      d.fieldsSkipped.length ? h('p', { class: 'hint', text: 'Not compared, because only one side has that data loaded: ' + d.fieldsSkipped.join(', ') + '.' }) : null));
+
+    const table = function (title, head, rows) {
+      if (!rows.length) return;
+      view.appendChild(h('section', { class: 'card' }, h('h2', { text: title + ' (' + rows.length + ')' }),
+        h('div', { class: 'tablewrap' }, h('table', { class: 'difftable' },
+          h('thead', {}, h('tr', {}, head.map(function (t) { return h('th', { class: 'nosort', scope: 'col', text: t }); }))),
+          h('tbody', {}, rows.map(function (r) { return h('tr', {}, r.map(function (c, i) {
+            return h('td', { class: i === r.length - 2 ? 'wrap before' : i === r.length - 1 ? 'wrap after' : 'mono' }, c);
+          })); }))))));
+    };
+    table('Device settings', ['Item', 'Before', 'After'], d.settings.map(function (s) { return [s.item, e(s.before), e(s.after)]; }));
+    table('VLANs', ['VLAN', 'Change', 'Before', 'After'],
+      d.vlansAdded.map(function (v) { return [String(v.id), 'added', e(''), e(v.name || '')]; })
+        .concat(d.vlansRemoved.map(function (v) { return [String(v.id), 'removed', e(v.name || ''), e('')]; }))
+        .concat(d.vlansRenamed.map(function (v) { return [String(v.id), 'renamed', e(v.before), e(v.after)]; })));
+    const prow = [];
+    d.portsAdded.forEach(function (p) { prow.push([p.short, 'port added', e(''), e(p.description)]); });
+    d.portsRemoved.forEach(function (p) { prow.push([p.short, 'port removed', e(p.description), e('')]); });
+    d.ports.forEach(function (p) { p.changes.forEach(function (c) { prow.push([p.short, c.label, e(c.before), e(c.after)]); }); });
+    table('Ports', ['Port', 'What', 'Before', 'After'], prow);
   }
 
   function unparsed(view, dev) {

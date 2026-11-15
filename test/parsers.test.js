@@ -491,6 +491,56 @@ test('config checks: each rule on a small config', () => {
   assert.ok(!NP.checks(fg.extra[0].dev).some(x => x.id === 'nontp'));
 });
 
+test('snapshots and compare', () => {
+  const devices = [];
+  const d = NP.ingest(NP.samples.ios.text, { devices }).dev;
+  devices.push(d);
+  NP.setEdit(d, NP.portId('Gi1/0/2').key, 'description', 'edited');
+  const snap = NP.snapshot(d, 'before change', '2026-01-01T00:00:00Z');
+  assert.deepEqual([snap.label, snap.data.ports.length, snap.data.edits, snap.data.snapshots], ['before change', 9, undefined, undefined]);
+  assert.equal(NP.diff(snap.data, d).total, 0);
+
+  // the "new snapshot" flow: reset, then parse the newer output
+  const newer = NP.samples.ios.text
+    .replace(' description AP-Lobby\n switchport trunk native vlan 99\n switchport trunk allowed vlan 30,99',
+      ' description AP-Lobby-NEW\n switchport trunk native vlan 99\n switchport trunk allowed vlan 30,40,99')
+    .replace('vlan 30\n name WIFI\n!', 'vlan 30\n name WIRELESS\n!\nvlan 40\n name GUEST\n!')
+    .replace('vlan 20\n name VOICE\n!\n', '')
+    .replace('ntp server 10.10.0.2\n', '')
+    .replace('interface GigabitEthernet1/0/4\n description SPARE\n switchport access vlan 10\n switchport mode access\n shutdown\n!\n', '')
+    .replace('Gi1/0/4   SPARE              disabled     10           auto   auto 10/100/1000BaseTX\n', '')
+    .replace('Gi1/0/4   auto   off        0.0     n/a                 n/a   30.0\n', '')
+    .replace('Gi1/0/1   Reception PC + pho connected ', 'Gi1/0/1   Reception PC + pho notconnect')
+    .replace('Gi1/0/1   auto   on         6.5 ', 'Gi1/0/1   auto   on         7.1 ');
+  NP.resetParsed(d);
+  assert.deepEqual([d.ports.length, d.vlans.length, d.hostname, d.snapshots.length, NP.editCount(d).total], [0, 0, 'SW-ACCESS-01', 1, 0]);
+  assert.equal(NP.ingest(newer, { devices, target: 'current', current: d }).dev, d);
+  assert.equal(NP.editCount(d).fields, 1);                                   // the edit survived the reset
+
+  const diff = NP.diff(snap.data, d);
+  assert.deepEqual(diff.settings, [{ item: 'Services: NTP servers', before: '10.10.0.1 (prefer), 10.10.0.2', after: '10.10.0.1 (prefer)' }]);
+  assert.deepEqual([diff.vlansAdded.map(v => v.id), diff.vlansRemoved.map(v => v.id), diff.vlansRenamed], [[40], [20], [{ id: 30, before: 'WIFI', after: 'WIRELESS' }]]);
+  assert.deepEqual(diff.portsRemoved.map(p => p.short), ['Gi1/0/4']);
+  assert.deepEqual(diff.ports.map(p => [p.short, p.changes.map(c => c.field + ':' + c.before + '>' + c.after)]),
+    [['Gi1/0/2', ['description:AP-Lobby>AP-Lobby-NEW', 'tagged:30,99>30,40,99']]]);     // live changes on Gi1/0/1 not included
+  const live = NP.diff(snap.data, d, { live: true });
+  assert.deepEqual(live.ports.find(p => p.short === 'Gi1/0/1').changes.map(c => c.field + ':' + c.before + '>' + c.after),
+    ['link:up>down', 'speed:1G>', 'duplex:full>', 'poeWatts:6.5>7.1']);
+  const md = NP.diffMarkdown(diff, 'SW-ACCESS-01 changes', 'before change', 'Current state');
+  assert.match(md, /\| 20 \| removed \| VOICE \|  \|/);
+  assert.match(md, /\| Gi1\/0\/2 \| Tagged VLANs \| 30,99 \| 30,40,99 \|/);
+
+  // live fields are skipped, and reported, when only one side has them
+  const cfgOnly = NP.ingest(newer.slice(0, newer.indexOf('SW-ACCESS-01#show interfaces status')), { devices: [] }).dev;
+  const skipped = NP.diff(snap.data, cfgOnly, { live: true });
+  assert.ok(skipped.fieldsSkipped.includes('Link') && !skipped.ports.some(p => p.changes.some(c => c.field === 'link')));
+
+  // capped, and carried through a backup
+  for (let i = 0; i < 12; i++) NP.snapshot(d, 's' + i);
+  assert.equal(d.snapshots.length, NP.MAX_SNAPSHOTS);
+  assert.equal(NP.restore(NP.backup([d]))[0].snapshots.length, NP.MAX_SNAPSHOTS);
+});
+
 test('forcing a vendor and unknown input', () => {
   assert.throws(() => NP.ingest('hello world\nnothing here', { devices: [] }), /vendor/);
   assert.throws(() => NP.ingest('hello world', { vendor: 'ios', devices: [] }), /Nothing recognisable/);

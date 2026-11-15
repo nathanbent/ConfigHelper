@@ -130,6 +130,10 @@ td.editcell.edited input { border-color: var(--accent); }
 tr.excluded td { opacity: .45; }
 tr.excluded td:first-child { opacity: 1; }
 .edithint { margin: 0 0 10px; }
+.difftable td.before { color: var(--off); }
+.difftable td.after { color: var(--up); }
+.difftable .none { color: var(--muted); font-style: italic; }
+button.link:hover { text-decoration: underline; }
 .onlybar { margin: 0 0 10px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--row); font-size: 13px; }
 .finding h3 { font-size: 15px; }
 .finding p { margin: 6px 0 0; color: var(--muted); }

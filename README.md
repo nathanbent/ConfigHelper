@@ -30,6 +30,11 @@ carrying every VLAN or using native VLAN 1, missing NTP or syslog, plain HTTP or
 without v3, DHCP snooping with no trusted port, and more. Each finding lists its ports and can filter the
 Ports tab to them. They are prompts to review, not verdicts.
 
+The **Compare** tab shows what changed between two states of a device. Save a snapshot, or choose "Selected
+device, as a new snapshot" under Add to and paste newer output: the old state is kept as a snapshot and the
+device starts fresh. The comparison lists changed device settings, VLANs added, removed or renamed, and
+per-port changes, with live state (link, PoE draw, neighbors) optional, and exports as Markdown.
+
 The **Not parsed** tab on each device lists the config lines and command output the parser saw but did not use
 (with known noise left out and passwords and keys replaced by `***`). Use it to spot gaps on a new device; the
 **Copy list** button gives you something to paste into a bug report.
