@@ -34,6 +34,7 @@ Loaded devices are remembered in the browser's local storage; use **Export backu
 | HPE Comware / H3C | `display current-configuration` | `display interface brief` |
 | Juniper Junos | `show configuration` (curly or `display set`) | `show interfaces terse`, `show lldp neighbors`, `show poe interface` |
 | Fortinet FortiGate | `show` / backup `.conf` | `get system status` |
+| Fortinet FortiSwitch (standalone) | `show` | `get system status`, `diagnose switch physical-ports summary`, `get switch poe inline`, `get switch lldp neighbors-summary` |
 | MikroTik RouterOS | `/export` | |
 
 Tested against real output so far: Cisco Catalyst 3850 on IOS-XE 16.12 (`test/fixtures/`). Everything else

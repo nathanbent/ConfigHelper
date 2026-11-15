@@ -41,6 +41,7 @@
     return out;
   }
   const one = function (b, k) { return b && b.set[k] ? b.set[k][0] : ''; };
+  NP.fortiTree = { tree: tree, find: find, one: one };      // shared with the FortiSwitch parser
 
   NP.registerVendor('fortigate', 'Fortinet FortiGate', function (text, dev) {
     let m;

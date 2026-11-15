@@ -688,6 +688,157 @@ config router static
 end
 `};
 
+  S.fortiswitch = { label: 'Fortinet FortiSwitch', text: String.raw`FS-IDF-2 # show
+#config-version=FS124F-7.4.3-FW-build0830-240314:opmode=0:vdom=0:user=admin
+config system global
+    set hostname "FS-IDF-2"
+    set timezone 12
+end
+config system interface
+    edit "mgmt"
+        set ip 10.90.99.22 255.255.255.0
+        set allowaccess ping https ssh
+        set type physical
+    next
+    edit "internal"
+        set ip 10.90.10.22 255.255.255.0
+        set allowaccess ping https ssh
+        set type physical
+    next
+end
+config system dns
+    set primary 10.90.0.53
+    set secondary 10.90.0.54
+    set domain "site.example.net"
+end
+config system ntp
+    config ntpserver
+        edit 1
+            set server "10.90.0.1"
+        next
+    end
+    set ntpsync enable
+end
+config log syslogd setting
+    set status enable
+    set server "10.90.0.60"
+end
+config router static
+    edit 1
+        set device "mgmt"
+        set gateway 10.90.99.1
+    next
+end
+config switch vlan
+    edit 10
+        set description "STAFF"
+        set igmp-snooping enable
+    next
+    edit 20
+        set description "VOICE"
+    next
+    edit 99
+        set description "MGMT"
+    next
+end
+config switch physical-port
+    edit "port1"
+        set description "AP corridor"
+        set poe-status enable
+    next
+    edit "port2"
+        set description "Unused"
+        set status down
+    next
+    edit "port23"
+        set description "Core A"
+    next
+    edit "port24"
+        set description "Core B"
+    next
+end
+config switch trunk
+    edit "uplink"
+        set mode lacp-active
+        set members "port23" "port24"
+    next
+end
+config switch interface
+    edit "port1"
+        set native-vlan 99
+        set allowed-vlans 10,20
+        set snmp-index 1
+    next
+    edit "port2"
+        set native-vlan 10
+        set stp-bpdu-guard enabled
+        set snmp-index 2
+    next
+    edit "port3"
+        set native-vlan 10
+        set allowed-vlans 20
+        set edge-port enabled
+        set snmp-index 3
+    next
+    edit "port23"
+        set snmp-index 23
+    next
+    edit "port24"
+        set snmp-index 24
+    next
+    edit "uplink"
+        set native-vlan 99
+        set allowed-vlans 1-4094
+        set snmp-index 30
+    next
+    edit "internal"
+        set native-vlan 10
+        set stp-state disabled
+        set snmp-index 29
+    next
+end
+config switch stp settings
+    set name "CAMPUS"
+    set revision 2
+end
+config switch stp instance
+    edit "0"
+        set priority 24576
+    next
+end
+
+FS-IDF-2 # get system status
+Version: FortiSwitch-124F v7.4.3,build0830,240314 (GA)
+Serial-Number: S124FT0000000000
+Hostname: FS-IDF-2
+
+FS-IDF-2 # diagnose switch physical-ports summary
+
+  Portname    Status  Tpid  Vlan  Duplex  Speed  Flags         Discard
+  __________  ______  ____  ____  ______  _____  ____________  _________
+
+  port1       up      8100  99    full    1G      QS,  ,       none
+  port2       down    8100  10    full    1G      QS,  ,       none
+  port3       up      8100  10    full    100M    QS,  ,       none
+  port23      up      8100  1     full    10G     QS,TS,       none
+  port24      up      8100  1     full    10G     QS,TS,       none
+  internal    up      8100  10    full    1G        ,  ,       none
+
+FS-IDF-2 # get switch lldp neighbors-summary
+
+Capability codes:
+        R:Router, B:Bridge, T:Telephone, C:DOCSIS Cable Device
+        W:WLAN Access Point, P:Repeater, S:Station, O:Other
+MED type codes:
+        Generic:Generic Endpoint (Class 1), Media:Media Endpoint (Class 2)
+
+  Portname    Status  Device-name          TTL   Capability  MED-type  Port-ID
+  __________  _______  ___________________  ____  __________  ________  __________
+  port1       Up      AP-Corridor          120   BW          -         eth0
+  port2       Down    -                    -     -           -         -
+  port23      Up      CORE-01              120   BR          -         Te1/0/45
+`};
+
   S.mikrotik = { label: 'MikroTik RouterOS (/export)', text: String.raw`# 2025-03-02 10:11:12 by RouterOS 7.14.2
 # software id = ABCD-1234
 #

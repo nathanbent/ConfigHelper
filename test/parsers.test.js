@@ -267,6 +267,30 @@ test('Fortinet FortiGate', () => {
   assert.match(port(d, 'internal1').notes, /zone LAN/);
 });
 
+test('Fortinet FortiSwitch', () => {
+  const d = run('fortiswitch').dev;
+  assert.equal(d.hostname, 'FS-IDF-2');
+  assert.deepEqual([d.model, d.version, d.serial], ['FortiSwitch-124F', '7.4.3', 'S124FT0000000000']);
+  assert.deepEqual(d.dns, ['10.90.0.53', '10.90.0.54']);
+  assert.deepEqual(d.ntp, ['10.90.0.1']);
+  assert.equal(d.gateway, '10.90.99.1');
+  assert.equal(d.mgmtIp, '10.90.99.22/24 (mgmt), 10.90.10.22/24 (internal)');
+  assert.deepEqual([d.stp.mode, d.stp.priority[0]], ['mstp', 'MST 0: 24576']);
+  assert.equal(d.vlans.find(v => v.id === 10).name, 'STAFF');
+  const p1 = port(d, 'port1');
+  assert.deepEqual([p1.description, p1.mode, p1.untagged, p1.tagged, p1.poeAdmin, p1.link, p1.speed],
+    ['AP corridor', 'trunk', '99', '10,20', 'enabled', 'up', '1G']);
+  assert.deepEqual([p1.neighbor, p1.neighborPort], ['AP-Corridor', 'eth0']);
+  const p2 = port(d, 'port2');
+  assert.deepEqual([p2.adminUp, p2.mode, p2.untagged, p2.stp, p2.neighbor], [false, 'access', '10', 'bpduguard', '']);
+  assert.deepEqual([port(d, 'port3').speed, port(d, 'port3').stp], ['100M', 'edge']);
+  const p23 = port(d, 'port23');
+  assert.deepEqual([p23.lag, p23.mode, p23.neighbor, p23.neighborPort], ['uplink', '', 'CORE-01', 'Te1/0/45']);
+  const up = port(d, 'uplink');
+  assert.deepEqual([up.kind, up.mode, up.untagged, up.tagged], ['lag', 'trunk', '99', '1-98,100-4094']);
+  assert.equal(port(d, 'internal').kind, 'svi');
+});
+
 test('MikroTik RouterOS', () => {
   const d = run('mikrotik').dev;
   assert.equal(d.hostname, 'MT-WORKSHOP');

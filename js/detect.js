@@ -4,6 +4,8 @@
   const NP = root.NP;
 
   const RULES = [
+    ['fortiswitch', /^#config-version=FS/m, /^\s*config switch (interface|physical-port|vlan|trunk)\b/m,
+      /^Version:\s*FortiSwitch/m, /Portname\s+Status\s+(Tpid|Device-name)/],
     ['fortigate', /^\s*config system (global|interface)\b/m, /^#config-version=F/m],
     ['mikrotik', /by RouterOS/, /^\/(interface|ip|system) [a-z]/m],
     ['icx', /^ver \d+\.\d+\.\S+\s*$/m, /^stack unit \d+\s*$/m, /^vlan \d+ (name \S+ )?by port\s*$/m,

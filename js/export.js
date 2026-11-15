@@ -129,6 +129,12 @@
     fortigate: { pager: 'config system console\nset output standard\nend', cmds: [
       { cmd: 'show', gives: 'interfaces, zones, DNS, NTP, syslog, routes' },
       { cmd: 'get system status', gives: 'model, firmware version, serial' }] },
+    fortiswitch: { pager: 'config system console\nset output standard\nend', cmds: [
+      { cmd: 'show', gives: 'ports, VLANs, trunks, STP, DNS, NTP, syslog' },
+      { cmd: 'get system status', gives: 'model, firmware version, serial' },
+      { cmd: 'diagnose switch physical-ports summary', gives: 'link state, speed, duplex' },
+      { cmd: 'get switch poe inline', gives: 'PoE state and watts' },
+      { cmd: 'get switch lldp neighbors-summary', gives: 'what is plugged in' }] },
     mikrotik: { pager: '', cmds: [
       { cmd: '/export', gives: 'bridge ports, VLANs, addresses, DNS, NTP and the rest (on RouterOS 6 use "/export hide-sensitive")' }] }
   };

@@ -210,7 +210,7 @@
   // ------------------------------------------------------- input splitting
   // A paste may be a whole terminal session ("sw1#show run ... sw1#show int status ...").
   // Split it at the prompt lines so each command's output is handled on its own.
-  const PROMPT = /^\s*((?:[\w.\-:\/()@~]+\s?[#>]|\[[^\]\n]+\]\s?>?|<[\w.\-]+>))\s*((?:show|sho|sh|display|disp|dis|get|do|export|print|\/[a-z])[^\n]*)$/i;
+  const PROMPT = /^\s*((?:[\w.\-:\/()@~]+\s?[#>]|\[[^\]\n]+\]\s?>?|<[\w.\-]+>))\s*((?:show|sho|sh|display|disp|dis|get|diagnose|diag|do|export|print|\/[a-z])[^\n]*)$/i;
 
   NP.sections = function (text) {
     const out = [];
