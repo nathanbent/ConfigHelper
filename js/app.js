@@ -12,6 +12,7 @@
     view: 'device',                      // 'device' or 'cables' (the cross-device cable list)
     cab: { q: '', loadedOnly: false, fmt: 'csv', lines: ['{a} {aport}', '{b} {bport}', ''], bothEnds: true, maxLen: 0 },
     unit: '',                            // stack member shown on the Ports and Labels tabs ('' = all)
+    devFilter: '',                       // text typed in the device search box (not saved)
     undo: null,                          // {text, devices, current}: the last removal, until something else changes
     sig: '', backupSig: '', lastBackup: '',
     editing: false, only: null,          // only: {title, keys} = Ports tab limited to the ports of one check
@@ -169,7 +170,8 @@
       };
       msg((r.others || []).map(function (x) { return said(x) + ' '; }).join('') + said(r) +
         (r.extra && r.extra.length ? ' Also ' + r.extra.length + ' FortiLink-managed switch(es): ' +
-          r.extra.map(function (x) { return x.dev.hostname; }).join(', ') + '.' : '') +
+          r.extra.slice(0, 6).map(function (x) { return x.dev.hostname; }).join(', ') +
+          (r.extra.length > 6 ? ' and ' + (r.extra.length - 6) + ' more (use the search box under Devices)' : '') + '.' : '') +
         (r.cleaned && r.cleaned.length ? ' Cleaned up first: ' + r.cleaned.join('; ') + '.' : ''), 'ok');
       $('txtInput').value = '';
     } catch (e) { msg(e.message, 'err'); }
@@ -241,12 +243,40 @@
       if (state.sig && state.sig === state.backupSig) bk.append('Backed up ' + new Date(state.lastBackup).toLocaleString() + '.');
       else bk.append((state.lastBackup ? 'Changed since the backup of ' + new Date(state.lastBackup).toLocaleString() + '. ' : 'Only saved in this browser so far. '), exportLink);
     }
+    // a FortiGate with its switches can add dozens of devices at once: from a handful up, offer a search box
+    const find = $('devFind');
+    find.hidden = state.devices.length < 8 && !state.devFilter;
+    if (find.hidden) state.devFilter = '';
+    if ($('devSearch').value !== state.devFilter) $('devSearch').value = state.devFilter;
+    renderDeviceList();
+  }
+  // every word typed must be found somewhere in the device's name, platform, model, serial, addresses or description
+  function deviceMatches(d, words) {
+    if (!words.length) return true;
+    const hay = [d.hostname, NP.vendorLabel(d), d.model, d.serial, d.version, d.mgmtIp, d.snmp && d.snmp.location,
+      d.other && d.other.Description, d.other && d.other['Managed by']].filter(Boolean).join('\n').toLowerCase();
+    return words.every(function (w) { return hay.indexOf(w) >= 0; });
+  }
+  function shownDevices() {
+    const words = state.devFilter.toLowerCase().split(/\s+/).filter(Boolean);
+    return state.devices.filter(function (d) { return deviceMatches(d, words); });
+  }
+  function pickDevice(d) { state.current = d.id; state.view = 'device'; state.sort = null; state.only = null; state.unit = ''; save(); render(); }
+  // only the list: typing in the search box must not rebuild the page (and take the focus with it)
+  function renderDeviceList() {
+    const ul = $('deviceList');
+    ul.replaceChildren();
     if (!state.devices.length) { ul.appendChild(h('li', { class: 'empty', text: 'No devices yet.' })); return; }
-    state.devices.forEach(function (d) {
+    const shown = shownDevices();
+    $('devCount').textContent = state.devFilter ? shown.length + ' of ' + state.devices.length + ' devices' + (shown.length ? ' · Enter opens the first' : '')
+      : state.devices.length + ' devices';
+    if (!shown.length) ul.appendChild(h('li', { class: 'empty', text: 'No device matches.' }));
+    shown.forEach(function (d) {
       ul.appendChild(h('li', { class: d.id === state.current && state.view !== 'cables' ? 'sel' : '' },
-        h('button', { class: 'pick', onclick: function () { state.current = d.id; state.view = 'device'; state.sort = null; state.only = null; state.unit = ''; save(); render(); } },
+        h('button', { class: 'pick', title: [d.model, d.serial, d.mgmtIp, d.other && d.other.Description].filter(Boolean).join(' · '),
+          onclick: function () { pickDevice(d); } },
           h('b', { text: d.hostname || '(unnamed)' }),
-          h('span', { text: NP.vendorLabel(d) + ' · ' + d.ports.length + ' ports' })),
+          h('span', { text: [NP.vendorLabel(d), d.ports.length + ' ports', d.other && d.other.Description].filter(Boolean).join(' · ') })),
         h('button', { class: 'link', title: 'Remove this device', 'aria-label': 'Remove ' + (d.hostname || 'device'),
           onclick: function () {
             state.undo = { text: 'Removed ' + (d.hostname || 'a device') + '.', devices: state.devices.slice(), current: state.current };
@@ -255,6 +285,11 @@
             save(); render();
           } }, '✕')));
     });
+    // keep the selected device in sight in a long list (inside the list only: the page itself must not jump)
+    const sel = ul.querySelector('li.sel');
+    if (sel && ul.scrollHeight > ul.clientHeight) {
+      if (sel.offsetTop < ul.scrollTop || sel.offsetTop + sel.offsetHeight > ul.scrollTop + ul.clientHeight) ul.scrollTop = Math.max(0, sel.offsetTop - ul.clientHeight / 3);
+    }
   }
 
   // ------------------------------------------------------------------- views
@@ -861,6 +896,16 @@
     });
     $('btnRepCopy').addEventListener('click', function (e) { copyText(lastReport, e.target, 'Copy report'); });
     $('btnCables').addEventListener('click', function () { state.view = 'cables'; render(); });
+    $('devSearch').addEventListener('input', function (e) { state.devFilter = e.target.value; renderDeviceList(); });
+    $('devSearch').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        const first = shownDevices()[0];
+        if (first) { pickDevice(first); $('devSearch').focus(); }
+      } else if (e.key === 'ArrowDown') {
+        const b = document.querySelector('#deviceList .pick');
+        if (b) { b.focus(); e.preventDefault(); }
+      }
+    });
     $('btnParse').addEventListener('click', function () { parseText($('txtInput').value, 'pasted text'); });
     $('btnFiles').addEventListener('click', function () { $('fileInput').click(); });
     $('fileInput').addEventListener('change', function (e) { readFiles(e.target.files); e.target.value = ''; });
