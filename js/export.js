@@ -22,7 +22,8 @@
     return {
       physical: phys.length,
       up: phys.filter(function (p) { return p.link === 'up'; }).length,
-      down: phys.filter(function (p) { return p.link && p.link !== 'up' && p.adminUp !== false; }).length,
+      down: phys.filter(function (p) { return p.link && p.link !== 'up' && p.link !== 'not present' && p.adminUp !== false; }).length,
+      absent: phys.filter(function (p) { return p.link === 'not present'; }).length,
       disabled: phys.filter(function (p) { return p.adminUp === false; }).length,
       linkKnown: phys.some(function (p) { return p.link; }),
       poePorts: phys.filter(function (p) { return parseFloat(p.poeWatts) > 0; }).length,
@@ -49,7 +50,7 @@
         ['IGMP snooping', dev.multicast.igmpSnooping], ['Querier', dev.multicast.querier],
         ['Multicast routing', dev.multicast.routing], ['Notes', dev.multicast.notes.join('; ')]] },
       { title: 'Ports', rows: [
-        ['Physical ports', st.physical || ''],
+        ['Physical ports', st.physical ? st.physical + (st.absent ? ' (' + st.absent + ' not present)' : '') : ''],
         ['Link up / down / disabled', st.linkKnown ? st.up + ' / ' + st.down + ' / ' + st.disabled : (st.disabled ? 'link state not loaded; ' + st.disabled + ' disabled' : '')],
         ['PoE in use', st.poePorts ? st.poePorts + ' ports, ' + st.poeWatts + ' W' : ''],
         ['VLANs defined', dev.vlans.length || '']] },
@@ -127,6 +128,7 @@
   NP.labelFilter = function (opts) {
     return function (p) {
       if (opts.physicalOnly && p.kind !== 'physical') return false;
+      if (p.link === 'not present') return false;
       if (opts.upOnly && p.link !== 'up') return false;
       if (opts.describedOnly && !p.description && !p.neighbor) return false;
       if (opts.skipDisabled && p.adminUp === false) return false;

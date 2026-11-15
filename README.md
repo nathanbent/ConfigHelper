@@ -34,9 +34,10 @@ Loaded devices are remembered in the browser's local storage; use **Export backu
 | Fortinet FortiGate | `show` / backup `.conf` | `get system status` |
 | MikroTik RouterOS | `/export` | |
 
-The parsers were written against the vendors' documented formats and the made-up samples in `js/samples.js`,
-not against output captured from real hardware. Expect to find gaps on real devices; when you do, add the
-output (sanitised) to a test and fix the parser.
+Tested against real output so far: Cisco Catalyst 3850 on IOS-XE 16.12 (`test/fixtures/`). Everything else
+was written against the vendors' documented formats and the made-up samples in `js/samples.js`, so expect
+gaps on real devices; when you find one, add the output (sanitised) to `test/fixtures/` with a test and fix
+the parser.
 
 Not covered yet: Palo Alto, pfSense/OPNsense, UniFi, EdgeOS/VyOS.
 

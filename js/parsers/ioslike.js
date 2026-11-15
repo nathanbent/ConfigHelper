@@ -11,6 +11,11 @@
       if (/^(interface|hostname|switchname|vlan) \S/m.test(s.text)) parseConfig(s.text, dev, fl);
       parseShow(s.text, dev, fl);
     });
+    // Ports that exist in the config but not in the status table are placeholders
+    // (e.g. uplink-module slots with no module fitted).
+    if (dev.statusLoaded) {
+      dev.ports.forEach(function (p) { if (p.kind === 'physical' && !p.link) p.link = 'not present'; });
+    }
   }
 
   // ================================================================ config
@@ -144,6 +149,13 @@
 
       // ---- everything else worth a line in the summary
       if ((m = l.match(/^version (\S+)/))) { dev.version = dev.version || m[1]; return; }
+      if ((m = l.match(/^switch (\d+) provision (\S+)/))) {
+        const mdl = m[2].toUpperCase();
+        NP.addOther(dev, 'Stack members', m[1] + ': ' + mdl);
+        if (!dev.model) dev.model = mdl;
+        return;
+      }
+      if (/^line vty/.test(l)) { ctx = { type: 'line' }; return; }
       if (/^aaa new-model/.test(l)) { NP.addOther(dev, 'AAA', 'new-model'); return; }
       if (/^radius[- ]server/.test(l) || /^aaa group server radius/.test(l)) { NP.addOther(dev, 'AAA', 'RADIUS'); return; }
       if (/^tacacs[- ]server/.test(l) || /^aaa group server tacacs/.test(l)) { NP.addOther(dev, 'AAA', 'TACACS+'); return; }
@@ -169,6 +181,10 @@
       if (ctx.type === 'vlan') {
         if ((m = l.match(/^name (.+)/))) NP.addVlan(dev, ctx.ids[0], m[1]);
         else if (/^ip igmp snooping( enable)?$/.test(l)) addUnique(mc.notes, 'snooping on VLAN ' + ctx.ids.join(','));
+        return;
+      }
+      if (ctx.type === 'line') {
+        if ((m = l.match(/^transport input (.+)/))) NP.addOther(dev, 'VTY access', m[1]);
         return;
       }
       if (ctx.type === 'mst') {
@@ -215,7 +231,13 @@
       if ((m = l.match(/^(vpc|mlag) (\S+)/))) { NP.addNote(p, m[1] + ' ' + m[2]); return; }
       if ((m = l.match(/^mtu (\d+)/))) { NP.addNote(p, 'mtu ' + m[1]); return; }
       if ((m = l.match(/^ip access-group (\S+) (in|out)/))) { NP.addNote(p, 'acl ' + m[1] + ' ' + m[2]); return; }
-      if ((m = l.match(/^vrf (?:forwarding|member|attach) (\S+)/))) { NP.addNote(p, 'vrf ' + m[1]); return; }
+      if ((m = l.match(/^vrf (?:forwarding|member|attach) (\S+)/))) {
+        NP.addNote(p, 'vrf ' + m[1]);
+        if (/^mgmt/i.test(m[1])) p.kind = 'mgmt';       // Catalyst Gi0/0 out-of-band port
+        return;
+      }
+      if (/^no lldp (transmit|receive)/.test(l)) { NP.addNote(p, 'lldp off'); return; }
+      if (/^no cdp enable/.test(l)) { NP.addNote(p, 'cdp off'); return; }
     }
 
     text.split(/\r?\n/).forEach(function (raw) {
@@ -286,6 +308,7 @@
         rest = t.slice(i);
       }
       const p = NP.port(dev, port);
+      dev.statusLoaded = true;
       if (name && !p.description) p.description = name;
       applyStatus(p, rest[0]);
       let k = 1;

@@ -129,6 +129,7 @@
           NP.addNote(p, 'access ' + e.set.allowaccess.join('/'));
           if (!dev.mgmtIp && /\d+\.\d+/.test(p.ip) && p.adminUp && /https|ssh/.test(e.set.allowaccess.join(' '))) {
             dev.mgmtIp = p.ip + ' (' + p.name + ')';
+            dev.mgmtIpFixed = true;
           }
         }
         if (one(e, 'vdom') && one(e, 'vdom') !== 'root') NP.addNote(p, 'vdom ' + one(e, 'vdom'));

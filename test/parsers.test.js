@@ -69,6 +69,40 @@ test('show output pasted later merges into the same device by prompt hostname', 
   assert.equal(a.dev.ports.length, 9);
 });
 
+test('real Catalyst 3850 (IOS-XE 16.12) session: status first, then config', () => {
+  const text = require('fs').readFileSync(require('path').join(__dirname, 'fixtures', 'cisco-3850-lab.txt'), 'utf8');
+  const d = NP.ingest(text, { devices: [] }).dev;
+  assert.equal(d.vendor, 'ios');
+  assert.equal(d.hostname, 'SW-PATCH-01');
+  assert.equal(d.model, 'WS-C3850-12X48U');
+  assert.equal(d.domain, 'example.lab');
+  assert.equal(d.gateway, '10.0.0.1');
+  assert.equal(d.mgmtIp, '10.0.65.169/24 (Gi0/0), 10.0.0.11/24 (Vlan3000)');
+  assert.equal(d.stp.mode, 'mst');
+  assert.deepEqual(d.stp.priority, ['VLAN 3000-3099: 8192', 'MST 0: 61440']);
+  assert.equal(d.vlans.length, 27);
+  assert.equal(d.vlans.find(v => v.id === 4094).name, 'FortiLink');
+  assert.equal(d.other['VTY access'], 'ssh');
+  const phys = d.ports.filter(p => p.kind === 'physical');
+  assert.deepEqual(phys.slice(0, 2).map(p => p.short), ['Gi1/0/1', 'Gi1/0/2']);
+  assert.deepEqual(phys.slice(35, 38).map(p => p.short), ['Gi1/0/36', 'Te1/0/37', 'Te1/0/38']);
+  assert.equal(port(d, 'Gi0/0').kind, 'mgmt');
+  assert.equal(port(d, 'Gi1/0/14').link, 'err-disabled');
+  assert.equal(port(d, 'Gi1/0/15').description, 'Temp-Trunk-to-OfficeNextDoor');   // config beats truncated status name
+  assert.deepEqual([port(d, 'Gi1/0/15').mode, port(d, 'Gi1/0/15').untagged, port(d, 'Gi1/0/15').tagged], ['trunk', '3000', 'all']);
+  const t38 = port(d, 'Te1/0/38');
+  assert.deepEqual([t38.mode, t38.untagged, t38.stp, t38.notes], ['trunk', '4094', 'edge, bpduguard', 'lldp off']);
+  assert.deepEqual([port(d, 'Te1/0/45').link, port(d, 'Te1/0/45').speed], ['up', '2.5G']);
+  assert.equal(port(d, 'Te1/0/47').tagged, '1-3299,3301-4094');
+  assert.deepEqual([port(d, 'Te1/1/4').speed, port(d, 'Te1/1/4').media], ['10G', 'SFP-10GBase-LRM']);
+  assert.equal(port(d, 'Te1/1/1').link, 'down');
+  assert.equal(port(d, 'Te1/1/5').link, 'not present');
+  assert.equal(port(d, 'Fo1/1/1').link, 'not present');
+  const st = NP.portStats(d);
+  assert.deepEqual([st.physical, st.up, st.absent], [62, 6, 10]);
+  assert.ok(!JSON.stringify(d).includes('$9$'));
+});
+
 test('Cisco NX-OS', () => {
   const d = run('nxos').dev;
   assert.equal(d.hostname, 'DC-LEAF-01');

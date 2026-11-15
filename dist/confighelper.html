@@ -451,19 +451,32 @@ A whole terminal session works too, for example:
   NP.comparePorts = function (a, b) {
     const r = (KIND_RANK[a.kind] === undefined ? 9 : KIND_RANK[a.kind]) -
               (KIND_RANK[b.kind] === undefined ? 9 : KIND_RANK[b.kind]);
-    return r || NP.naturalCompare(a.key, b.key);
+    if (r) return r;
+    // order by slot/module first, then interface type, then port number:
+    // Gi1/0/1..36, Te1/0/37..48, then the 1/1/x uplink module
+    const pa = split(a.key), pb = split(b.key);
+    return NP.naturalCompare(pa.parent, pb.parent) || NP.naturalCompare(pa.prefix, pb.prefix) ||
+      NP.naturalCompare(a.key, b.key);
   };
+  function split(key) {
+    const m = key.match(/^(\D*)(.*)$/);
+    const i = m[2].lastIndexOf('/');
+    return { prefix: m[1], parent: i < 0 ? '' : m[2].slice(0, i) };
+  }
 
   NP.finalize = function (dev) {
     dev.ports.sort(NP.comparePorts);
     dev.vlans.sort(function (a, b) { return a.id - b.id; });
-    if (!dev.mgmtIp) {
+    if (!dev.mgmtIpFixed) {
+      // every address the box can be managed on: mgmt port first, then SVIs, then loopbacks
       const up = function (p) { return p.ip && /\d/.test(p.ip) && p.adminUp !== false; };
-      const pick = dev.ports.find(function (p) { return p.kind === 'mgmt' && up(p); }) ||
-        dev.ports.find(function (p) { return p.kind === 'svi' && up(p); }) ||
-        dev.ports.find(function (p) { return p.kind === 'loopback' && up(p); }) ||
-        dev.ports.find(up);
-      if (pick) dev.mgmtIp = pick.ip + ' (' + pick.short + ')';
+      let list = [];
+      ['mgmt', 'svi', 'loopback'].forEach(function (k) {
+        list = list.concat(dev.ports.filter(function (p) { return p.kind === k && up(p); }));
+      });
+      if (!list.length) list = dev.ports.filter(up).slice(0, 1);
+      dev.mgmtIp = list.slice(0, 4).map(function (p) { return p.ip + ' (' + p.short + ')'; }).join(', ') +
+        (list.length > 4 ? ', +' + (list.length - 4) + ' more' : '');
     }
     return dev;
   };
@@ -587,6 +600,11 @@ A whole terminal session works too, for example:
       if (/^(interface|hostname|switchname|vlan) \S/m.test(s.text)) parseConfig(s.text, dev, fl);
       parseShow(s.text, dev, fl);
     });
+    // Ports that exist in the config but not in the status table are placeholders
+    // (e.g. uplink-module slots with no module fitted).
+    if (dev.statusLoaded) {
+      dev.ports.forEach(function (p) { if (p.kind === 'physical' && !p.link) p.link = 'not present'; });
+    }
   }
 
   // ================================================================ config
@@ -720,6 +738,13 @@ A whole terminal session works too, for example:
 
       // ---- everything else worth a line in the summary
       if ((m = l.match(/^version (\S+)/))) { dev.version = dev.version || m[1]; return; }
+      if ((m = l.match(/^switch (\d+) provision (\S+)/))) {
+        const mdl = m[2].toUpperCase();
+        NP.addOther(dev, 'Stack members', m[1] + ': ' + mdl);
+        if (!dev.model) dev.model = mdl;
+        return;
+      }
+      if (/^line vty/.test(l)) { ctx = { type: 'line' }; return; }
       if (/^aaa new-model/.test(l)) { NP.addOther(dev, 'AAA', 'new-model'); return; }
       if (/^radius[- ]server/.test(l) || /^aaa group server radius/.test(l)) { NP.addOther(dev, 'AAA', 'RADIUS'); return; }
       if (/^tacacs[- ]server/.test(l) || /^aaa group server tacacs/.test(l)) { NP.addOther(dev, 'AAA', 'TACACS+'); return; }
@@ -745,6 +770,10 @@ A whole terminal session works too, for example:
       if (ctx.type === 'vlan') {
         if ((m = l.match(/^name (.+)/))) NP.addVlan(dev, ctx.ids[0], m[1]);
         else if (/^ip igmp snooping( enable)?$/.test(l)) addUnique(mc.notes, 'snooping on VLAN ' + ctx.ids.join(','));
+        return;
+      }
+      if (ctx.type === 'line') {
+        if ((m = l.match(/^transport input (.+)/))) NP.addOther(dev, 'VTY access', m[1]);
         return;
       }
       if (ctx.type === 'mst') {
@@ -791,7 +820,13 @@ A whole terminal session works too, for example:
       if ((m = l.match(/^(vpc|mlag) (\S+)/))) { NP.addNote(p, m[1] + ' ' + m[2]); return; }
       if ((m = l.match(/^mtu (\d+)/))) { NP.addNote(p, 'mtu ' + m[1]); return; }
       if ((m = l.match(/^ip access-group (\S+) (in|out)/))) { NP.addNote(p, 'acl ' + m[1] + ' ' + m[2]); return; }
-      if ((m = l.match(/^vrf (?:forwarding|member|attach) (\S+)/))) { NP.addNote(p, 'vrf ' + m[1]); return; }
+      if ((m = l.match(/^vrf (?:forwarding|member|attach) (\S+)/))) {
+        NP.addNote(p, 'vrf ' + m[1]);
+        if (/^mgmt/i.test(m[1])) p.kind = 'mgmt';       // Catalyst Gi0/0 out-of-band port
+        return;
+      }
+      if (/^no lldp (transmit|receive)/.test(l)) { NP.addNote(p, 'lldp off'); return; }
+      if (/^no cdp enable/.test(l)) { NP.addNote(p, 'cdp off'); return; }
     }
 
     text.split(/\r?\n/).forEach(function (raw) {
@@ -862,6 +897,7 @@ A whole terminal session works too, for example:
         rest = t.slice(i);
       }
       const p = NP.port(dev, port);
+      dev.statusLoaded = true;
       if (name && !p.description) p.description = name;
       applyStatus(p, rest[0]);
       let k = 1;
@@ -1748,6 +1784,7 @@ A whole terminal session works too, for example:
           NP.addNote(p, 'access ' + e.set.allowaccess.join('/'));
           if (!dev.mgmtIp && /\d+\.\d+/.test(p.ip) && p.adminUp && /https|ssh/.test(e.set.allowaccess.join(' '))) {
             dev.mgmtIp = p.ip + ' (' + p.name + ')';
+            dev.mgmtIpFixed = true;
           }
         }
         if (one(e, 'vdom') && one(e, 'vdom') !== 'root') NP.addNote(p, 'vdom ' + one(e, 'vdom'));
@@ -2571,7 +2608,8 @@ set enabled=yes location="Workshop cabinet"
     return {
       physical: phys.length,
       up: phys.filter(function (p) { return p.link === 'up'; }).length,
-      down: phys.filter(function (p) { return p.link && p.link !== 'up' && p.adminUp !== false; }).length,
+      down: phys.filter(function (p) { return p.link && p.link !== 'up' && p.link !== 'not present' && p.adminUp !== false; }).length,
+      absent: phys.filter(function (p) { return p.link === 'not present'; }).length,
       disabled: phys.filter(function (p) { return p.adminUp === false; }).length,
       linkKnown: phys.some(function (p) { return p.link; }),
       poePorts: phys.filter(function (p) { return parseFloat(p.poeWatts) > 0; }).length,
@@ -2598,7 +2636,7 @@ set enabled=yes location="Workshop cabinet"
         ['IGMP snooping', dev.multicast.igmpSnooping], ['Querier', dev.multicast.querier],
         ['Multicast routing', dev.multicast.routing], ['Notes', dev.multicast.notes.join('; ')]] },
       { title: 'Ports', rows: [
-        ['Physical ports', st.physical || ''],
+        ['Physical ports', st.physical ? st.physical + (st.absent ? ' (' + st.absent + ' not present)' : '') : ''],
         ['Link up / down / disabled', st.linkKnown ? st.up + ' / ' + st.down + ' / ' + st.disabled : (st.disabled ? 'link state not loaded; ' + st.disabled + ' disabled' : '')],
         ['PoE in use', st.poePorts ? st.poePorts + ' ports, ' + st.poeWatts + ' W' : ''],
         ['VLANs defined', dev.vlans.length || '']] },
@@ -2676,6 +2714,7 @@ set enabled=yes location="Workshop cabinet"
   NP.labelFilter = function (opts) {
     return function (p) {
       if (opts.physicalOnly && p.kind !== 'physical') return false;
+      if (p.link === 'not present') return false;
       if (opts.upOnly && p.link !== 'up') return false;
       if (opts.describedOnly && !p.description && !p.neighbor) return false;
       if (opts.skipDisabled && p.adminUp === false) return false;

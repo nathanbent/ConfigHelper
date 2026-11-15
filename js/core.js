@@ -261,19 +261,32 @@
   NP.comparePorts = function (a, b) {
     const r = (KIND_RANK[a.kind] === undefined ? 9 : KIND_RANK[a.kind]) -
               (KIND_RANK[b.kind] === undefined ? 9 : KIND_RANK[b.kind]);
-    return r || NP.naturalCompare(a.key, b.key);
+    if (r) return r;
+    // order by slot/module first, then interface type, then port number:
+    // Gi1/0/1..36, Te1/0/37..48, then the 1/1/x uplink module
+    const pa = split(a.key), pb = split(b.key);
+    return NP.naturalCompare(pa.parent, pb.parent) || NP.naturalCompare(pa.prefix, pb.prefix) ||
+      NP.naturalCompare(a.key, b.key);
   };
+  function split(key) {
+    const m = key.match(/^(\D*)(.*)$/);
+    const i = m[2].lastIndexOf('/');
+    return { prefix: m[1], parent: i < 0 ? '' : m[2].slice(0, i) };
+  }
 
   NP.finalize = function (dev) {
     dev.ports.sort(NP.comparePorts);
     dev.vlans.sort(function (a, b) { return a.id - b.id; });
-    if (!dev.mgmtIp) {
+    if (!dev.mgmtIpFixed) {
+      // every address the box can be managed on: mgmt port first, then SVIs, then loopbacks
       const up = function (p) { return p.ip && /\d/.test(p.ip) && p.adminUp !== false; };
-      const pick = dev.ports.find(function (p) { return p.kind === 'mgmt' && up(p); }) ||
-        dev.ports.find(function (p) { return p.kind === 'svi' && up(p); }) ||
-        dev.ports.find(function (p) { return p.kind === 'loopback' && up(p); }) ||
-        dev.ports.find(up);
-      if (pick) dev.mgmtIp = pick.ip + ' (' + pick.short + ')';
+      let list = [];
+      ['mgmt', 'svi', 'loopback'].forEach(function (k) {
+        list = list.concat(dev.ports.filter(function (p) { return p.kind === k && up(p); }));
+      });
+      if (!list.length) list = dev.ports.filter(up).slice(0, 1);
+      dev.mgmtIp = list.slice(0, 4).map(function (p) { return p.ip + ' (' + p.short + ')'; }).join(', ') +
+        (list.length > 4 ? ', +' + (list.length - 4) + ' more' : '');
     }
     return dev;
   };
