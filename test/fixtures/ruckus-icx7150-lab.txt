@@ -1,0 +1,496 @@
+     ┌────────────────────────────────────────────────────────────────────┐
+     │                  • MobaXterm Professional 26.6 •                   │
+     │             (X server, SSH client and network tools)               │
+     │              example.com | example.net | example.org               │
+     └────────────────────────────────────────────────────────────────────┘
+
+  2026-11-14   21:33.18   /home/mobaxterm  ssh labadmin@10.0.0.7
+client_input_hostkeys: received duplicated ssh-rsa host key
+X11 forwarding request failed on channel 0
+
+SSH@SW-OFFICE-01>en
+No password has been assigned yet...
+SSH@SW-OFFICE-01#skip-page-display
+Disable page display mode
+SSH@SW-OFFICE-01#show running-config
+Current configuration:
+!
+ver 10.0.10g_cd11T213
+!
+stack unit 1
+  module 1 icx7150-48p-poe-port-management-module
+  module 2 icx7150-2-copper-port-2g-module
+  module 3 icx7150-4-sfp-plus-port-40g-module
+stack disable
+!
+!
+!
+!
+!
+vlan 1 name DEFAULT-VLAN by port
+!
+vlan 20 by port
+!
+vlan 69 by port
+!
+vlan 300 by port
+!
+vlan 306 by port
+!
+vlan 2369 by port
+!
+vlan 3000 name lab-com-mgmt by port
+ tagged ethe 1/2/1 ethe 1/3/4
+!
+vlan 3005 by port
+ tagged ethe 1/3/4
+!
+vlan 3006 by port
+!
+vlan 3010 name lab-com-phy-srv by port
+!
+vlan 3011 name lab-com-virt-srv by port
+ tagged ethe 1/1/45 to 1/1/46 ethe 1/3/4
+!
+vlan 3056 by port
+!
+vlan 3060 name lab-test-switches by port
+!
+vlan 3061 name lab-test-servers by port
+ tagged ethe 1/3/4
+!
+vlan 3062 name lab-test-voice by port
+!
+vlan 3063 by port
+ tagged ethe 1/1/45 to 1/1/46 ethe 1/3/4
+!
+vlan 3064 by port
+!
+vlan 3065 name lab-test-desk by port
+ tagged ethe 1/1/45 to 1/1/46 ethe 1/2/1 ethe 1/3/4
+ untagged ethe 1/1/1 ethe 1/1/3 to 1/1/27 ethe 1/1/29 to 1/1/44 ethe 1/3/1 to 1/3/2
+!
+vlan 3066 name TESTING-2 by port
+ tagged ethe 1/1/1 ethe 1/1/3 ethe 1/1/44 ethe 1/1/48 ethe 1/3/4
+!
+vlan 3067 by port
+ tagged ethe 1/1/1 ethe 1/1/3 ethe 1/1/48 ethe 1/3/4
+!
+vlan 3068 by port
+ tagged ethe 1/1/1 ethe 1/1/3 ethe 1/1/48 ethe 1/3/4
+!
+vlan 3069 by port
+ tagged ethe 1/1/1 ethe 1/1/3 ethe 1/1/48 ethe 1/3/4
+!
+vlan 3200 name lab-desk by port
+ tagged ethe 1/3/4
+ untagged ethe 1/1/47
+!
+vlan 3202 name home-lablan-services by port
+ tagged ethe 1/1/45 to 1/1/46 ethe 1/3/4
+!
+vlan 3205 name home-hypervisor-vlan by port
+ tagged ethe 1/3/4
+ untagged ethe 1/1/45 to 1/1/46
+!
+vlan 3215 name home-linuxsrv-vlan by port
+ tagged ethe 1/1/45 to 1/1/46
+!
+vlan 3220 name home-trusted-data-vlan by port
+ tagged ethe 1/1/1 ethe 1/1/3 ethe 1/1/44 to 1/1/46 ethe 1/1/48 ethe 1/3/3 to 1/3/4
+ untagged ethe 1/1/28
+!
+vlan 3240 name HOMEVOIP by port
+ tagged ethe 1/3/1 to 1/3/4
+ untagged ethe 1/1/2
+!
+vlan 3250 name Untrusted by port
+ tagged ethe 1/1/48 ethe 1/3/4
+!
+vlan 3254 name home-mgmt-vlan by port
+ tagged ethe 1/1/45 to 1/1/46 ethe 1/3/4
+ untagged ethe 1/1/48 ethe 1/3/3
+!
+vlan 3265 by port
+!
+vlan 3270 name HOME-IoT by port
+ tagged ethe 1/1/48 ethe 1/3/3 to 1/3/4
+ untagged ethe 1/2/2
+!
+vlan 3300 name office2-lan by port
+!
+vlan 3669 name SUPER-TEMP by port
+ tagged ethe 1/1/1 ethe 1/1/45 to 1/1/46
+!
+!
+mstp scope all
+mstp name LAB-MST
+mstp revision 1
+mstp instance 0 vlan 1
+mstp instance 0 vlan 20
+mstp instance 0 vlan 69
+mstp instance 0 vlan 300
+mstp instance 0 vlan 306
+mstp instance 0 vlan 2369
+mstp instance 0 vlan 3000
+mstp instance 0 vlan 3005 to 3006
+mstp instance 0 vlan 3010 to 3011
+mstp instance 0 vlan 3056
+mstp instance 0 vlan 3060 to 3069
+mstp instance 0 vlan 3200
+mstp instance 0 vlan 3202
+mstp instance 0 vlan 3205
+mstp instance 0 vlan 3215
+mstp instance 0 vlan 3220
+mstp instance 0 vlan 3240
+mstp instance 0 vlan 3250
+mstp instance 0 vlan 3254
+mstp instance 0 vlan 3265
+mstp instance 0 vlan 3270
+mstp instance 0 vlan 3300
+mstp instance 0 vlan 3669
+mstp instance 0 priority 61440
+mstp start
+!
+!
+!
+!
+ip route 0.0.0.0/0 10.0.0.1
+!
+!
+clock timezone us Central
+hostname SW-OFFICE-01
+ip dns server-address 1.1.1.1 8.8.8.8
+ip multicast passive
+ip multicast version 3
+cdp run
+!
+!
+ntp
+ server 0.pool.ntp.org
+ server 1.pool.ntp.org
+ server 2.pool.ntp.org
+ server 3.pool.ntp.org
+ server 203.0.113.10
+ server 203.0.113.11
+!
+!
+manager registrar
+!
+!
+!
+ip igmp version 3
+!
+!
+!
+!
+interface management 1
+!
+interface ethernet 1/1/1
+ port-name OPS-ARUBA-WAP
+!
+interface ethernet 1/1/2
+ port-name OPS-Aerohive-WAP
+ speed-duplex 100-full
+ voice-vlan 3240
+!
+interface ethernet 1/1/3
+ port-name LAB-EXTREME-WAP
+!
+interface ethernet 1/1/44
+ port-name =Ruckus-WAP=
+!
+interface ethernet 1/1/45
+ port-name =t320-VMk=
+!
+interface ethernet 1/1/46
+ port-name =t320-VMk=
+!
+interface ethernet 1/1/47
+ port-name =t320-iDRAC=
+!
+interface ethernet 1/1/48
+ port-name =AP-DESK-R550=
+!
+interface ethernet 1/2/1
+ port-name ==LAB-40SW==
+!
+interface ethernet 1/2/2
+ port-name HueHub
+!
+interface ethernet 1/3/3
+ speed-duplex 10g-full
+!
+interface ethernet 1/3/4
+ port-name ==LAB-UPLINK==
+!
+interface ve 3000
+ ip address 10.0.0.7 255.255.255.0
+ no spanning-tree
+!
+interface ve 3065
+ no spanning-tree
+!
+!
+ip access-list extended WAN-ONLY
+ sequence 10 permit udp any any eq bootps
+ sequence 20 permit udp any any eq bootpc
+ sequence 30 permit udp any any eq dns
+ sequence 40 permit tcp any any eq dns
+ sequence 60 deny ip any 172.16.0.0 0.15.255.255
+ sequence 100 permit ip any any
+!
+!
+!
+!
+!
+!
+!
+username super password 1 $6$REDACTED$REDACTEDREDACTEDREDACTEDREDACTEDREDACTEDREDACTEDREDACTEDREDACTEDREDACTEDREDACTED00
+username labadmin password 1 $6$REDACTED$REDACTEDREDACTEDREDACTEDREDACTEDREDACTEDREDACTEDREDACTEDREDACTEDREDACTEDREDACTED00
+!
+aaa authentication login default local
+!
+aaa authentication web-server default local
+!
+ip dhcp-client disable
+!
+logging host 10.1.254.169 udp-port 6514
+!
+restconf enable
+!
+!
+web-management http
+web-management disable
+!
+!
+!
+snmp-server community 2 $UkVEQUNURUQ= ro
+snmp-server community 2 $UkVEQUNURUQ= ro
+snmp-server community 2 $UkVEQUNURUQ= ro
+snmp-server host 10.1.4.21 version v1 2 $UkVEQUNURUQ=
+!
+cli timeout 0
+!
+!
+!
+end
+SSH@SW-OFFICE-01#show interfaces brief
+Port       Link    State   Dupl Speed Trunk Tag Pvid Pri MAC             Name
+1/1/1      Up      Forward Full 1G    None  Yes 3065 0   0000.5e00.5570  OPS-ARUBA-WAP
+1/1/2      Up      Forward Full 100M  None  No  3240 0   0000.5e00.5571  OPS-Aerohive-WA
+1/1/3      Down    None    None None  None  Yes 3065 0   0000.5e00.5570  LAB-EXTREME-WAP
+1/1/4      Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/5      Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/6      Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/7      Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/8      Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/9      Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/10     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/11     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/12     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/13     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/14     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/15     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/16     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/17     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/18     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/19     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/20     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/21     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/22     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/23     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/24     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/25     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/26     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/27     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/28     Down    None    None None  None  No  3220 0   0000.5e00.558b
+1/1/29     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/30     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/31     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/32     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/33     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/34     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/35     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/36     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/37     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/38     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/39     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/40     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/41     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/42     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/43     Down    None    None None  None  No  3065 0   0000.5e00.5570
+1/1/44     Down    None    None None  None  Yes 3065 0   0000.5e00.5570  =Ruckus-WAP=
+1/1/45     Down    None    None None  None  Yes 3205 0   0000.5e00.5570  =t320-VMk=
+1/1/46     Up      Forward Full 1G    None  Yes 3205 0   0000.5e00.5570  =t320-VMk=
+1/1/47     Up      Forward Full 1G    None  No  3200 0   0000.5e00.559e  =t320-iDRAC=
+1/1/48     Up      Forward Full 1G    None  Yes 3254 0   0000.5e00.559f  =AP-DESK-R550=
+1/2/1      Down    None    None None  None  Yes 1    0   0000.5e00.5570  ==LAB-40SW==
+1/2/2      Up      Forward Full 100M  None  No  3270 0   0000.5e00.55a2  HueHub
+1/3/1      Down    None    None None  None  Yes 3065 0   0000.5e00.5570
+1/3/2      Down    None    None None  None  Yes 3065 0   0000.5e00.5570
+1/3/3      Up      Forward Full 10G   None  Yes 3254 0   0000.5e00.55a5
+1/3/4      Up      Forward Full 10G   None  Yes 1    0   0000.5e00.5570  ==LAB-UPLINK==
+mgmt1      Down    None    None None  None  No  None 0   0000.5e00.5570
+
+Port       Link    State   Dupl Speed Trunk Tag Pvid Pri MAC             Name
+ve3000     Up      N/A     N/A  N/A   None  N/A N/A  N/A 0000.5e00.5570
+ve3065     Up      N/A     N/A  N/A   None  N/A N/A  N/A 0000.5e00.5570
+SSH@SW-OFFICE-01#show inline power
+
+Power Capacity:         Total is 370000 mWatts. Current Free is 325750 mWatts.
+
+Power Allocations: Requests Honored 52 times
+
+
+ Port   Admin   Oper    ---Power(mWatts)---  PD Type  PD Class     Pri  Fault/
+        State   State   Consumed  Allocated                             Error
+-----------------------------------------------------------------------------
+  1/1/1 On      Non-PD         0         0   n/a      n/a            3  n/a
+  1/1/2 On      On          1300     15400   2P-IEEE  n/a            3  n/a
+  1/1/3 On      Off            0         0   n/a      n/a            3  n/a
+  1/1/4 On      Off            0         0   n/a      n/a            3  n/a
+  1/1/5 On      Off            0         0   n/a      n/a            3  n/a
+  1/1/6 On      Off            0         0   n/a      n/a            3  n/a
+  1/1/7 On      Off            0         0   n/a      n/a            3  n/a
+  1/1/8 On      Off            0         0   n/a      n/a            3  n/a
+  1/1/9 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/10 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/11 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/12 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/13 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/14 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/15 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/16 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/17 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/18 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/19 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/20 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/21 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/22 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/23 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/24 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/25 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/26 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/27 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/28 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/29 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/30 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/31 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/32 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/33 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/34 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/35 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/36 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/37 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/38 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/39 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/40 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/41 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/42 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/43 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/44 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/45 On      Off            0         0   n/a      n/a            3  n/a
+ 1/1/46 On      Non-PD         0         0   n/a      n/a            3  n/a
+ 1/1/47 On      Non-PD         0         0   n/a      n/a            3  n/a
+ 1/1/48 On      On          6200     28850   2P-IEEE  Class 4        3  n/a
+-----------------------------------------------------------------------------
+ Total                      7500      44250
+
+
+SSH@SW-OFFICE-01#show lldp neighbors detail
+Local port: 1/1/48
+  Neighbor: 0000.5e01.f960, TTL 110 seconds
+  + Chassis ID (MAC address): 0000.5e01.f960
+  + Port ID (MAC address): 0000.5e01.f960
+  + Time to live: 120 seconds
+  + System name         : "RuckusAP"
+  + System description    : "Ruckus R550 Multimedia Hotzone Wireless AP/SW Version: 200.19.7.11.283"
+  + System capabilities : bridge, WLAN access point, router, station only
+    Enabled capabilities: bridge, WLAN access point, router
+  + Management address (IPv4): 10.2.254.50
+  + Port description    : "eth1"
+  + Link aggregation: capable, but not aggregated
+  + 802.3 MAC/PHY          : auto-negotiation enabled
+    Advertised capabilities: 10BaseT-HD, 10BaseT-FD, 100BaseTX-HD,
+                             100BaseTX-FD, fdxPause, fdxAPause, 1000BaseT-FD
+    Operational MAU type   : 1000BaseT-FD
+  + 802.3 Power via MDI: PD port  + Unknown Organizationally-Specific TLV: OUI 000142, subtype 1
+
+
+Local port: 1/3/3
+  Neighbor: 0000.5e02.0e7f, TTL 94 seconds
+  + Chassis ID (MAC address): 0000.5e02.0e6f
+  + Port ID (interface name): xe-0/1/1
+  + Time to live: 120 seconds
+  + Port description    : "xe-0/1/1"
+  + System name         : "EX-LAB-DESK-01"
+  + System description    : "Juniper Networks, Inc. ex2300-c-12p Ethernet Switch, kernel JUNOS 25.2R2.12, Build date: 2026-02-13 18:00:12 UTC Copyright (c) 1996-2026 Juniper Networks, Inc."
+  + System capabilities : bridge, router
+    Enabled capabilities: bridge, router
+  + Management address (MAC address): 0000.5e02.0e70
+  + 802.3 MAC/PHY          : auto-negotiation not supported
+    Operational MAU type   : Other
+  + Link aggregation: capable, but not aggregated
+  + Maximum frame size: 1514 octets
+  + Port VLAN ID: 3254
+  + Unknown Organizationally-Specific TLV: OUI 0080C2, subtype 7
+
+  + Unknown Organizationally-Specific TLV: OUI 009069, subtype 1
+
+  + Unknown Organizationally-Specific TLV: OUI 009069, subtype 12
+
+  + VLAN name (VLAN 1): vlan-1
+  + VLAN name (VLAN 3065): vlan-3065
+  + VLAN name (VLAN 3200): vlan-3200
+  + VLAN name (VLAN 3205): vlan-3205
+  + VLAN name (VLAN 3254): vlan-3254
+  + MED capabilities: capabilities, networkPolicy, location, extendedPSE
+  + MED device type : Network Connectivity
+
+Local port: 1/3/4
+  Neighbor: 0000.5e03.a230, TTL 106 seconds
+  + Chassis ID (MAC address): 0000.5e03.a200
+  + Port ID (interface name): Te1/0/48
+  + Time to live: 120 seconds
+  + System name         : "SW-PATCH-01.example.lab"
+  + System description    : "Cisco IOS Software [Gibraltar], Catalyst L3 Switch Software (CAT3K_CAA-UNIVERSALK9-M), Version 16.12.12, RELEASE SOFTWARE (fc2) Technical Support: http://www.cisco.com/techsupport Copyright (c) 1986-2024 by Cisco Systems, Inc."
+  + Port description    : "==Office-Room-B=="
+  + System capabilities : bridge, router
+    Enabled capabilities: bridge
+  + Management address (IPv4): 10.0.249.2
+  + Port VLAN ID: 1
+  + 802.3 MAC/PHY          : auto-negotiation enabled
+    Advertised capabilities: 100BaseTX-HD, 100BaseTX-FD, 1000BaseT-FD
+    Operational MAU type   : Other
+
+SSH@SW-OFFICE-01#show version
+  Copyright (c) Ruckus Networks, Inc. All rights reserved.
+    UNIT 1: compiled on Sep  1 2026 at 00:52:40 labeled as SPR10010g_cd11
+      (33554432 bytes) from Primary SPR10010g_cd11.bin (UFI)
+        SW: Version 10.0.10g_cd11T213
+      Compressed Primary Boot Code size = 786944, Version:10.2.12T225 (mnz10212)
+       Compiled on Wed Jul  9 05:01:21 2025
+
+  HW: Stackable ICX7150-48-POE
+==========================================================================
+UNIT 1: SL 1: ICX7150-48P-4X1G POE 48-port Management Module
+      Serial  #:FEC0000X000
+      Software Package: ICX7150_L3_SOFT_PACKAGE
+      Current License: 4X10GR
+      P-ASIC  0: type B160, rev 11  Chip BCM56160_B0
+==========================================================================
+UNIT 1: SL 2: ICX7150-2X1GC 2-port 2G Module
+==========================================================================
+UNIT 1: SL 3: ICX7150-4X10GF 4-port 40G Module
+==========================================================================
+ 1000 MHz ARMv7 Cortex-A9 processor 88 MHz bus
+    8 MB boot flash memory
+    2 GB code flash memory
+    1 GB DRAM
+STACKID 1  system uptime is 41 day(s) 5 hour(s) 17 minute(s) 10 second(s)
+The system started at 16:17:14 Central Sun Oct 04 2026
+
+The system : started=warm start   reloaded=by "reload"
+
+SSH@SW-OFFICE-01#

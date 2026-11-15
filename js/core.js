@@ -11,7 +11,7 @@
 
   // Platforms whose parser has been checked against output from real hardware, and on what.
   // Everything else was written from documentation and made-up samples: shown as "experimental".
-  NP.verified = { ios: 'Catalyst 3850, IOS-XE 16.12' };
+  NP.verified = { ios: 'Catalyst 3850, IOS-XE 16.12', icx: 'ICX7150-48P, FastIron 10.0.10' };
 
   // ---------------------------------------------------------------- vendors
   NP.vendors = {};

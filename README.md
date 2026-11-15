@@ -84,7 +84,8 @@ Loaded devices are remembered in the browser's local storage; use **Export backu
 | Ubiquiti UniFi | controller JSON: device list (`stat/device`), ideally with the network list (`rest/networkconf`) | `mca-dump` on the switch |
 | MikroTik RouterOS | `/export` | |
 
-Tested against real output so far: Cisco Catalyst 3850 on IOS-XE 16.12 (`test/fixtures/`). Everything else
+Tested against real output so far: Cisco Catalyst 3850 on IOS-XE 16.12 and Ruckus ICX7150-48P on FastIron 10.0.10
+(`test/fixtures/`). Everything else
 was written against the vendors' documented formats and the made-up samples in `js/samples.js`, so expect
 gaps on real devices; when you find one, add the output (sanitised) to `test/fixtures/` with a test and fix
 the parser.
