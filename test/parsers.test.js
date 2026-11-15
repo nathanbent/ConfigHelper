@@ -100,6 +100,10 @@ test('real Catalyst 3850 (IOS-XE 16.12) session: status first, then config', () 
   assert.equal(port(d, 'Fo1/1/1').link, 'not present');
   const st = NP.portStats(d);
   assert.deepEqual([st.physical, st.up, st.absent], [62, 6, 10]);
+  const t45 = port(d, 'Te1/0/45');
+  assert.deepEqual([t45.poeAdmin, t45.poeStatus, t45.poeWatts, t45.poeClass], ['auto', 'on', '30.0', '4']);
+  assert.deepEqual([port(d, 'Gi1/0/10').poeStatus, port(d, 'Gi1/0/10').poeWatts], ['off', '']);
+  assert.deepEqual([st.poePorts, st.poeWatts], [1, 30]);
   assert.ok(!JSON.stringify(d).includes('$9$'));
 });
 
@@ -231,6 +235,15 @@ test('MikroTik RouterOS', () => {
   const e2 = port(d, 'ether2');
   assert.deepEqual([e2.adminUp, e2.untagged, e2.poeAdmin, e2.stp], [false, '10', 'disabled', 'edge']);
   assert.equal(port(d, 'sfp-sfpplus1').tagged, '10,30,99');
+});
+
+test('every vendor has command suggestions the parser can actually read', () => {
+  for (const id of NP.vendorOrder) {
+    const c = NP.commands[id];
+    assert.ok(c && c.cmds.length, id + ' has commands');
+    for (const x of c.cmds) assert.ok(x.cmd && x.gives, id + ': ' + x.cmd);
+  }
+  assert.match(NP.commandScript('ios'), /^terminal length 0\nshow running-config\n/);
 });
 
 test('forcing a vendor and unknown input', () => {

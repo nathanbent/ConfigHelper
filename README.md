@@ -13,9 +13,10 @@ Everything runs in the browser. Nothing is uploaded, and secrets (password hashe
 Open `dist/confighelper.html` in a browser. That single file is the whole app; copy it anywhere.
 (`index.html` also works directly and is the one to use while editing the source.)
 
-1. Paste a config, show output, or a whole terminal session, or drop text files on the box. Press **Parse**.
-2. Paste more output for the same device later; it merges by hostname (taken from the config or the CLI prompt). If the paste has no hostname, it goes into the selected device.
-3. Use the **Ports** tab to filter, sort, pick columns and export. Use **Labels** to build label rows.
+1. Optional: choose a platform to see the commands to run on the device, with a **Copy all** button.
+2. Paste a config, show output, or a whole terminal session, or drop text files on the box. Press **Parse**.
+3. Paste more output for the same device later; it merges by hostname (taken from the config or the CLI prompt). If the paste has no hostname, it goes into the selected device.
+4. Use the **Ports** tab to filter, sort, pick columns and export. Use **Labels** to build label rows.
 
 Loaded devices are remembered in the browser's local storage; use **Export backup** for a real copy.
 

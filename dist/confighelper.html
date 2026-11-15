@@ -55,6 +55,13 @@ label select { width: 100%; color: var(--ink); font-size: 13px; }
 textarea { width: 100%; height: 200px; resize: vertical; background: var(--row); border: 1px solid var(--line);
   border-radius: 6px; padding: 8px; font: 12px/1.4 var(--mono); }
 textarea.drag { border-color: var(--accent); border-style: dashed; }
+.cmds { margin-bottom: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--row); }
+.cmds summary { cursor: pointer; padding: 6px 10px; font-size: 13px; }
+.cmds #cmdList { padding: 0 10px 10px; }
+.cmds ol { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 6px; }
+.cmds li code { display: block; font: 12px/1.4 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.cmds li span { font-size: 12px; color: var(--muted); }
+.cmds p { margin: 0 0 8px; font-size: 12.5px; color: var(--muted); }
 .btnrow { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .btnrow select { flex: 1 1 120px; min-width: 0; }
 .msg { margin: 8px 0 0; font-size: 13px; min-height: 1.2em; }
@@ -161,6 +168,10 @@ td.mono { font-family: var(--mono); font-size: 12.5px; }
           </select>
         </label>
       </div>
+      <details id="cmdBox" class="cmds">
+        <summary id="cmdSummary">Commands to run</summary>
+        <div id="cmdList"></div>
+      </details>
       <textarea id="txtInput" spellcheck="false" placeholder="Paste a running config and/or show output here, or drop text files on this box.
 
 A whole terminal session works too, for example:
@@ -2664,6 +2675,61 @@ set enabled=yes location="Workshop cabinet"
     return rows;
   };
 
+  // ------------------------------------------------------- command suggestions
+  // Only commands whose output the parsers understand. "pager" turns off --More-- prompts.
+  const CFG = 'VLANs, descriptions, STP, DNS, NTP and the rest';
+  NP.commands = {
+    ios: { pager: 'terminal length 0', cmds: [
+      { cmd: 'show running-config', gives: CFG },
+      { cmd: 'show interfaces status', gives: 'link state, speed, media type' },
+      { cmd: 'show power inline', gives: 'PoE state, watts, class' },
+      { cmd: 'show cdp neighbors detail', gives: 'what is plugged in (Cisco gear)' },
+      { cmd: 'show lldp neighbors detail', gives: 'what is plugged in (everything else)' },
+      { cmd: 'show version', gives: 'model, exact software version, serial' },
+      { cmd: 'show spanning-tree', gives: 'per-port STP role and state (optional)' }] },
+    nxos: { pager: 'terminal length 0', cmds: [
+      { cmd: 'show running-config', gives: CFG },
+      { cmd: 'show interface status', gives: 'link state, speed, media type' },
+      { cmd: 'show lldp neighbors', gives: 'what is plugged in' },
+      { cmd: 'show cdp neighbors detail', gives: 'what is plugged in (Cisco gear)' },
+      { cmd: 'show version', gives: 'model, software version, serial' }] },
+    eos: { pager: 'terminal length 0', cmds: [
+      { cmd: 'show running-config', gives: CFG },
+      { cmd: 'show interfaces status', gives: 'link state, speed, media type' },
+      { cmd: 'show lldp neighbors', gives: 'what is plugged in' },
+      { cmd: 'show version', gives: 'model, software version, serial' }] },
+    os10: { pager: 'terminal length 0', cmds: [
+      { cmd: 'show running-configuration', gives: CFG }] },
+    aoscx: { pager: 'no page', cmds: [
+      { cmd: 'show running-config', gives: CFG },
+      { cmd: 'show interface brief', gives: 'link state, speed, media type' },
+      { cmd: 'show lldp neighbor-info', gives: 'what is plugged in' }] },
+    arubaos: { pager: 'no page', cmds: [
+      { cmd: 'show running-config', gives: CFG },
+      { cmd: 'show interfaces brief', gives: 'link state, speed, media type' },
+      { cmd: 'show power-over-ethernet brief', gives: 'PoE state, watts, class' },
+      { cmd: 'show lldp info remote-device', gives: 'what is plugged in' }] },
+    comware: { pager: 'screen-length disable', cmds: [
+      { cmd: 'display current-configuration', gives: CFG },
+      { cmd: 'display interface brief', gives: 'link state, speed, duplex' }] },
+    junos: { pager: 'set cli screen-length 0', cmds: [
+      { cmd: 'show configuration | display set', gives: CFG },
+      { cmd: 'show interfaces terse', gives: 'admin and link state' },
+      { cmd: 'show lldp neighbors', gives: 'what is plugged in' },
+      { cmd: 'show poe interface', gives: 'PoE state, watts, class' }] },
+    fortigate: { pager: 'config system console\nset output standard\nend', cmds: [
+      { cmd: 'show', gives: 'interfaces, zones, DNS, NTP, syslog, routes' },
+      { cmd: 'get system status', gives: 'model, firmware version, serial' }] },
+    mikrotik: { pager: '', cmds: [
+      { cmd: '/export', gives: 'bridge ports, VLANs, addresses, DNS, NTP and the rest (on RouterOS 6 use "/export hide-sensitive")' }] }
+  };
+  // One block to paste into the terminal.
+  NP.commandScript = function (vendor) {
+    const c = NP.commands[vendor];
+    if (!c) return '';
+    return (c.pager ? [c.pager] : []).concat(c.cmds.map(function (x) { return x.cmd; })).join('\n') + '\n';
+  };
+
   // ------------------------------------------------------------------ labels
   NP.labelTokens = {
     host: function (d) { return d.hostname; },
@@ -2860,6 +2926,34 @@ set enabled=yes location="Workshop cabinet"
     });
   }
 
+  // ---------------------------------------------------- command suggestions
+  function renderCommands() {
+    const box = $('cmdList');
+    box.replaceChildren();
+    let vendor = $('selVendor').value;
+    const dev = cur();
+    const fromDevice = vendor === 'auto' && dev && $('selTarget').value !== 'new';
+    if (fromDevice) vendor = dev.vendor;
+    const c = NP.commands[vendor];
+    if (!c) {
+      $('cmdSummary').textContent = 'Commands to run';
+      box.appendChild(h('p', { text: 'Choose a platform above to see which commands to run on the device.' }));
+      return;
+    }
+    $('cmdSummary').textContent = 'Commands to run on ' + NP.vendors[vendor].label;
+    if (fromDevice) box.appendChild(h('p', { text: 'Based on the selected device, ' + (dev.hostname || 'unnamed') + '.' }));
+    box.appendChild(h('ol', {},
+      c.pager ? h('li', {}, h('code', { text: c.pager }), h('span', { text: 'turns off paging so output is not cut at --More--' })) : null,
+      c.cmds.map(function (x) { return h('li', {}, h('code', { text: x.cmd }), h('span', { text: x.gives })); })));
+    box.appendChild(h('button', { onclick: function (e) {
+      const btn = e.target;
+      navigator.clipboard.writeText(NP.commandScript(vendor)).then(function () { btn.textContent = 'Copied'; },
+        function () { btn.textContent = 'Copy failed'; });
+      setTimeout(function () { btn.textContent = 'Copy all'; }, 1500);
+    } }, 'Copy all'));
+    box.appendChild(h('p', { text: 'Paste the block into the device session, then paste the whole session output below.' }));
+  }
+
   // ---------------------------------------------------------------- sidebar
   function renderDevices() {
     const ul = $('deviceList');
@@ -2883,6 +2977,7 @@ set enabled=yes location="Workshop cabinet"
   // ------------------------------------------------------------------- views
   function render() {
     renderDevices();
+    renderCommands();
     const view = $('view');
     view.replaceChildren();
     const dev = cur();
@@ -3096,6 +3191,11 @@ set enabled=yes location="Workshop cabinet"
     Object.keys(NP.samples).forEach(function (id) {
       $('selSample').appendChild(h('option', { value: id, text: NP.samples[id].label }));
     });
+    $('selVendor').addEventListener('change', function (e) {
+      $('cmdBox').open = e.target.value !== 'auto';
+      renderCommands();
+    });
+    $('selTarget').addEventListener('change', renderCommands);
     $('btnParse').addEventListener('click', function () { parseText($('txtInput').value, 'pasted text'); });
     $('btnFiles').addEventListener('click', function () { $('fileInput').click(); });
     $('fileInput').addEventListener('change', function (e) { readFiles(e.target.files); e.target.value = ''; });

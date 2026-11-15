@@ -78,6 +78,61 @@
     return rows;
   };
 
+  // ------------------------------------------------------- command suggestions
+  // Only commands whose output the parsers understand. "pager" turns off --More-- prompts.
+  const CFG = 'VLANs, descriptions, STP, DNS, NTP and the rest';
+  NP.commands = {
+    ios: { pager: 'terminal length 0', cmds: [
+      { cmd: 'show running-config', gives: CFG },
+      { cmd: 'show interfaces status', gives: 'link state, speed, media type' },
+      { cmd: 'show power inline', gives: 'PoE state, watts, class' },
+      { cmd: 'show cdp neighbors detail', gives: 'what is plugged in (Cisco gear)' },
+      { cmd: 'show lldp neighbors detail', gives: 'what is plugged in (everything else)' },
+      { cmd: 'show version', gives: 'model, exact software version, serial' },
+      { cmd: 'show spanning-tree', gives: 'per-port STP role and state (optional)' }] },
+    nxos: { pager: 'terminal length 0', cmds: [
+      { cmd: 'show running-config', gives: CFG },
+      { cmd: 'show interface status', gives: 'link state, speed, media type' },
+      { cmd: 'show lldp neighbors', gives: 'what is plugged in' },
+      { cmd: 'show cdp neighbors detail', gives: 'what is plugged in (Cisco gear)' },
+      { cmd: 'show version', gives: 'model, software version, serial' }] },
+    eos: { pager: 'terminal length 0', cmds: [
+      { cmd: 'show running-config', gives: CFG },
+      { cmd: 'show interfaces status', gives: 'link state, speed, media type' },
+      { cmd: 'show lldp neighbors', gives: 'what is plugged in' },
+      { cmd: 'show version', gives: 'model, software version, serial' }] },
+    os10: { pager: 'terminal length 0', cmds: [
+      { cmd: 'show running-configuration', gives: CFG }] },
+    aoscx: { pager: 'no page', cmds: [
+      { cmd: 'show running-config', gives: CFG },
+      { cmd: 'show interface brief', gives: 'link state, speed, media type' },
+      { cmd: 'show lldp neighbor-info', gives: 'what is plugged in' }] },
+    arubaos: { pager: 'no page', cmds: [
+      { cmd: 'show running-config', gives: CFG },
+      { cmd: 'show interfaces brief', gives: 'link state, speed, media type' },
+      { cmd: 'show power-over-ethernet brief', gives: 'PoE state, watts, class' },
+      { cmd: 'show lldp info remote-device', gives: 'what is plugged in' }] },
+    comware: { pager: 'screen-length disable', cmds: [
+      { cmd: 'display current-configuration', gives: CFG },
+      { cmd: 'display interface brief', gives: 'link state, speed, duplex' }] },
+    junos: { pager: 'set cli screen-length 0', cmds: [
+      { cmd: 'show configuration | display set', gives: CFG },
+      { cmd: 'show interfaces terse', gives: 'admin and link state' },
+      { cmd: 'show lldp neighbors', gives: 'what is plugged in' },
+      { cmd: 'show poe interface', gives: 'PoE state, watts, class' }] },
+    fortigate: { pager: 'config system console\nset output standard\nend', cmds: [
+      { cmd: 'show', gives: 'interfaces, zones, DNS, NTP, syslog, routes' },
+      { cmd: 'get system status', gives: 'model, firmware version, serial' }] },
+    mikrotik: { pager: '', cmds: [
+      { cmd: '/export', gives: 'bridge ports, VLANs, addresses, DNS, NTP and the rest (on RouterOS 6 use "/export hide-sensitive")' }] }
+  };
+  // One block to paste into the terminal.
+  NP.commandScript = function (vendor) {
+    const c = NP.commands[vendor];
+    if (!c) return '';
+    return (c.pager ? [c.pager] : []).concat(c.cmds.map(function (x) { return x.cmd; })).join('\n') + '\n';
+  };
+
   // ------------------------------------------------------------------ labels
   NP.labelTokens = {
     host: function (d) { return d.hostname; },

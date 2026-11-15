@@ -104,6 +104,34 @@
     });
   }
 
+  // ---------------------------------------------------- command suggestions
+  function renderCommands() {
+    const box = $('cmdList');
+    box.replaceChildren();
+    let vendor = $('selVendor').value;
+    const dev = cur();
+    const fromDevice = vendor === 'auto' && dev && $('selTarget').value !== 'new';
+    if (fromDevice) vendor = dev.vendor;
+    const c = NP.commands[vendor];
+    if (!c) {
+      $('cmdSummary').textContent = 'Commands to run';
+      box.appendChild(h('p', { text: 'Choose a platform above to see which commands to run on the device.' }));
+      return;
+    }
+    $('cmdSummary').textContent = 'Commands to run on ' + NP.vendors[vendor].label;
+    if (fromDevice) box.appendChild(h('p', { text: 'Based on the selected device, ' + (dev.hostname || 'unnamed') + '.' }));
+    box.appendChild(h('ol', {},
+      c.pager ? h('li', {}, h('code', { text: c.pager }), h('span', { text: 'turns off paging so output is not cut at --More--' })) : null,
+      c.cmds.map(function (x) { return h('li', {}, h('code', { text: x.cmd }), h('span', { text: x.gives })); })));
+    box.appendChild(h('button', { onclick: function (e) {
+      const btn = e.target;
+      navigator.clipboard.writeText(NP.commandScript(vendor)).then(function () { btn.textContent = 'Copied'; },
+        function () { btn.textContent = 'Copy failed'; });
+      setTimeout(function () { btn.textContent = 'Copy all'; }, 1500);
+    } }, 'Copy all'));
+    box.appendChild(h('p', { text: 'Paste the block into the device session, then paste the whole session output below.' }));
+  }
+
   // ---------------------------------------------------------------- sidebar
   function renderDevices() {
     const ul = $('deviceList');
@@ -127,6 +155,7 @@
   // ------------------------------------------------------------------- views
   function render() {
     renderDevices();
+    renderCommands();
     const view = $('view');
     view.replaceChildren();
     const dev = cur();
@@ -340,6 +369,11 @@
     Object.keys(NP.samples).forEach(function (id) {
       $('selSample').appendChild(h('option', { value: id, text: NP.samples[id].label }));
     });
+    $('selVendor').addEventListener('change', function (e) {
+      $('cmdBox').open = e.target.value !== 'auto';
+      renderCommands();
+    });
+    $('selTarget').addEventListener('change', renderCommands);
     $('btnParse').addEventListener('click', function () { parseText($('txtInput').value, 'pasted text'); });
     $('btnFiles').addEventListener('click', function () { $('fileInput').click(); });
     $('fileInput').addEventListener('change', function (e) { readFiles(e.target.files); e.target.value = ''; });
