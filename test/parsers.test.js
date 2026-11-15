@@ -160,6 +160,32 @@ test('Dell OS6 (N-series)', () => {
   assert.match(NP.commandScript('os6'), /show lldp remote-device all/);
 });
 
+test('Dell OS9', () => {
+  const r = run('os9');
+  const d = r.dev;
+  assert.equal(r.vendor, 'os9');
+  assert.deepEqual(r.cleaned, []);
+  assert.deepEqual([d.hostname, d.model, d.version], ['S4048-TOR1', 'S4048-ON', '9.14(2.4)']);
+  assert.deepEqual([d.gateway, d.domain, d.dns.join(), d.ntp.join(), d.syslog.join()], ['10.70.99.1', 'dc.example.org', '10.70.0.53', '10.70.0.1', '10.70.0.60']);
+  assert.deepEqual([d.stp.enabled, d.stp.mode, d.stp.priority.join()], ['yes', 'rstp', '8192']);
+  assert.equal(d.vlans.map(v => v.id + ':' + v.name).join(), '1:,10:Servers,20:vMotion,30:Backup');
+  const t1 = port(d, 'Te1/1');
+  assert.deepEqual([t1.description, t1.mode, t1.untagged, t1.tagged, t1.stp, t1.link, t1.speed, t1.neighbor],
+    ['ESX-01 vmnic0', 'trunk', '1', '10,20', 'edge, bpduguard', 'up', '10G', 'esx-01']);     // hybrid keeps the default VLAN untagged
+  assert.deepEqual([port(d, 'Te1/2').mode, port(d, 'Te1/2').untagged], ['access', '10']);
+  assert.deepEqual([port(d, 'Te1/3').untagged, port(d, 'Te1/3').speed], ['30', '1G']);
+  assert.deepEqual([port(d, 'Te1/4').adminUp, port(d, 'Te1/4').link], [false, 'down']);
+  const u = port(d, 'Te1/47');
+  assert.deepEqual([u.lag, u.mode, u.neighbor, u.neighborPort], ['Po10', '', 'CORE-1', 'TenGigabitEthernet 1/10']);
+  const po = port(d, 'Po10');
+  assert.deepEqual([po.kind, po.mode, po.untagged, po.tagged], ['lag', 'trunk', '', '10,20,30']);
+  assert.deepEqual([port(d, 'Fo1/49').lag, port(d, 'Fo1/50').lag], ['Po100', 'Po100']);
+  assert.match(d.mgmtIp, /^10\.70\.99\.11\/24 \(Ma1\/1\)/);
+  assert.equal(port(d, 'Vlan30').ip, '10.70.30.2/24');
+  assert.equal(d.ports.filter(p => p.kind === 'physical').length, 8);
+  assert.match(NP.commandScript('os9'), /^terminal length 0\nshow running-config\n/);
+});
+
 test('Aruba AOS-CX', () => {
   const d = run('aoscx').dev;
   assert.equal(d.hostname, 'CX-IDF-3');
@@ -906,13 +932,12 @@ test('problem report bundles the sanitized input with what the parser made of it
   assert.match(r.text, /=== Sanitized input ===\n/);
   for (const s of ['SW-PATCH-01', 'labadmin', 'example.lab', 'lab-com-mgmt', '10.0.65.169']) assert.ok(!r.text.includes(s), s + ' not in report');
   // an experimental platform says so; unrecognised input is reported rather than hidden
-  assert.match(NP.problemReport(NP.samples.icx.text).text, /Platform: Ruckus ICX \(FastIron\) \(auto-detected\)/);
-  assert.match(NP.problemReport(NP.samples.arubaos.text).text, /\(experimental parser\)/);
+  assert.match(NP.problemReport(NP.samples.comware.text).text, /Platform: HPE Comware \/ H3C \(experimental parser\)/);
   const bad = NP.problemReport('hello password hunter2');
   assert.match(bad.text, /Platform: not recognised/);
   assert.ok(!bad.text.includes('hunter2'));
   // only platforms checked on real hardware count as verified
-  assert.deepEqual(Object.keys(NP.verified), ['ios', 'icx']);
+  assert.deepEqual(Object.keys(NP.verified), ['ios', 'junos', 'icx']);
 });
 
 const bigStack = require('./stack.js');
@@ -972,7 +997,7 @@ test('real ICX7150-48P (FastIron 10.0.10) session', () => {
   // 25 "mstp instance 0 vlan ..." lines become one note
   assert.deepEqual([d.stp.mode, d.stp.priority, d.stp.notes], ['mstp', ['MST 0: 61440'], ['MST region LAB-MST', 'MST revision 1',
     'MST 0 = VLAN 1,20,69,300,306,2369,3000,3005-3006,3010-3011,3056,3060-3069,3200,3202,3205,3215,3220,3240,3250,3254,3265,3270,3300,3669']]);
-  assert.deepEqual(d.multicast.notes, ['IGMP snooping v3', 'IGMP v3']);
+  assert.deepEqual(d.multicast.notes, ['IGMPv3']);
   // "web-management http" then "web-management disable" is off, not plain HTTP
   assert.equal(d.other['Web management'], 'disabled');
   assert.deepEqual([d.other.Stacking, d.other.CDP, d.other.ACLs, d.other.AAA, d.other.RESTCONF],
@@ -1017,4 +1042,221 @@ test('sanitize: real ICX session', () => {
     /version 2c removed\n.* version 3 priv removed$/);
   // a keyword at the end of a line does not swallow the start of the next one
   assert.match(r.text, /duplicated ssh-rsa host key\nX11 forwarding request failed/);
+});
+
+// ---- found with real output: Junos 25.2 on an EX2300-C, FastIron 08.0.30 on an ICX6610
+// (made-up names and addresses below; the layouts are the real ones)
+test('Junos: newer PoE table, LLDP columns pushed right, voice VLAN on access ports, absent ports', () => {
+  const text = [
+    'admin@sw-a> show configuration | display set',
+    'set system host-name sw-a',
+    'set interfaces ge-0/0/0 unit 0 family ethernet-switching interface-mode access',
+    'set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members USERS',
+    'set interfaces ge-0/0/1 native-vlan-id 99',
+    'set interfaces ge-0/0/1 unit 0 family ethernet-switching interface-mode trunk',
+    'set interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members USERS',
+    'set interfaces ge-0/1/0 unit 0 family ethernet-switching storm-control default',
+    'set interfaces xe-0/1/0 unit 0 family ethernet-switching interface-mode trunk',
+    'set interfaces xe-0/1/0 unit 0 family ethernet-switching vlan members all',
+    'set switch-options voip interface access-ports vlan 40',
+    'set vlans USERS vlan-id 20',
+    'set vlans VOICE vlan-id 40',
+    '',
+    'admin@sw-a> show interfaces terse',
+    'Interface               Admin Link Proto    Local                 Remote',
+    'ge-0/0/0                up    up',
+    'ge-0/0/0.0              up    up   eth-switch',
+    'ge-0/0/1                up    up',
+    'xe-0/1/0                up    up',
+    '',
+    'admin@sw-a> show lldp neighbors',
+    'Local Interface    Parent Interface    Chassis Id                               Port info          System Name',
+    'ge-0/0/1           -                   00:11:22:33:44:55                        ETH(PoE)            AP-Lobby',
+    'xe-0/1/0           -                   00:11:22:33:44:66                        10GigabitEthernet1/3/2 CORE-1',
+    'ge-0/0/0           -                   FRONTDESK-PC                             00:11:22:33:44:77',
+    '',
+    'admin@sw-a> show poe interface',
+    'Interface    Admin       Oper    Pair/Mode  Max        Priority       Power          Class',
+    '             status      status  status     power                     consumption',
+    ' ge-0/0/0    Enabled     OFF     2P/AT      15.4W      Low            0.0W           not-applicable',
+    ' ge-0/0/1    Enabled      ON     2P/AT      25.5W(L)   High(L)        6.4W            4',
+    '  (L) LLDP-negotiated value on the port.',
+    '',
+    'admin@sw-a> show chassis hardware',
+    'Hardware inventory:',
+    'Item             Version  Part number  Serial number     Description',
+    'Chassis                                AB0123456789      EX2300-C-12P',
+    ''].join('\n');
+  const d = NP.ingest(text, { devices: [] }).dev;
+  assert.deepEqual([d.serial, d.model], ['AB0123456789', 'EX2300-C-12P']);
+  const a = port(d, 'ge-0/0/0'), b = port(d, 'ge-0/0/1'), x = port(d, 'xe-0/1/0');
+  assert.deepEqual([a.untagged, a.voiceVlan, a.poeStatus, a.poeWatts, a.poeClass], ['20', '40', 'off', '', '']);
+  assert.deepEqual([a.neighbor, a.neighborPort], ['FRONTDESK-PC', '00:11:22:33:44:77']);   // no system name: chassis id stands in
+  assert.deepEqual([b.voiceVlan, b.poeStatus, b.poeWatts, b.poeClass], ['', 'on', '6.4', '4']);
+  assert.deepEqual([b.neighbor, b.neighborPort], ['AP-Lobby', 'ETH(PoE)']);
+  assert.deepEqual([x.neighbor, x.neighborPort], ['CORE-1', '10GigabitEthernet1/3/2']);
+  assert.equal(port(d, 'ge-0/1/0').link, 'not present');                                  // same cage as xe-0/1/0
+  // the older table, without Pair/Mode, still reads
+  const old = NP.ingest('set system host-name sw-b\n\nInterface    Admin       Oper    Max        Priority       Power          Class\n' +
+    ' ge-0/0/3    Enabled      ON     15.4W      Low            4.2W            2\n', { vendor: 'junos', devices: [] }).dev;
+  assert.deepEqual([port(old, 'ge-0/0/3').poeWatts, port(old, 'ge-0/0/3').poeClass], ['4.2', '2']);
+});
+
+test('ICX 08.0.30: LAG members follow the primary port, banner, pt2pt, LLDP-MED voice', () => {
+  const text = [
+    'SSH@core-1#show running-config',
+    'Current configuration:',
+    '!',
+    'ver 08.0.30uT7f3',
+    '!',
+    'stack unit 1',
+    '  module 1 icx6610-24p-poe-port-management-module',
+    '!',
+    'lag uplink dynamic id 120',
+    ' ports ethernet 1/1/20 to 1/1/22',
+    ' primary-port 1/1/20',
+    ' deploy',
+    ' port-name ==fw-pri== ethernet 1/1/20',
+    ' port-name ==fw== ethernet 1/1/21',
+    '!',
+    'vlan 1 name DEFAULT-VLAN by port',
+    '!',
+    'vlan 20 name users by port',
+    ' tagged ethe 1/1/1 ethe 1/1/20 to 1/1/22',
+    ' untagged ethe 1/1/3',
+    '!',
+    'vlan 40 name VoIP by port',
+    ' tagged ethe 1/1/1',
+    '!',
+    'vlan 665 name transit by port',
+    ' tagged ethe 1/1/20 to 1/1/22',
+    '!',
+    'hostname core-1',
+    'jumbo',
+    'banner motd ^C',
+    '^C',
+    '|   *** Unauthorized use prohibited ***   |^C',
+    'hostname not-this-one^C',
+    '^C',
+    '!',
+    'interface ethernet 1/1/2',
+    ' spanning-tree 802-1w admin-pt2pt-mac',
+    '!',
+    'interface ethernet 1/1/20',
+    ' dual-mode  665',
+    ' spanning-tree 802-1w admin-edge-port',
+    '!',
+    'lldp med network-policy application voice tagged vlan 40 priority 5 dscp 46 ports ethe 1/1/1 to 1/1/12',
+    'lldp run',
+    '!',
+    'end',
+    '',
+    'SSH@core-1#'].join('\n');
+  const d = NP.ingest(text, { devices: [] }).dev;
+  assert.equal(d.hostname, 'core-1');
+  assert.equal(d.other['Jumbo frames'], 'enabled');
+  for (const n of ['1/1/20', '1/1/21', '1/1/22', 'lag 120']) {
+    const p = port(d, n);
+    assert.deepEqual([p.mode, p.untagged, p.tagged, p.stp], ['trunk', '665', '20', 'edge'], n);
+  }
+  assert.deepEqual([port(d, '1/1/20').description, port(d, '1/1/21').description], ['==fw-pri==', '==fw==']);
+  assert.equal(port(d, '1/1/2').stp, 'p2p');
+  assert.equal(port(d, '1/1/1').voiceVlan, '40');
+  assert.equal(port(d, '1/1/3').voiceVlan, '');             // in the LLDP-MED range but does not carry VLAN 40
+  assert.ok(!d.unparsed.some(u => /Unauthorized|\^C|SSH@|pt2pt|lldp med/.test(u.text)), JSON.stringify(d.unparsed));
+});
+
+test('platform picker: brands, platforms, parser behind each', () => {
+  for (const p of NP.platforms) {
+    assert.ok(NP.vendors[NP.platformParser(p.id)], p.id + ' has a parser');
+    assert.ok(NP.commands[p.id] && NP.commands[p.id].cmds.length, p.id + ' has commands');
+  }
+  for (const id of NP.vendorOrder) assert.ok(NP.platform(id), id + ' can be picked');
+  assert.equal(NP.platformParser('fortilink'), 'fortigate');
+  assert.equal(NP.platformParser('auto'), 'auto');
+  assert.deepEqual(NP.platforms.filter(p => p.brand === 'Dell').map(p => p.id), ['os10', 'os9', 'os6']);
+  assert.deepEqual(NP.platforms.filter(p => p.brand === 'Fortinet').map(p => p.id), ['fortigate', 'fortilink', 'fortiswitch']);
+});
+
+test('FortiGate: the short command list gives the same device as the whole config', () => {
+  const whole = run('fortigate');
+  assert.doesNotMatch(NP.commandScript('fortigate'), /^show$/m);
+  // rebuild the sample as the answers to "show <section>", one prompt each
+  const text = NP.samples.fortigate.text;
+  const lines = text.split('\n');
+  let out = [], depth = 0, keep = false;
+  const wanted = /^config (system (global|interface|zone|dns|ntp|snmp sysinfo|ha)|log syslogd setting|router static|switch-controller (managed-switch|stp-settings))$/;
+  for (const l of lines) {
+    const t = l.trim();
+    if (depth === 0 && /^config /.test(t)) { keep = wanted.test(t); if (keep) out.push('FW # show ' + t.slice(7)); }
+    if (/^config /.test(t)) depth++;
+    if (keep || depth === 0) out.push(l);
+    if (t === 'end') depth--;
+  }
+  const part = NP.ingest(out.join('\n'), { vendor: 'fortigate', devices: [] });
+  const shape = r => r.dev.ports.map(p => [p.name, p.kind, p.mode, p.ip, p.tagged, p.lag].join('|'));
+  assert.deepEqual(shape(part), shape(whole));
+  assert.deepEqual([part.dev.hostname, part.dev.dns, part.dev.ntp, part.dev.gateway], [whole.dev.hostname, whole.dev.dns, whole.dev.ntp, whole.dev.gateway]);
+  assert.deepEqual(part.extra.map(x => x.dev.ports.length), whole.extra.map(x => x.dev.ports.length));
+});
+
+test('one paste with two devices is cut at the change of prompt', () => {
+  const two = 'sw1#show running-config\nhostname sw1\ninterface GigabitEthernet1/0/1\n switchport mode access\n!\nsw1#show version\nCisco IOS Software\n' +
+    '\nadmin@sw-a> show configuration | display set\nset system host-name sw-a\nset vlans USERS vlan-id 20\n';
+  const parts = NP.splitDevices(two);
+  assert.equal(parts.length, 2);
+  assert.deepEqual(parts.map(t => NP.detect(t)), ['ios', 'junos']);
+  assert.equal(NP.splitDevices(NP.samples.ios.text).length, 1);
+  for (const id of Object.keys(NP.samples)) assert.equal(NP.splitDevices(NP.samples[id].text).length, 1, id);
+});
+
+const fixture = name => require('fs').readFileSync(require('path').join(__dirname, 'fixtures', name), 'utf8');
+
+test('real EX2300-C session (Junos 25.2, sanitized)', () => {
+  const r = NP.ingest(fixture('juniper-ex2300c.txt'), { devices: [] });
+  const d = r.dev;
+  assert.equal(r.vendor, 'junos');
+  assert.equal(d.version, '25.2R2.12');
+  assert.deepEqual(d.vlans.map(v => v.id), [1, 20, 40, 70, 100, 254, 1769]);
+  assert.equal(d.ports.filter(p => p.kind === 'physical').length, 16);
+  assert.deepEqual(d.ports.filter(p => p.link === 'up' && p.kind === 'physical').map(p => p.name),
+    ['ge-0/0/0', 'ge-0/0/1', 'ge-0/0/2', 'ge-0/0/8', 'ge-0/0/10', 'ge-0/0/11', 'xe-0/1/0', 'xe-0/1/1']);
+  const ap = port(d, 'ge-0/0/11');
+  assert.deepEqual([ap.mode, ap.untagged, ap.tagged, ap.poeStatus, ap.poeWatts, ap.poeClass], ['trunk', '254', '20,70,100,254,1769', 'on', '6.4', '4']);
+  assert.deepEqual([port(d, 'ge-0/0/3').untagged, port(d, 'ge-0/0/3').voiceVlan, port(d, 'ge-0/0/3').poeStatus], ['20', '40', 'off']);
+  const up = port(d, 'xe-0/1/1');
+  assert.deepEqual([up.tagged, up.neighborPort], ['all', '10GigabitEthernet1/3/2']);
+  assert.ok(up.neighbor && !/\s/.test(up.neighbor));
+  assert.ok(port(d, 'xe-0/1/0').neighbor);                    // PC with no system name
+  assert.deepEqual([port(d, 'ge-0/1/0').link, port(d, 'ge-0/1/1').link], ['not present', 'not present']);
+  assert.ok(d.ports.filter(p => p.poeStatus).length === 12);
+  assert.ok(!d.unparsed.some(u => u.ctx === 'command' && /poe|lldp|terse/.test(u.text)));
+});
+
+test('real ICX6610 config (FastIron 08.0.30, sanitized)', () => {
+  const r = NP.ingest(fixture('ruckus-icx6610.txt'), { devices: [] });
+  const d = r.dev;
+  assert.equal(r.vendor, 'icx');
+  assert.deepEqual([d.model, d.version], ['ICX6610-24P-POE', '08.0.30uT7f3']);
+  assert.equal(d.vlans.length, 31);
+  assert.equal(d.ports.filter(p => p.kind === 'physical').length, 42);
+  assert.equal(d.ports.filter(p => p.kind === 'lag').length, 5);
+  for (const n of ['1/1/20', '1/1/21', '1/1/24', 'lag 120']) {
+    const p = port(d, n);
+    assert.deepEqual([p.mode, p.untagged, p.tagged], ['trunk', '665', '2-3,5,17,40,100,111,230,240-242,667,1769'], n);
+  }
+  assert.ok(port(d, '1/1/21').description && port(d, '1/3/8').description);
+  assert.deepEqual([port(d, '1/1/1').untagged, port(d, '1/1/1').tagged, port(d, '1/1/1').voiceVlan], ['', '20,40', '40']);
+  assert.deepEqual([port(d, '1/1/5').mode, port(d, '1/1/5').untagged, port(d, '1/1/5').voiceVlan], ['access', '20', '40']);
+  assert.equal(port(d, '1/1/3').voiceVlan, '');
+  assert.equal(port(d, '1/3/2').stp, 'p2p');
+  assert.deepEqual([port(d, 've20').ip, port(d, 've1').adminUp], ['10.1.20.1/22', false]);
+  assert.ok(!d.unparsed.some(u => /\^C|banner|pt2pt|lldp med/.test(u.text)));
+});
+
+test('sanitize: FastIron banner lines and chassis name do not survive', () => {
+  const raw = 'hostname core-1\nchassis name CORE-SITE-A\nbanner motd ^C\n^C\n|  Property of Example Corp  |^C\n^C\n!\ninterface ethernet 1/1/1\n port-name x\n!\n';
+  const out = NP.sanitize(raw, { vendor: 'icx' }).text;
+  assert.doesNotMatch(out, /Example Corp|CORE-SITE-A|core-1/);
+  assert.match(out, /^banner motd \^C removed \^C\n!\ninterface ethernet 1\/1\/1$/m);
 });

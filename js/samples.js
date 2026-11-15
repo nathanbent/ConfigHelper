@@ -206,6 +206,165 @@ interface mgmt0
   ip address 10.20.99.21/24
 `};
 
+  S.os9 = { label: 'Dell OS9 (S-series)', text: String.raw`S4048-TOR1#show running-config
+Current Configuration ...
+! Version 9.14(2.4)
+! Last configuration change at Tue Mar  4 09:12:44 2025 by admin
+!
+hostname S4048-TOR1
+!
+protocol spanning-tree rstp
+ no disable
+ bridge-priority 8192
+!
+vlt domain 1
+ peer-link port-channel 100
+ back-up destination 10.70.99.12
+!
+stack-unit 1 provision S4048-ON
+!
+interface TenGigabitEthernet 1/1
+ description ESX-01 vmnic0
+ no ip address
+ mtu 9216
+ portmode hybrid
+ switchport
+ spanning-tree rstp edge-port bpduguard shutdown-on-violation
+ no shutdown
+!
+interface TenGigabitEthernet 1/2
+ description ESX-02 vmnic0
+ no ip address
+ switchport
+ spanning-tree rstp edge-port
+ no shutdown
+!
+interface TenGigabitEthernet 1/3
+ description Backup NAS
+ no ip address
+ switchport
+ no shutdown
+!
+interface TenGigabitEthernet 1/4
+ no ip address
+ shutdown
+!
+interface TenGigabitEthernet 1/47
+ description to CORE-1
+ no ip address
+!
+ port-channel-protocol LACP
+  port-channel 10 mode active
+ no shutdown
+!
+interface TenGigabitEthernet 1/48
+ description to CORE-2
+ no ip address
+!
+ port-channel-protocol LACP
+  port-channel 10 mode active
+ no shutdown
+!
+interface fortyGigE 1/49
+ description VLTi
+ no ip address
+ no shutdown
+!
+interface fortyGigE 1/50
+ description VLTi
+ no ip address
+ no shutdown
+!
+interface ManagementEthernet 1/1
+ ip address 10.70.99.11/24
+ no shutdown
+!
+interface Port-channel 10
+ description Uplink to core
+ no ip address
+ switchport
+ vlt-peer-lag port-channel 10
+ no shutdown
+!
+interface Port-channel 100
+ description VLTi
+ no ip address
+ channel-member fortyGigE 1/49-1/50
+ no shutdown
+!
+interface Vlan 1
+!
+interface Vlan 10
+ description Servers
+ name Servers
+ no ip address
+ tagged TenGigabitEthernet 1/1
+ tagged Port-channel 10
+ untagged TenGigabitEthernet 1/2
+ no shutdown
+!
+interface Vlan 20
+ name vMotion
+ no ip address
+ tagged TenGigabitEthernet 1/1
+ tagged Port-channel 10
+ no shutdown
+!
+interface Vlan 30
+ name Backup
+ ip address 10.70.30.2/24
+ tagged Port-channel 10
+ untagged TenGigabitEthernet 1/3
+ no shutdown
+!
+management route 0.0.0.0/0 10.70.99.1
+!
+ip domain-name dc.example.org
+ip name-server 10.70.0.53
+!
+logging 10.70.0.60
+!
+snmp-server community removed ro
+snmp-server contact noc@example.org
+snmp-server location DC1 row B rack 4
+!
+ntp server 10.70.0.1
+!
+ip ssh server enable
+!
+protocol lldp
+ advertise management-tlv system-name
+!
+line console 0
+line vty 0
+!
+end
+S4048-TOR1#show interfaces status
+Port                 Description  Status Speed        Duplex Vlan
+Te 1/1               ESX-01 vmnic Up     10000 Mbit   Full   1,10,20
+Te 1/2               ESX-02 vmnic Up     10000 Mbit   Full   10
+Te 1/3               Backup NAS   Up     1000 Mbit    Full   30
+Te 1/4                            Down   Auto         Auto   --
+Te 1/47              to CORE-1    Up     10000 Mbit   Full   --
+Te 1/48              to CORE-2    Up     10000 Mbit   Full   --
+Fo 1/49              VLTi         Up     40000 Mbit   Full   --
+Fo 1/50              VLTi         Up     40000 Mbit   Full   --
+S4048-TOR1#show lldp neighbors
+ Loc PortID   Rem Host Name     Rem Port Id                  Rem Chassis Id
+ -------------------------------------------------------------------------
+ Te 1/1       esx-01            00:50:56:00:53:01            00:50:56:00:53:01
+ Te 1/47      CORE-1            TenGigabitEthernet 1/10      00:00:5e:00:53:a1
+ Te 1/48      CORE-2            TenGigabitEthernet 1/10      00:00:5e:00:53:a2
+ Fo 1/49      S4048-TOR2        fortyGigE 1/49               00:00:5e:00:53:b1
+S4048-TOR1#show version
+Dell Real Time Operating System Software
+Dell Operating System Version:  2.0
+Dell Application Software Version:  9.14(2.4)
+Copyright (c) 1999-2019 by Dell Inc. All Rights Reserved.
+System image file is "system://A"
+System Type: S4048-ON
+`};
+
   S.os6 = { label: 'Dell OS6 (N-series)', text: String.raw`N2048-IDF1#show running-config
 !Current Configuration:
 !System Description "Dell Networking N2048P, 6.3.3.10, Linux 3.6.5-9c1bfc79"

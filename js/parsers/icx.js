@@ -48,6 +48,8 @@
     const tagged = {}, untag = {}, dual = {};
     let defaultVlan = 1, ctx = null, m;
     const stpModes = [], mst = {}, routerIf = {};
+    const lags = [];
+    const medVoice = {};                 // LLDP-MED voice policy: port -> VLAN it advertises
     // FastIron 10 dropped "router-interface": ve N always belongs to VLAN N. It also keeps a port
     // that is only tagged as an untagged member of the default VLAN (older releases need dual-mode).
     let v10 = /^10\./.test(dev.version || '');
@@ -56,6 +58,7 @@
       const l = raw.trim();
       if (!l) return;
       if (l === '!') { ctx = null; return; }
+      if (ctx && ctx.type === 'banner') return;             // banner text runs to the next "!"
       const indented = /^\s/.test(raw);
       if (!indented) ctx = null;
 
@@ -71,12 +74,14 @@
           lag.kind = 'lag';
           if (!lag.description) lag.description = m[1];
           NP.addNote(lag, m[2] === 'dynamic' ? 'LACP' : 'static');
-          ctx = { type: 'lag', lag: lag };
+          ctx = { type: 'lag', lag: lag, members: [], primary: '' };
+          lags.push(ctx);
           return;
         }
         if ((m = l.match(/^stack unit (\d+)/))) { ctx = { type: 'unit', unit: m[1] }; return; }
         if (l === 'ntp') { ctx = { type: 'ntp' }; return; }
         if ((m = l.match(/^(?:ip|ipv6) access-list (?:(?:standard|extended) )?(\S+)/))) { NP.addOther(dev, 'ACLs', m[1]); ctx = { type: 'acl' }; return; }
+        if (/^banner /.test(l)) { ctx = { type: 'banner' }; return; }
         if (/^mstp /.test(l)) {
           dev.stp.enabled = 'yes'; addUnique(stpModes, 'mstp');
           if ((m = l.match(/^mstp name (\S+)/))) addUnique(dev.stp.notes, 'MST region ' + m[1]);
@@ -130,13 +135,16 @@
           }
           else if (/^no inline power/.test(l)) p.poeAdmin = 'disabled';
           else if (/^spanning-tree 802-1w admin-edge-port/.test(l)) NP.addFlag(p, 'stp', 'edge');
-          else if (/^spanning-tree 802-1w admin-pt2pt-port/.test(l)) NP.addFlag(p, 'stp', 'p2p');
+          else if (/^spanning-tree 802-1w admin-pt2pt-(port|mac)/.test(l)) NP.addFlag(p, 'stp', 'p2p');
           else if (/^stp-bpdu-guard/.test(l)) NP.addFlag(p, 'stp', 'bpduguard');
           else if (/^stp-protect/.test(l)) NP.addFlag(p, 'stp', 'bpdufilter');
           else if (/^spanning-tree root-protect/.test(l)) NP.addFlag(p, 'stp', 'rootguard');
           else if (/^no spanning-tree/.test(l)) NP.addFlag(p, 'stp', 'stp off');
           else if ((m = l.match(/^ip address (\S+)(?: (\d+\.\d+\.\d+\.\d+))?/))) { if (!p.ip) p.ip = NP.cidr(m[1], m[2]); }
           else if ((m = l.match(/^ip helper-address (?:\d+ )?(\d+\.\d+\.\d+\.\d+)/))) NP.addNote(p, 'helper ' + m[1]);
+          else if ((m = l.match(/^ipv6 address (\S+)/))) NP.addNote(p, 'ipv6 ' + m[1]);
+          else if ((m = l.match(/^ip(?:v6)? ospf area (\S+)/))) NP.addNote(p, 'ospf area ' + m[1]);
+          else if (/^ip(v6)? (mtu \d+|ospf active)$/.test(l)) { /* nothing to show */ }
           else if ((m = l.match(/^speed-duplex (\S+)/))) NP.addNote(p, 'speed-duplex ' + m[1]);
           else if (/^(dot1x|mac-authentication|authentication)\b/.test(l)) NP.addNote(p, '802.1X/MAC-auth');
           else if (/^port security/.test(l)) NP.addNote(p, 'port-security');
@@ -149,7 +157,10 @@
         return;
       }
       if (ctx && ctx.type === 'lag') {
-        if ((m = l.match(/^ports (.+)/))) portList(m[1]).forEach(function (n) { touch(dev, n).lag = ctx.lag.short; });
+        if ((m = l.match(/^ports (.+)/))) portList(m[1]).forEach(function (n) { const p = touch(dev, n); p.lag = ctx.lag.short; ctx.members.push(p); });
+        else if ((m = l.match(/^primary-port (\S+)/))) ctx.primary = m[1];
+        else if ((m = l.match(/^port-name (.+) ethernet (\S+)$/))) touch(dev, m[2]).description = NP.unquote(m[1]);
+        else if (l !== 'deploy') NP.miss(l, 'lag');
         return;
       }
       if (ctx && ctx.type === 'unit') {
@@ -190,8 +201,6 @@
       else if ((m = l.match(/^snmp-server host (\S+)/))) NP.addOther(dev, 'SNMP trap hosts', m[1]);
       else if ((m = l.match(/^spanning-tree single(?: (802-1w))?/))) { dev.stp.enabled = 'yes'; addUnique(stpModes, 'single ' + (m[1] ? '802.1w' : '802.1D')); }
       else if ((m = l.match(/^ip multicast(?: (active|passive))?$/))) { dev.multicast.igmpSnooping = 'enabled'; if (m[1] === 'active') dev.multicast.querier = 'enabled'; }
-      else if ((m = l.match(/^ip multicast version (\d)/))) addUnique(dev.multicast.notes, 'IGMP snooping v' + m[1]);
-      else if ((m = l.match(/^ip igmp version (\d)/))) addUnique(dev.multicast.notes, 'IGMP v' + m[1]);
       else if (/^ip multicast-routing/.test(l) || /^router pim/.test(l)) dev.multicast.routing = 'enabled';
       else if ((m = l.match(/^username (\S+)/))) NP.addOther(dev, 'Local users', m[1]);
       else if ((m = l.match(/^aaa authentication (login|web-server|enable|snmp-server) default (.+)/))) NP.addOther(dev, 'AAA', m[1] + ' ' + m[2]);
@@ -212,6 +221,13 @@
       else if (/^ip dhcp-client disable/.test(l)) dev.other['DHCP client'] = 'disabled';
       else if ((m = l.match(/^manager (registrar|active-list .+|disable)/))) dev.other['SmartZone / cloud manager'] = m[1] === 'registrar' ? 'registrar lookup' : m[1];
       else if ((m = l.match(/^cli timeout (\d+)/))) dev.other['CLI timeout'] = m[1] === '0' ? 'never' : m[1] + ' min';
+      else if ((m = l.match(/^lldp med network-policy application voice tagged vlan (\d+) .*?ports (.+)$/))) {
+        portList(m[2]).forEach(function (n) { medVoice[touch(dev, n).key] = +m[1]; });
+      }
+      else if ((m = l.match(/^chassis name (\S+)/))) dev.other['Chassis name'] = m[1];
+      else if (l === 'jumbo') dev.other['Jumbo frames'] = 'enabled';
+      else if (l === 'global-stp') { /* allows spanning tree to be configured */ }
+      else if ((m = l.match(/^ip (?:igmp|multicast) version (\d)/))) addUnique(dev.multicast.notes, 'IGMPv' + m[1]);
       else NP.miss(l, 'global');
     });
 
@@ -221,6 +237,19 @@
     if (!dev.multicast.igmpSnooping) dev.multicast.igmpSnooping = 'disabled (default)';
     if (!dev.vlans.some(function (v) { return v.id === defaultVlan; })) NP.addVlan(dev, defaultVlan, 'DEFAULT-VLAN');
 
+    // Up to FastIron 08.0.30 a LAG is configured on its primary port and the other members follow it
+    lags.forEach(function (g) {
+      const prim = g.primary && g.members.find(function (p) { return p.name === g.primary; });
+      if (!prim) return;
+      g.members.concat([g.lag]).forEach(function (p) {
+        if (p === prim) return;
+        if (dual[p.key] === undefined && dual[prim.key] !== undefined) dual[p.key] = dual[prim.key];
+        if (untag[p.key] === undefined && untag[prim.key] !== undefined) untag[p.key] = untag[prim.key];
+        if (!tagged[p.key] && tagged[prim.key]) tagged[p.key] = tagged[prim.key].slice();
+        if (!p.stp && prim.stp) p.stp = prim.stp;
+      });
+    });
+
     dev.ports.forEach(function (p) {
       if (v10 && p.kind === 'svi' && !p.description && !routerIf[p.key] && (m = p.short.match(/^ve(\d+)$/i))) {
         const v = dev.vlans.find(function (x) { return x.id === +m[1]; });
@@ -228,6 +257,8 @@
       }
       if (p.kind !== 'physical' && p.kind !== 'lag') return;
       const t = (tagged[p.key] || []).slice();
+      // the LLDP-MED policy only means something where the port really carries that VLAN
+      if (!p.voiceVlan && medVoice[p.key] && t.includes(medVoice[p.key])) p.voiceVlan = String(medVoice[p.key]);
       const own = t.length || untag[p.key] !== undefined || dual[p.key] !== undefined;
       if (p.lag && !own) { p.mode = ''; p.untagged = ''; p.tagged = ''; return; }
       let u = untag[p.key];
