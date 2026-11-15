@@ -11,7 +11,7 @@
 
   // Platforms whose parser has been checked against output from real hardware, and on what.
   // Everything else was written from documentation and made-up samples: shown as "experimental".
-  NP.verified = { ios: 'Catalyst 3850, IOS-XE 16.12' };
+  NP.verified = { ios: 'Catalyst 3850, IOS-XE 16.12', junos: 'EX2300-C, Junos 25.2', icx: 'ICX6610, FastIron 08.0.30 (config only)' };
 
   // ---------------------------------------------------------------- vendors
   NP.vendors = {};
@@ -107,7 +107,7 @@
     twogigabitethernet: 'Tw', tw: 'Tw', two: 'Tw',
     fivegigabitethernet: 'Fi', fi: 'Fi', fiv: 'Fi',
     tengigabitethernet: 'Te', te: 'Te', ten: 'Te', 'ten-gigabitethernet': 'Te', xge: 'Te',
-    twentyfivegige: 'Twe', twe: 'Twe', twentyfivegigabitethernet: 'Twe', 'twenty-fivegige': 'Twe', wge: 'Twe',
+    twentyfivegige: 'Twe', twe: 'Twe', tf: 'Twe', twentyfivegigabitethernet: 'Twe', 'twenty-fivegige': 'Twe', wge: 'Twe',
     fortygigabitethernet: 'Fo', fo: 'Fo', 'for': 'Fo', fortygige: 'Fo', fge: 'Fo',
     hundredgige: 'Hu', hu: 'Hu', hun: 'Hu', hundredgigabitethernet: 'Hu', hge: 'Hu',
     appgigabitethernet: 'Ap', ap: 'Ap',
@@ -116,7 +116,7 @@
     'bridge-aggregation': 'BAGG', bagg: 'BAGG',
     vlan: 'Vlan', vl: 'Vlan', 'vlan-interface': 'Vlan',
     loopback: 'Lo', lo: 'Lo', loop: 'Lo',
-    management: 'Ma', ma: 'Ma', mgmt: 'mgmt',
+    management: 'Ma', ma: 'Ma', mgmt: 'mgmt', managementethernet: 'Ma',
     tunnel: 'Tu', tu: 'Tu',
     lag: 'lag', lg: 'lag'
   };
@@ -321,7 +321,7 @@
     'transceiver ', 'control-plane', 'line (con|aux)', 'banner ', 'crypto ', 'call-home', 'class-map ', 'policy-map ',
     'no (login|device-tracking|ip domain[- ]lookup|ip address|aaa new-model|untagged|tagged)', 'enable (secret|password|super-user)',
     'archive', 'alias ', 'hw-module', 'ip forward-protocol', 'ip classless', 'ip subnet-zero', 'login ', 'subscriber ',
-    'mls ', 'module \\d', 'stack-port', 'ip http (authentication|client)', 'switch \\d+ provision', 'system mtu'
+    'mls ', 'module \\d', 'stack-port', '[\\w.\\-@]+[#>]$', 'ip http (authentication|client)', 'switch \\d+ provision', 'system mtu'
   ].join('|') + ')', 'i');
   const NOISE_CMD = /^(terminal |term |skip-page|no page|screen-length|set cli |config system console|set output|show int$|exit|end$|enable$)/i;
 
@@ -374,6 +374,24 @@
     });
     if (cur.lines.some(function (l) { return l.trim(); })) out.push(cur);
     return out.map(function (s) { return { cmd: s.cmd, host: s.host, text: s.lines.join('\n') }; });
+  };
+
+  // One paste holding sessions from several devices ("sw1#show run ... fw2 # show ..."): cut it where
+  // the prompt's hostname changes, so each device is detected and parsed on its own.
+  NP.splitDevices = function (text) {
+    const chunks = [];
+    let cur = [], host = '';
+    String(text).split(/\r?\n/).forEach(function (line) {
+      const m = /<\/[\w.\-:]+>\s*$/.test(line) ? null : line.match(PROMPT);
+      if (m) {
+        const h = m[1].replace(/[#>\s]+$/, '').replace(/^[\[<]|[\]>]$/g, '').replace(/^.*@/, '').replace(/\(.*\)$/, '').trim().toLowerCase();
+        if (h && host && h !== host) { chunks.push(cur.join('\n')); cur = []; }
+        if (h) host = h;
+      }
+      cur.push(line);
+    });
+    chunks.push(cur.join('\n'));
+    return chunks.length > 1 ? chunks : [String(text)];
   };
 
   // Walk fixed-layout "show" tables: find each header line, feed the rows that follow.

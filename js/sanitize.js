@@ -77,6 +77,7 @@
         });
         ['Local users', 'Admin users'].forEach(function (k) { (before.other[k] || '').split(', ').forEach(function (u) { want(u, 'names', 'U'); }); });
         (before.other['Managed switches'] || '').split(', ').forEach(host);
+        host(before.other['Chassis name']);
         want(before.snmp.location, 'names', 'L'); want(before.snmp.contact, 'names', 'L');
         before.stp.notes.forEach(function (t) { const m = t.match(/^MST region (.+)$/); if (m) want(m[1], 'names', 'R'); });
         (before.other.VTP || '').split(', ').forEach(function (t) { const m = t.match(/^domain (.+)$/); if (m) want(m[1], 'names', 'R'); });
@@ -115,6 +116,8 @@
     };
     // banners: keep the command, drop the text
     text = text.replace(/^(banner \S+ )(\^C|\S)([\s\S]*?)\2[^\n]*$/gm, function (all, cmd, d) { counts.secrets++; return cmd + d + ' removed ' + d; });
+    // FastIron ends every banner line with ^C: the lines after the command are banner text too
+    text = text.replace(/^(banner \S+ \^C removed \^C\n)(?:.*\^C[ \t]*\n)+/gm, '$1');
     // certificate / key blobs
     sec(/^[ \t]+(?:[0-9A-Fa-f]{8} ){2,}[0-9A-Fa-f]{1,8}[ \t]*\n(?:[ \t]+(?:[0-9A-Fa-f]{8}[ \t]*)+\n)*/gm, '  00000000 00000000\n');
     sec(/-----BEGIN [A-Z ]+-----[\s\S]*?-----END [A-Z ]+-----/g, '-----REMOVED-----');
