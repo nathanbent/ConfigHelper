@@ -73,6 +73,19 @@
           delete portNames[s.toLowerCase()];
         });
       });
+      // trunks on FortiLink-managed switches are named by the admin too, usually after what is plugged in
+      NP.fortiTree.find(forti, 'switch-controller managed-switch').forEach(function (b) {
+        b.entries.forEach(function (sw) {
+          NP.fortiTree.find(sw, 'ports').forEach(function (pb) {
+            pb.entries.forEach(function (e) {
+              const s = e.name.trim();
+              if (!e.set.type || e.set.type[0] !== 'trunk' || /^_FlInK/i.test(s)) return;      // _FlInK...: built by FortiLink itself
+              if (s.length < 3 || alnum(s) < 3 || /^[\d\/.:\-\s]+$/.test(s) || FORTI_BUILTIN.test(s) || STOP[s.toLowerCase()] || portNames[s.toLowerCase()]) return;
+              fortiIf[s] = true;
+            });
+          });
+        });
+      });
       (text.match(/^[ \t]*(?:set|unset|config|edit)[ \t].*$/gm) || []).forEach(function (ln) {
         ln.replace(/"(?:[^"\\]|\\.)*"?/g, ' ').trim().split(/\s+/).forEach(function (w) { bare[w] = true; });
       });
