@@ -248,7 +248,7 @@
   // ------------------------------------------------------------ manual edits
   // Parsed values are never overwritten: edits live in dev.edits and are laid over the ports
   // whenever they are shown or exported, so re-pasting a config keeps them.
-  NP.editable = ['description', 'neighbor', 'neighborPort', 'notes'];
+  NP.editable = ['description', 'mode', 'untagged', 'tagged', 'neighbor', 'neighborPort', 'notes'];
   NP.eports = function (dev, withExcluded) {
     const ed = dev.edits || {};
     const out = [];

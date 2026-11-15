@@ -20,7 +20,7 @@
   NP.helpLabels = ['Use it for', 'Give it', 'You get', 'Limits', 'More'];
   NP.helpMaxWords = 200;
   // 'input' is the Add device output panel; the rest are the device tabs and the cable list.
-  NP.helpPages = ['input', 'overview', 'ports', 'labels', 'checks', 'compare', 'unparsed', 'cables'];
+  NP.helpPages = ['input', 'overview', 'ports', 'labels', 'checks', 'normalize', 'compare', 'unparsed', 'cables'];
 
   NP.help = {
     input: {
@@ -58,7 +58,7 @@
         'Give it': ['Search text, the filters and the column picker. On a stack or chassis, the unit selector limits the table to one member.'],
         'You get': [
           'The table as CSV, tab-separated text, Markdown or JSON, with the shown or all columns and rows, for this device or every loaded device.',
-          'Edit lets you change descriptions, neighbors and notes, and untick ports to leave them out of exports and labels. Edits are kept apart from the parsed data, so pasting newer output for the device keeps them. Reset edits returns to what was parsed.'
+          'Edit lets you change descriptions, VLANs, neighbors and notes, and untick ports to leave them out of exports and labels. Edits are kept apart from the parsed data, so pasting newer output for the device keeps them. Reset edits returns to what was parsed.'
         ],
         'Limits': [
           'Link state, speed, PoE and neighbors are only as fresh as the show output you pasted. Columns stay empty when that output was not loaded.',
@@ -92,6 +92,22 @@
         'Limits': [
           'These are prompts to look, not verdicts: the tool cannot know what is intentional on your network.',
           'An empty list means nothing was flagged in what was loaded. It does not mean the device is configured correctly.'
+        ]
+      }
+    },
+    normalize: {
+      desc: 'Ports of the same kind that are not written or set up alike, with the correction on offer.',
+      sections: {
+        'Use it for': ['Making labels and port sheets consistent: twenty AP ports where some say `AP` and some say `Access Point`, or where a few carry fewer tagged VLANs than the rest.'],
+        'Give it': ['Port descriptions. Ports are grouped by the kind of thing the description names: known words such as AP, access point and WAP count as one kind; otherwise the first word decides. Choose this device or all loaded devices.'],
+        'You get': [
+          'Per group, the ports written differently with the description they would get, and the ports whose mode, native or tagged VLANs differ from what most of the group has, with what is missing or extra.',
+          'Choose which spelling or VLAN setup to use, then apply it to one port or all. Copy list gives the findings as text, for fixing the switch.'
+        ],
+        'Limits': [
+          'Corrections are manual edits: they change this table, its exports and the labels, never the switch. Edit on the Ports tab shows and undoes them.',
+          'A corrected VLAN is what the label says, not what the port carries, until the switch is changed too.',
+          'VLANs are compared only in groups of three or more ports where at least 60% agree. A port may differ on purpose.'
         ]
       }
     },

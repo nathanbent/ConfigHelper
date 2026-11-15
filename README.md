@@ -20,7 +20,7 @@ Offline: Open `dist/confighelper.html` in a browser. That single file is the who
 3. Paste more output for the same device later; it merges by hostname (taken from the config or the CLI prompt). If the paste has no hostname, it goes into the selected device. One paste holding sessions from several devices is cut where the prompt's hostname changes, and each device is added on its own.
 4. Use the **Ports** tab to filter, sort, pick columns and export. Use **Labels** to build label rows.
 
-**Edit** on the Ports tab lets you change descriptions, neighbors and notes, and untick ports to leave them out
+**Edit** on the Ports tab lets you change descriptions, VLANs, neighbors and notes, and untick ports to leave them out
 of exports and labels. Edits are stored separately from the parsed data, so pasting newer output for the same
 device keeps them, and **Reset edits** returns to what was parsed.
 
@@ -29,6 +29,14 @@ half duplex, VLANs used but not defined, PortFast on trunks, access ports withou
 carrying every VLAN or using native VLAN 1, missing NTP or syslog, plain HTTP or Telnet management, SNMP
 without v3, DHCP snooping with no trusted port, and more. Each finding lists its ports and can filter the
 Ports tab to them. They are prompts to review, not verdicts.
+
+The **Normalize** tab finds ports of the same kind that are not written or set up alike, on one device or across
+all of them. Ports are grouped by what the description names (AP, access point and WAP count as one kind;
+otherwise the first word decides). It lists the ports spelled differently (`Access Point Lobby` among twenty
+`AP ...` ports) with the description they would get, and the ports whose mode, native or tagged VLANs differ
+from what most of the group has (`missing tagged 30`). Pick the spelling or VLAN setup to use and apply it to one
+port or all. Corrections are manual edits, so they reach exports and labels but never the parsed data or the
+switch: a corrected VLAN is what the label says until the switch is changed too.
 
 The **Compare** tab shows what changed between two states of a device. Save a snapshot, or choose "Selected
 device, as a new snapshot" under Add to and paste newer output: the old state is kept as a snapshot and the
@@ -159,6 +167,7 @@ Layout:
 - `js/core.js` data model, port-name normalisation, input splitting, ingest/merge
 - `js/detect.js` vendor auto-detection
 - `js/parsers/*.js` one file per CLI family; each calls `NP.registerVendor(id, label, parse)`
+- `js/normalize.js` the Normalize tab's grouping and corrections
 - `js/export.js` summary, CSV, labels, backup
 - `js/app.js` the UI
 - `js/samples.js` sample inputs (also the test fixtures)

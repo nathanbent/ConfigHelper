@@ -17,6 +17,7 @@
     sig: '', backupSig: '', lastBackup: '',
     editing: false, only: null,          // only: {title, keys} = Ports tab limited to the ports of one check
     exp: { fmt: 'csv', cols: 'shown', rows: 'shown', devs: 'device' },
+    norm: { scope: 'device', pick: {} },  // Normalize tab: this device or all, and what each group is normalized to (not saved)
     label: { preset: 'port', per: 'port', lines: NP.labelPresets.port.lines.slice(), scope: 'device',
       physicalOnly: true, upOnly: false, describedOnly: false, skipDisabled: true,
       match: '', maxLen: 0, refCols: false, dedupe: false, delim: ',' }
@@ -317,6 +318,7 @@
     }
     const tabs = [['overview', 'Overview'], ['ports', 'Ports (' + dev.ports.length + ')'], ['labels', 'Labels'],
       ['checks', 'Checks (' + NP.checks(dev).length + ')'],
+      ['normalize', 'Normalize (' + NP.normalizeCount(NP.normalize([dev], state.norm.pick)) + ')'],
       ['compare', 'Compare (' + (dev.snapshots || []).length + ')'],
       ['unparsed', 'Not parsed (' + (dev.unparsed || []).length + ')']];
     view.appendChild(h('section', { class: 'card' },
@@ -342,6 +344,7 @@
     else if (state.tab === 'labels') labels(view, dev);
     else if (state.tab === 'unparsed') unparsed(view, dev);
     else if (state.tab === 'checks') checks(view, dev);
+    else if (state.tab === 'normalize') normalize(view, dev);
     else if (state.tab === 'compare') compare(view, dev);
     else ports(view, dev);
   }
@@ -409,6 +412,63 @@
             state.only = { title: f.title, keys: f.ports.map(function (p) { return p.key; }) };
             state.tab = 'ports'; state.search = ''; state.physOnly = false; state.hideDown = false; render();
           } }, 'Show these ' + f.ports.length + ' in Ports')) : null));
+    });
+  }
+
+  // Ports of the same kind that are not written or set up alike, with the correction on offer.
+  function normalize(view, dev) {
+    const N = state.norm;
+    const many = N.scope === 'all' && state.devices.length > 1;
+    const devs = many ? state.devices : [dev];
+    const groups = NP.normalize(devs, N.pick);
+    const total = NP.normalizeCount(groups);
+    const apply = function (kind, rows, what) {
+      const n = NP.normalizeApply(kind, rows);
+      save(); render();
+      msg('Changed the ' + what + ' of ' + n + ' port(s) in the table, exports and labels. Edit on the Ports tab shows and undoes it.', 'ok');
+    };
+    const choose = function (g, field, value, options, aria) {
+      return sel(value, options, function (v) { (N.pick[g.id] = N.pick[g.id] || {})[field] = v; render(); }, aria);
+    };
+    const table = function (heads, rows, cells) {
+      return h('div', { class: 'tablewrap' }, h('table', { class: 'normtable' },
+        h('thead', {}, h('tr', {}, (many ? ['Device'] : []).concat(heads, ['']).map(function (t) { return h('th', { class: 'nosort', scope: 'col', text: t }); }))),
+        h('tbody', {}, rows.map(function (r) {
+          return h('tr', {}, many ? h('td', { text: r.dev.hostname || '(unnamed)' }) : null, h('td', { class: 'mono', text: r.short }), cells(r));
+        }))));
+    };
+    view.appendChild(h('section', { class: 'card' },
+      h('div', { class: 'toolbar' },
+        h('span', { class: 'count', text: total
+          ? total + ' port(s) differ from the others of their kind, in ' + groups.length + ' group(s).'
+          : 'Nothing to normalize: ports with the same kind of description are written and set up alike.' }),
+        h('span', { class: 'spacer' }),
+        state.devices.length > 1 ? sel(N.scope, [['device', 'This device only'], ['all', 'All loaded devices (' + state.devices.length + ')']],
+          function (v) { N.scope = v; render(); }, 'Devices to compare') : null,
+        total ? h('button', { onclick: function (e) { copyText(NP.normalizeText(devs, N.pick), e.target, 'Copy list'); } }, 'Copy list') : null),
+      h('p', { class: 'hint', text: 'Applying a correction changes this table, its exports and the labels only. Nothing is written to the switch: a port with different VLANs still has to be fixed there, or its label will not match what it carries.' })));
+    groups.forEach(function (g) {
+      const S = g.spelling, V = g.vlans;
+      view.appendChild(h('section', { class: 'card finding' },
+        h('div', { class: 'findhead' }, h('h3', { text: g.label + ' (' + g.count + ' ports)' })),
+        S ? [
+          h('div', { class: 'normhead' },
+            h('span', { text: 'Written ' + S.variants.length + ' ways. Use' }),
+            choose(g, 'spelling', S.target, S.variants.map(function (v) { return [v.text, v.text + ' (' + v.count + ')']; }), 'Spelling to use for ' + g.label),
+            h('button', { class: 'primary', onclick: function () { apply('spelling', S.rows, 'description'); } }, 'Rename all ' + S.rows.length)),
+          table(['Port', 'Description', 'Becomes'], S.rows, function (r) {
+            return [h('td', { class: 'wrap', text: r.from }), h('td', { class: 'wrap', text: r.to }),
+              h('td', {}, h('button', { 'aria-label': 'Rename ' + r.short, onclick: function () { apply('spelling', [r], 'description'); } }, 'Rename'))];
+          })] : null,
+        V ? [
+          h('div', { class: 'normhead' },
+            h('span', { text: V.profiles[0].count + ' of ' + V.of + ' have the same VLANs. Compare with' }),
+            choose(g, 'profile', V.target, V.profiles.map(function (p) { return [p.sig, p.label + ' (' + p.count + ')']; }), 'VLAN setup to compare ' + g.label + ' with'),
+            h('button', { onclick: function () { apply('vlans', V.rows, 'VLANs'); } }, 'Set all ' + V.rows.length + ' to match')),
+          table(['Port', 'VLANs now', 'Difference'], V.rows, function (r) {
+            return [h('td', { class: 'mono', text: r.from }), h('td', { class: 'wrap', text: r.diff }),
+              h('td', {}, h('button', { 'aria-label': 'Set ' + r.short + ' to match', onclick: function () { apply('vlans', [r], 'VLANs'); } }, 'Set to match'))];
+          })] : null));
     });
   }
 
@@ -713,7 +773,7 @@
           } }, 'Copy'))));
     const ec = NP.editCount(dev);
     const editBtn = h('button', { class: state.editing ? 'primary' : '', 'aria-pressed': String(state.editing),
-      title: 'Change descriptions, neighbors and notes, or leave ports out of exports and labels',
+      title: 'Change descriptions, VLANs, neighbors and notes, or leave ports out of exports and labels',
       onclick: function () { state.editing = !state.editing; render(); } }, state.editing ? 'Done editing' : 'Edit');
     const resetBtn = state.editing && ec.total ? h('button', { class: 'danger', onclick: function () {
       if (!confirm('Discard ' + ec.total + ' manual change(s) on ' + (dev.hostname || 'this device') + ' and go back to the parsed values?')) return;
@@ -754,7 +814,7 @@
         if (NP.editable.includes(c.id)) {
           const title = was !== undefined ? 'Parsed value: ' + (was || '(empty)') : null;
           if (state.editing) {
-            return h('td', { class: 'editcell' + (was !== undefined ? ' edited' : '') },
+            return h('td', { class: 'editcell' + (was !== undefined ? ' edited' : '') + (c.id === 'mode' || c.id === 'untagged' ? ' narrow' : '') },
               h('input', { type: 'text', value: v || '', title: title, 'aria-label': c.label + ' for ' + p.short,
                 onchange: function (e) { NP.setEdit(dev, p.key, c.id, e.target.value); save(); render(); } }));
           }
