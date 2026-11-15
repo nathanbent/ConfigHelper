@@ -218,5 +218,5 @@ test('label templates, CSV and backup round-trip', () => {
   const back = NP.restore(NP.backup([d]));
   assert.equal(back[0].hostname, d.hostname);
   assert.equal(back[0].ports.length, d.ports.length);
-  assert.throws(() => NP.restore('{"x":1}'), /not a PortSheet backup/);
+  assert.throws(() => NP.restore('{"x":1}'), /not a ConfigHelper backup/);
 });

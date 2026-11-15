@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PortSheet</title>
+<title>ConfigHelper</title>
 <style>
 :root {
   --bg: #f3f5f8; --panel: #ffffff; --ink: #18212d; --muted: #5f6b7a; --line: #d9dfe7;
@@ -136,9 +136,9 @@ td.mono { font-family: var(--mono); font-size: 12.5px; }
 </head>
 <body>
 <header class="top">
-  <div class="brand"><span class="logo" aria-hidden="true"></span>PortSheet <small>switch, router and firewall config to tables and labels</small></div>
+  <div class="brand"><span class="logo" aria-hidden="true"></span>ConfigHelper <small>switch, router and firewall config to tables and labels</small></div>
   <div class="top-actions">
-    <button id="btnImport" title="Load a PortSheet backup (.json)">Import backup</button>
+    <button id="btnImport" title="Load a ConfigHelper backup (.json)">Import backup</button>
     <button id="btnBackup" title="Save every loaded device as one JSON file">Export backup</button>
     <button id="btnClear" class="danger">Clear all</button>
     <input type="file" id="fileBackup" accept=".json,application/json" hidden>
@@ -188,7 +188,7 @@ A whole terminal session works too, for example:
 </div>
 
 <script>
-/* PortSheet core: shared data model, helpers, vendor registry.
+/* ConfigHelper core: shared data model, helpers, vendor registry.
  * Plain script (no modules) so index.html works straight from file://.
  * In Node, require() the files in order; everything hangs off globalThis.NP. */
 (function (root) {
@@ -2699,12 +2699,12 @@ set enabled=yes location="Workshop cabinet"
 
   // ------------------------------------------------------------------ backup
   NP.backup = function (devices) {
-    return JSON.stringify({ format: 'portsheet-backup', version: 1, exported: new Date().toISOString(), devices: devices }, null, 1);
+    return JSON.stringify({ format: 'confighelper-backup', version: 1, exported: new Date().toISOString(), devices: devices }, null, 1);
   };
   NP.restore = function (json) {
     const data = typeof json === 'string' ? JSON.parse(json) : json;
-    if (!data || data.format !== 'portsheet-backup' || !Array.isArray(data.devices)) {
-      throw new Error('That file is not a PortSheet backup.');
+    if (!data || (data.format !== 'confighelper-backup' && data.format !== 'portsheet-backup') || !Array.isArray(data.devices)) {
+      throw new Error('That file is not a ConfigHelper backup.');
     }
     return data.devices.map(function (d) {
       const dev = Object.assign(NP.newDevice(), d);
@@ -2715,12 +2715,12 @@ set enabled=yes location="Workshop cabinet"
 })(typeof globalThis !== 'undefined' ? globalThis : this);
 </script>
 <script>
-/* PortSheet UI. All rendering goes through h() / textContent: pasted configs are untrusted text. */
+/* ConfigHelper UI. All rendering goes through h() / textContent: pasted configs are untrusted text. */
 (function () {
   'use strict';
   const NP = window.NP;
   const $ = function (id) { return document.getElementById(id); };
-  const STORE = 'portsheet.v1';
+  const STORE = 'confighelper.v1';
 
   const state = {
     devices: [], current: null, tab: 'ports',
@@ -2761,7 +2761,7 @@ set enabled=yes location="Workshop cabinet"
     try {
       const d = JSON.parse(localStorage.getItem(STORE) || 'null');
       if (!d) return;
-      state.devices = NP.restore({ format: 'portsheet-backup', devices: d.devices || [] });
+      state.devices = NP.restore({ format: 'confighelper-backup', devices: d.devices || [] });
       state.current = d.current;
       if (Array.isArray(d.cols) && d.cols.length) state.cols = d.cols;
       if (d.label) Object.assign(state.label, d.label);
@@ -3075,7 +3075,7 @@ set enabled=yes location="Workshop cabinet"
     });
     $('btnBackup').addEventListener('click', function () {
       if (!state.devices.length) { msg('Nothing to back up yet.', 'err'); return; }
-      download('portsheet-backup-' + new Date().toISOString().slice(0, 10) + '.json', NP.backup(state.devices), 'application/json');
+      download('confighelper-backup-' + new Date().toISOString().slice(0, 10) + '.json', NP.backup(state.devices), 'application/json');
     });
     $('btnImport').addEventListener('click', function () { $('fileBackup').click(); });
     $('fileBackup').addEventListener('change', function (e) {

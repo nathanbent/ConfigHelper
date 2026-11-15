@@ -1,9 +1,9 @@
-/* PortSheet UI. All rendering goes through h() / textContent: pasted configs are untrusted text. */
+/* ConfigHelper UI. All rendering goes through h() / textContent: pasted configs are untrusted text. */
 (function () {
   'use strict';
   const NP = window.NP;
   const $ = function (id) { return document.getElementById(id); };
-  const STORE = 'portsheet.v1';
+  const STORE = 'confighelper.v1';
 
   const state = {
     devices: [], current: null, tab: 'ports',
@@ -44,7 +44,7 @@
     try {
       const d = JSON.parse(localStorage.getItem(STORE) || 'null');
       if (!d) return;
-      state.devices = NP.restore({ format: 'portsheet-backup', devices: d.devices || [] });
+      state.devices = NP.restore({ format: 'confighelper-backup', devices: d.devices || [] });
       state.current = d.current;
       if (Array.isArray(d.cols) && d.cols.length) state.cols = d.cols;
       if (d.label) Object.assign(state.label, d.label);
@@ -358,7 +358,7 @@
     });
     $('btnBackup').addEventListener('click', function () {
       if (!state.devices.length) { msg('Nothing to back up yet.', 'err'); return; }
-      download('portsheet-backup-' + new Date().toISOString().slice(0, 10) + '.json', NP.backup(state.devices), 'application/json');
+      download('confighelper-backup-' + new Date().toISOString().slice(0, 10) + '.json', NP.backup(state.devices), 'application/json');
     });
     $('btnImport').addEventListener('click', function () { $('fileBackup').click(); });
     $('fileBackup').addEventListener('change', function (e) {

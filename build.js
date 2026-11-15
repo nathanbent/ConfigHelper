@@ -1,4 +1,4 @@
-// Bundles index.html + css + js into one self-contained file: dist/portsheet.html
+// Bundles index.html + css + js into one self-contained file: dist/confighelper.html
 // Usage: node build.js
 const fs = require('fs');
 const path = require('path');
@@ -12,5 +12,5 @@ html = html.replace(/<script src="([^"]+)"><\/script>/g, function (all, src) {
   return '<script>\n' + js + '</script>';
 });
 fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
-fs.writeFileSync(path.join(root, 'dist', 'portsheet.html'), html);
-console.log('dist/portsheet.html', (html.length / 1024).toFixed(0) + ' kB');
+fs.writeFileSync(path.join(root, 'dist', 'confighelper.html'), html);
+console.log('dist/confighelper.html', (html.length / 1024).toFixed(0) + ' kB');

@@ -150,12 +150,12 @@
 
   // ------------------------------------------------------------------ backup
   NP.backup = function (devices) {
-    return JSON.stringify({ format: 'portsheet-backup', version: 1, exported: new Date().toISOString(), devices: devices }, null, 1);
+    return JSON.stringify({ format: 'confighelper-backup', version: 1, exported: new Date().toISOString(), devices: devices }, null, 1);
   };
   NP.restore = function (json) {
     const data = typeof json === 'string' ? JSON.parse(json) : json;
-    if (!data || data.format !== 'portsheet-backup' || !Array.isArray(data.devices)) {
-      throw new Error('That file is not a PortSheet backup.');
+    if (!data || (data.format !== 'confighelper-backup' && data.format !== 'portsheet-backup') || !Array.isArray(data.devices)) {
+      throw new Error('That file is not a ConfigHelper backup.');
     }
     return data.devices.map(function (d) {
       const dev = Object.assign(NP.newDevice(), d);

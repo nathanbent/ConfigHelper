@@ -1,4 +1,4 @@
-/* PortSheet core: shared data model, helpers, vendor registry.
+/* ConfigHelper core: shared data model, helpers, vendor registry.
  * Plain script (no modules) so index.html works straight from file://.
  * In Node, require() the files in order; everything hangs off globalThis.NP. */
 (function (root) {

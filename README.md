@@ -1,4 +1,4 @@
-# PortSheet
+# ConfigHelper
 
 Paste a switch, router or firewall config (and optionally show-command output) and get:
 
@@ -10,7 +10,7 @@ Everything runs in the browser. Nothing is uploaded, and secrets (password hashe
 
 ## Use it
 
-Open `dist/portsheet.html` in a browser. That single file is the whole app; copy it anywhere.
+Open `dist/confighelper.html` in a browser. That single file is the whole app; copy it anywhere.
 (`index.html` also works directly and is the one to use while editing the source.)
 
 1. Paste a config, show output, or a whole terminal session, or drop text files on the box. Press **Parse**.
