@@ -8,6 +8,7 @@
       /^Version:\s*FortiSwitch/m, /Portname\s+Status\s+(Tpid|Device-name)/],
     ['fortigate', /^\s*config system (global|interface)\b/m, /^#config-version=F/m],
     ['mikrotik', /by RouterOS/, /^\/(interface|ip|system) [a-z]/m],
+    ['unifi', /"port_table"\s*:\s*\[[\s\S]*"port_idx"/],
     ['pfsense', /<(pfsense|opnsense)>\s*<\w/, /<(pfsense|opnsense)>[\s\S]*<interfaces>/],
     ['paloalto', /^set (deviceconfig|mgt-config) /m, /^set network (interface|virtual-router|profiles) /m,
       /<config[^>]*\bversion="[\d.]+"[^>]*>\s*<(mgt-config|shared|devices)\b/, /^\s*deviceconfig \{\s*$/m, /^sw-version:\s/m,

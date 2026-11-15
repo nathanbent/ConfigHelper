@@ -181,6 +181,8 @@
       { cmd: 'show interface all', gives: 'link state, speed, zone, addresses' }] },
     pfsense: { pager: '', cmds: [
       { cmd: 'cat /conf/config.xml', gives: 'the whole configuration. Easier: in the web interface use Diagnostics > Backup & Restore (pfSense) or System > Configuration > Backups (OPNsense), download the XML and drop the file on the box below' }] },
+    unifi: { pager: '', cmds: [
+      { cmd: 'mca-dump', gives: 'run on the switch over SSH: ports, link, speed, PoE and neighbors as JSON, but no VLAN names. For VLANs use the controller instead: while logged in, open https://<controller>/proxy/network/api/s/default/stat/device and .../rest/networkconf (on a classic controller, https://<host>:8443/api/s/default/...), save both and paste or drop them together' }] },
     mikrotik: { pager: '', cmds: [
       { cmd: '/export', gives: 'bridge ports, VLANs, addresses, DNS, NTP and the rest (on RouterOS 6 use "/export hide-sensitive")' }] }
   };

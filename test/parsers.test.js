@@ -487,6 +487,49 @@ test('pfSense / OPNsense config.xml', () => {
   assert.ok(s.same && !s.text.includes('$2y$') && !s.text.includes('shopmon') && !s.text.includes('fw-shop') && s.text.includes('<if>igb0</if>'));
 });
 
+test('Ubiquiti UniFi: controller JSON with networks', () => {
+  const r = run('unifi');
+  const d = r.dev;
+  assert.deepEqual([d.hostname, d.model, d.version, d.serial, d.mgmtIp, d.stp.mode, d.stp.priority.join()],
+    ['UNIFI-IDF1', 'US-24-250W', '6.6.65.15248', '0000000000A1', '10.44.0.11', 'rstp', '8192']);
+  assert.equal(d.vlans.map(v => v.id + ':' + v.name).join(), '1:Default,10:Staff,20:Cameras,30:Guest');
+  assert.deepEqual(r.extra.map(x => [x.dev.hostname, x.dev.vendor, x.dev.ports.length]), [['UNIFI-CORE', 'unifi', 1]]);   // the access point is left out
+  const p1 = port(d, 'Port 1');
+  assert.deepEqual([p1.description, p1.mode, p1.untagged, p1.tagged, p1.link, p1.speed, p1.poeStatus, p1.poeWatts, p1.poeClass, p1.neighbor, p1.neighborPort, p1.stpState],
+    ['AP hallway', 'trunk', '1', 'all', 'up', '1G', 'on', '7.4', '4', 'AP-Hallway', 'eth0', 'forwarding']);
+  const p2 = port(d, 'Port 2');
+  assert.deepEqual([p2.mode, p2.untagged, p2.tagged, p2.speed], ['access', '20', '', '100M']);
+  const p3 = port(d, 'Port 3');
+  assert.deepEqual([p3.mode, p3.untagged, p3.tagged, p3.link, p3.poeAdmin, p3.poeStatus], ['trunk', '10', '30', 'down', 'disabled', 'off']);   // custom: all except 1 and 20
+  assert.deepEqual([port(d, 'Port 4').adminUp, port(d, 'Port 4').description], [false, '']);
+  const up = port(d, 'Port 25');
+  assert.deepEqual([up.media, up.neighbor, up.neighborPort, up.notes, up.poeAdmin], ['SFP', 'UNIFI-CORE', 'Port 8', 'uplink', '']);   // neighbor named from its MAC
+  assert.ok(!JSON.stringify(d).includes('0123456789abcdef'));
+  // the two switches report each other, so the cable list pairs them up
+  const cables = NP.cables([d, r.extra[0].dev]);
+  assert.deepEqual(cables.filter(c => c.status === 'both ends').map(c => c.a.host + ' ' + c.a.port + ' - ' + c.b.host + ' ' + c.b.port), ['UNIFI-IDF1 Port 25 - UNIFI-CORE Port 8']);
+  assert.equal(NP.units(d).length, 0);
+});
+
+test('Ubiquiti UniFi: mca-dump from one switch (no network list)', () => {
+  const dump = 'UNIFI-IDF1-US.6.6.65# mca-dump\n' + JSON.stringify({ hostname: 'UNIFI-IDF1', model: 'US24P250', version: '6.6.65.15248', serial: 'A1', ip: '10.44.0.11',
+    port_table: [{ port_idx: 1, media: 'GE', port_poe: true, up: true, speed: 1000, full_duplex: true, poe_good: true, poe_power: '7.42', poe_class: 'Class 4' },
+      { port_idx: 2, media: 'GE', port_poe: true, up: false, speed: 0, poe_power: '0.00' }],
+    lldp_table: [{ local_port_idx: 1, chassis_id: '00:00:5e:00:53:c1', port_id: 'eth0' }] }, null, 2);
+  const r = NP.ingest(dump, { devices: [] });
+  const d = r.dev;
+  assert.deepEqual([r.vendor, d.hostname, d.ports.length, r.extra.length], ['unifi', 'UNIFI-IDF1', 2, 0]);
+  const p1 = port(d, 'Port 1');
+  assert.deepEqual([p1.link, p1.speed, p1.poeWatts, p1.neighbor, p1.neighborPort, p1.mode, p1.untagged], ['up', '1G', '7.4', '00:00:5e:00:53:c1', 'eth0', '', '']);
+  assert.match(d.stp.notes.join(), /network list/);
+  // pasted after the controller JSON, it merges into the same device
+  const devices = [];
+  const c = NP.ingest(NP.samples.unifi.text, { devices });
+  devices.push(c.dev, ...c.extra.map(x => x.dev));
+  const m = NP.ingest(dump, { devices });
+  assert.deepEqual([m.isNew, m.dev === c.dev, port(c.dev, 'Port 1').untagged, port(c.dev, 'Port 1').description], [false, true, '1', 'AP hallway']);
+});
+
 test('MikroTik RouterOS', () => {
   const d = run('mikrotik').dev;
   assert.equal(d.hostname, 'MT-WORKSHOP');
@@ -784,6 +827,9 @@ test('sanitize: secrets and addresses without a recognised platform', () => {
   assert.ok(r.text.includes('255.255.255.0') && r.text.includes('0.0.0.0 0.0.0.0') && r.text.includes('10:15:30'));
   assert.match(r.text, /ip route 0\.0\.0\.0 0\.0\.0\.0 10\.2\.100\.1\nip address 10\.2\.100\.7 /);       // same network, same replacement
   assert.match(r.text, /mac 00:00:5e:00:53:01 and 0000\.5e00\.5301/);                                          // same MAC in both notations
+  assert.match(r.text, /add name=u1 password=removed group=full/);                                               // key=value keeps its key
+  const x = NP.sanitize('<snmpd><rocommunity>s3cr3t</rocommunity><syslocation>x</syslocation></snmpd>\n{"x_authkey":"abc123","name":"sw"}', { vendor: 'auto' });
+  assert.equal(x.text, '<snmpd><rocommunity>removed</rocommunity><syslocation>x</syslocation></snmpd>\n{"x_authkey":"removed","name":"sw"}');
 });
 
 test('messy paste cleanup', () => {

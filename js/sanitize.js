@@ -105,7 +105,14 @@
     });
 
     // ---------------------------------------------- 2. secrets (always)
-    const sec = function (re, to) { text = text.replace(re, function () { counts.secrets++; return typeof to === 'function' ? to.apply(null, arguments) : to; }); };
+    // (a string replacement may use $1, $2 ... for captured groups, as with String.replace)
+    const sec = function (re, to) {
+      text = text.replace(re, function () {
+        counts.secrets++;
+        const args = arguments;
+        return typeof to === 'function' ? to.apply(null, args) : to.replace(/\$(\d)/g, function (all, n) { return args[+n] === undefined ? '' : args[+n]; });
+      });
+    };
     // banners: keep the command, drop the text
     text = text.replace(/^(banner \S+ )(\^C|\S)([\s\S]*?)\2[^\n]*$/gm, function (all, cmd, d) { counts.secrets++; return cmd + d + ' removed ' + d; });
     // certificate / key blobs
@@ -113,6 +120,8 @@
     sec(/-----BEGIN [A-Z ]+-----[\s\S]*?-----END [A-Z ]+-----/g, '-----REMOVED-----');
     // XML configs keep secrets as element content: <bcrypt-hash>, <password>, <prv>, <pre-shared-key>, <rocommunity> ...
     sec(/<([\w.\-]*(?:password|passwd|secret|hash|psk|community|prv|crt|key|passphrase)[\w.\-]*)>(?!removed<)([\s\S]*?)<\/\1>/gi, '<$1>removed</$1>');
+    // JSON (UniFi): "x_authkey": "...", "x_passphrase": "...", any key that names a secret
+    sec(/"(x_\w+|\w*(?:password|passphrase|secret|authkey|psk|private_key|fingerprint)\w*)"(\s*:\s*)"(?!removed")[^"]*"/gi, '"$1"$2"removed"');
     sec(/\bENC\s+\S+/g, 'ENC removed');
     sec(/\b(password|secret|passphrase|key|community|psksecret|passwd)=("[^"]*"|\S+)/gi, '$1=removed');
     sec(/\b(secret|password|passwd|key|key-string|community|auth|priv|md5|sha\d*|psk|passphrase|pre-shared-key|encrypted-password|cipher|simple|hash|super-user-password)\b(\s+\d)?\s+(?!removed\b)("[^"]*"|\S+)/gi,

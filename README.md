@@ -81,6 +81,7 @@ Loaded devices are remembered in the browser's local storage; use **Export backu
 | Fortinet FortiSwitch (standalone) | `show` | `get system status`, `diagnose switch physical-ports summary`, `get switch poe inline`, `get switch lldp neighbors-summary` |
 | Palo Alto PAN-OS | exported `running-config.xml`, `set` format, or the default brace format | `show system info`, `show interface all` |
 | pfSense / OPNsense | exported `config.xml` | |
+| Ubiquiti UniFi | controller JSON: device list (`stat/device`), ideally with the network list (`rest/networkconf`) | `mca-dump` on the switch |
 | MikroTik RouterOS | `/export` | |
 
 Tested against real output so far: Cisco Catalyst 3850 on IOS-XE 16.12 (`test/fixtures/`). Everything else
@@ -88,7 +89,7 @@ was written against the vendors' documented formats and the made-up samples in `
 gaps on real devices; when you find one, add the output (sanitised) to `test/fixtures/` with a test and fix
 the parser.
 
-Not covered yet: UniFi, EdgeOS/VyOS.
+Not covered yet: EdgeOS/VyOS.
 
 ## Labels and P-touch Editor
 

@@ -1239,6 +1239,42 @@ loopback.1          3     1                     vr:default               0      
 </pfsense>
 `};
 
+  S.unifi = { label: 'Ubiquiti UniFi (controller JSON)', text: String.raw`{"meta":{"rc":"ok"},"data":[
+ {"_id":"n0","name":"Default","purpose":"corporate"},
+ {"_id":"n10","name":"Staff","purpose":"corporate","vlan_enabled":true,"vlan":10},
+ {"_id":"n20","name":"Cameras","purpose":"vlan-only","vlan_enabled":true,"vlan":20},
+ {"_id":"n30","name":"Guest","purpose":"guest","vlan_enabled":true,"vlan":30}
+]}
+{"meta":{"rc":"ok"},"data":[
+ {"_id":"d1","mac":"00:00:5e:00:53:a1","type":"usw","model":"US24P250","model_display":"US-24-250W","name":"UNIFI-IDF1","version":"6.6.65.15248","serial":"0000000000A1",
+  "ip":"10.44.0.11","adopted":true,"stp_version":"rstp","stp_priority":"8192","x_authkey":"0123456789abcdef0123456789abcdef",
+  "config_network":{"type":"dhcp"},
+  "port_overrides":[
+   {"port_idx":1,"name":"AP hallway","native_networkconf_id":"n0","tagged_vlan_mgmt":"auto"},
+   {"port_idx":2,"name":"Camera dock","native_networkconf_id":"n20","tagged_vlan_mgmt":"block_all","poe_mode":"auto"},
+   {"port_idx":3,"name":"Till 1","native_networkconf_id":"n10","tagged_vlan_mgmt":"custom","excluded_networkconf_ids":["n0","n20"],"poe_mode":"off"},
+   {"port_idx":4,"forward":"disabled"}
+  ],
+  "port_table":[
+   {"port_idx":1,"name":"AP hallway","media":"GE","port_poe":true,"up":true,"enable":true,"speed":1000,"full_duplex":true,"poe_enable":true,"poe_mode":"auto","poe_good":true,"poe_power":"7.42","poe_class":"Class 4","stp_state":"forwarding"},
+   {"port_idx":2,"name":"Camera dock","media":"GE","port_poe":true,"up":true,"enable":true,"speed":100,"full_duplex":true,"poe_enable":true,"poe_mode":"auto","poe_good":true,"poe_power":"3.10","poe_class":"Class 2","stp_state":"forwarding"},
+   {"port_idx":3,"name":"Till 1","media":"GE","port_poe":true,"up":false,"enable":true,"speed":0,"poe_enable":false,"poe_mode":"off","poe_power":"0.00","stp_state":"disabled"},
+   {"port_idx":4,"name":"Port 4","media":"GE","port_poe":true,"up":false,"enable":true,"speed":0,"poe_power":"0.00"},
+   {"port_idx":25,"name":"SFP 1","media":"SFP","port_poe":false,"up":true,"enable":true,"speed":1000,"full_duplex":true,"is_uplink":true,"stp_state":"forwarding"}
+  ],
+  "lldp_table":[
+   {"local_port_idx":1,"chassis_id":"00:00:5e:00:53:c1","port_id":"eth0","lldp_system_name":"AP-Hallway"},
+   {"local_port_idx":25,"chassis_id":"00:00:5e:00:53:b1","port_id":"Port 8"}
+  ]},
+ {"_id":"d2","mac":"00:00:5e:00:53:b1","type":"usw","model":"US8P60","model_display":"US-8-60W","name":"UNIFI-CORE","version":"6.6.65.15248","serial":"0000000000B1","ip":"10.44.0.10",
+  "port_table":[
+   {"port_idx":8,"name":"To IDF1","media":"GE","up":true,"enable":true,"speed":1000,"full_duplex":true,"stp_state":"forwarding"}
+  ],
+  "lldp_table":[{"local_port_idx":8,"chassis_id":"00:00:5e:00:53:a1","port_id":"Port 25"}]},
+ {"_id":"d3","mac":"00:00:5e:00:53:c1","type":"uap","model":"U6LR","name":"AP-Hallway","port_table":[{"port_idx":1,"up":true,"speed":1000}]}
+]}
+`};
+
   S.mikrotik = { label: 'MikroTik RouterOS (/export)', text: String.raw`# 2025-03-02 10:11:12 by RouterOS 7.14.2
 # software id = ABCD-1234
 #
