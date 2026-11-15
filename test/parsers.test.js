@@ -134,6 +134,32 @@ test('Cisco NX-OS', () => {
   assert.match(d.mgmtIp, /^10\.20\.99\.21\/24/);
 });
 
+test('Dell OS6 (N-series)', () => {
+  const r = run('os6');
+  const d = r.dev;
+  assert.deepEqual(r.cleaned, []);                                           // flush-left "exit" style is not mistaken for lost indentation
+  assert.deepEqual([d.hostname, d.model, d.version, d.serial], ['N2048-IDF1', 'N2048P', '6.3.3.10', 'CN0000000000000001']);
+  assert.deepEqual([d.gateway, d.domain, d.dns.join(), d.ntp.join(), d.syslog.join()], ['10.95.99.1', 'site.example.org', '10.95.0.53', '10.95.0.1', '10.95.0.60']);
+  assert.deepEqual([d.stp.mode, d.stp.priority.join()], ['rapid-pvst', '8192']);
+  assert.equal(d.vlans.map(v => v.id + ':' + v.name).join(), '10:Staff,20:Phones,30:,99:Mgmt');
+  assert.match(d.mgmtIp, /^10\.95\.99\.14\/24 \(Vlan99\)/);
+  const g1 = port(d, 'Gi1/0/1');
+  assert.deepEqual([g1.description, g1.mode, g1.untagged, g1.tagged, g1.link, g1.speed, g1.poeStatus, g1.poeWatts, g1.poeClass, g1.neighbor, g1.neighborPort],
+    ['AP east wing', 'trunk', '99', '10,30', 'up', '1G', 'on', '9.2', '4', 'AP-EastWing', 'eth0']);
+  const g2 = port(d, 'Gi1/0/2');
+  assert.deepEqual([g2.mode, g2.untagged, g2.tagged, g2.stp, g2.speed, g2.neighbor], ['general', '10', '20', 'edge', '100M', '']);
+  const g3 = port(d, 'Gi1/0/3');
+  assert.deepEqual([g3.mode, g3.untagged, g3.poeAdmin, g3.link], ['access', '10', 'disabled', 'down']);
+  assert.equal(port(d, 'Gi1/0/4').adminUp, false);
+  const te = port(d, 'Te1/0/1');
+  assert.deepEqual([te.lag, te.mode, te.speed, te.neighbor, te.neighborPort], ['Po1', '', '10G', 'CORE-01', 'Te1/0/45']);
+  const po = port(d, 'Po1');
+  assert.deepEqual([po.name, po.kind, po.description, po.mode, po.untagged, po.tagged, po.link], ['port-channel 1', 'lag', 'Uplink to core', 'trunk', '1', 'all', 'up']);
+  assert.deepEqual(d.unparsed.map(e => e.text), []);
+  assert.ok(!JSON.stringify(d).includes('0123456789abcdef'));
+  assert.match(NP.commandScript('os6'), /show lldp remote-device all/);
+});
+
 test('Aruba AOS-CX', () => {
   const d = run('aoscx').dev;
   assert.equal(d.hostname, 'CX-IDF-3');

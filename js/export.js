@@ -135,6 +135,12 @@
       { cmd: 'show version', gives: 'model, software version, serial' }] },
     os10: { pager: 'terminal length 0', cmds: [
       { cmd: 'show running-configuration', gives: CFG }] },
+    os6: { pager: 'terminal length 0', cmds: [
+      { cmd: 'show running-config', gives: CFG },
+      { cmd: 'show interfaces status', gives: 'link state, speed, duplex' },
+      { cmd: 'show power inline', gives: 'PoE state, watts, class' },
+      { cmd: 'show lldp remote-device all', gives: 'what is plugged in' },
+      { cmd: 'show version', gives: 'model, software version, serial' }] },
     aoscx: { pager: 'no page', cmds: [
       { cmd: 'show running-config', gives: CFG },
       { cmd: 'show interface brief', gives: 'link state, speed, media type' },

@@ -116,7 +116,8 @@
     // ---- indentation lost entirely (pasted through mail or a web form): rebuild it for block-style configs
     const f = filled();
     const blocks = f.filter(function (l) { return /^interface \S/.test(l); }).length;
-    if (blocks >= 3 && !f.some(function (l) { return /^\s/.test(l); }) && !/^\s*(set |config |edit |\/interface )/m.test(f.join('\n'))) {
+    const exits = f.filter(function (l) { return /^exit\s*$/.test(l); }).length;       // Dell OS6 closes blocks with "exit" and never indents
+    if (blocks >= 3 && exits < blocks && !f.some(function (l) { return /^\s/.test(l); }) && !/^\s*(set |config |edit |\/interface )/m.test(f.join('\n'))) {
       let inside = false, fixed = 0;
       lines = lines.map(function (l) {
         if (!l.trim() || CLOSER.test(l)) { inside = false; return l; }

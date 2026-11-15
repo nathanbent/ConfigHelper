@@ -70,6 +70,7 @@ Loaded devices are remembered in the browser's local storage; use **Export backu
 | Cisco IOS / IOS-XE | `show running-config` | `show interfaces status`, `show interfaces`, `show ip interface brief`, `show power inline`, `show cdp neighbors [detail]`, `show lldp neighbors [detail]`, `show vlan brief`, `show spanning-tree`, `show version` |
 | Cisco NX-OS | `show running-config` | `show interface status`, `show lldp neighbors`, `show cdp neighbors detail`, `show version` |
 | Arista EOS | `show running-config` | `show interfaces status`, `show lldp neighbors`, `show version` |
+| Dell OS6 (N-series) | `show running-config` | `show interfaces status`, `show power inline`, `show lldp remote-device all`, `show version` |
 | Dell OS10 | `show running-configuration` | |
 | Aruba AOS-CX | `show running-config` | `show interface brief`, `show lldp neighbor-info` |
 | ArubaOS-Switch / HP ProCurve | `show running-config` | `show interfaces brief`, `show power-over-ethernet brief`, `show lldp info remote-device` |

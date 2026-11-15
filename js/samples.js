@@ -206,6 +206,137 @@ interface mgmt0
   ip address 10.20.99.21/24
 `};
 
+  S.os6 = { label: 'Dell OS6 (N-series)', text: String.raw`N2048-IDF1#show running-config
+!Current Configuration:
+!System Description "Dell Networking N2048P, 6.3.3.10, Linux 3.6.5-9c1bfc79"
+!System Software Version 6.3.3.10
+!
+configure
+vlan 10,20,30,99
+exit
+vlan 10
+name "Staff"
+exit
+vlan 20
+name "Phones"
+exit
+vlan 99
+name "Mgmt"
+exit
+hostname "N2048-IDF1"
+slot 1/0 6    ! Dell Networking N2048P
+stack
+member 1 7    ! N2048P
+exit
+ip default-gateway 10.95.99.1
+ip domain-name "site.example.org"
+ip name-server "10.95.0.53"
+sntp unicast client enable
+sntp server "10.95.0.1"
+logging 10.95.0.60
+interface vlan 99
+ip address 10.95.99.14 255.255.255.0
+exit
+username "netadmin" password 0123456789abcdef0123456789abcdef privilege 15 encrypted
+spanning-tree mode rapid-pvst
+spanning-tree priority 8192
+ip ssh server
+!
+interface Gi1/0/1
+description "AP east wing"
+switchport mode trunk
+switchport trunk native vlan 99
+switchport trunk allowed vlan 10,30,99
+exit
+!
+interface Gi1/0/2
+description "Desk 14"
+spanning-tree portfast
+switchport mode general
+switchport general pvid 10
+switchport general allowed vlan add 10
+switchport general allowed vlan add 20 tagged
+exit
+!
+interface Gi1/0/3
+description "Printer"
+spanning-tree portfast
+switchport access vlan 10
+power inline never
+exit
+!
+interface Gi1/0/4
+shutdown
+exit
+!
+interface Te1/0/1
+description "Core A"
+channel-group 1 mode active
+exit
+!
+interface Te1/0/2
+description "Core B"
+channel-group 1 mode active
+exit
+!
+interface port-channel 1
+description "Uplink to core"
+switchport mode trunk
+exit
+snmp-server location "IDF 1"
+snmp-server community "monitor" ro
+exit
+
+N2048-IDF1#show interfaces status
+
+Port      Description               Duplex Speed   Neg  Link   Flow Ctrl
+                                                        State  Status
+--------- ------------------------- ------ ------- ---- ------ ---------
+Gi1/0/1   AP east wing              Full   1000    Auto Up     Off
+Gi1/0/2   Desk 14                   Full   100     Auto Up     Off
+Gi1/0/3   Printer                   N/A    Unknown Auto Down   Off
+Gi1/0/4                             N/A    Unknown Auto Down   Off
+Te1/0/1   Core A                    Full   10000   Off  Up     Off
+Te1/0/2   Core B                    Full   10000   Off  Up     Off
+
+Port    Description                    Link    
+Channel                                State   
+------- ------------------------------ ------- 
+Po1     Uplink to core                 Up      
+
+N2048-IDF1#show power inline
+
+Port      Powered Device       State    Priority Status          Class    Power[mW]
+--------- -------------------- -------- -------- --------------- -------- ---------
+Gi1/0/1                        Auto     Low      On              Class4   9200
+Gi1/0/2                        Auto     Low      On              Class2   3100
+Gi1/0/3                        Never    Low      Off             Unknown  0
+Gi1/0/4                        Auto     Low      Searching       Unknown  0
+
+N2048-IDF1#show lldp remote-device all
+
+LLDP Remote Device Summary
+
+Local
+Interface RemID   Chassis ID          Port ID           System Name
+--------- ------- ------------------- ----------------- -----------------
+Gi1/0/1   3       00:00:5E:00:53:21   eth0              AP-EastWing
+Gi1/0/2
+Te1/0/1   1       00:00:5E:00:53:01   Te1/0/45          CORE-01
+
+N2048-IDF1#show version
+
+Machine Description............... Dell Networking Switch
+System Model ID................... N2048P
+Machine Type...................... Dell Networking N2048P
+Serial Number..................... CN0000000000000001
+Manufacturer...................... 0xbc00
+
+unit active      backup      current-active next-active
+---- ----------- ----------- -------------- --------------
+1    6.3.3.10    6.3.2.3     6.3.3.10       6.3.3.10
+`};
+
   S.aoscx = { label: 'Aruba AOS-CX', text: String.raw`!Version ArubaOS-CX FL.10.10.1020
 hostname CX-IDF-3
 ntp server 10.30.0.1 iburst
