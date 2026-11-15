@@ -1261,6 +1261,95 @@ test('sanitize: FastIron banner lines and chassis name do not survive', () => {
   assert.match(out, /^banner motd \^C removed \^C\n!\ninterface ethernet 1\/1\/1$/m);
 });
 
+test('sanitize: FortiGate interface names, switch serials and named objects', () => {
+  const allowed = '                set allowed-vlans "Globex-Guest" "Hooli-Lab" "voice" "video" "Smith-Office"';
+  const cut = 80;                                                  // the terminal wrapped inside the quoted name
+  assert.equal(allowed.slice(cut - 3, cut + 3), '"Smith-'.slice(0, 3) + 'ith');
+  const raw = ['FW-ACME-01 # show system interface', 'config system interface',
+    '    edit "port1"', '        set vdom "root"', '        set type physical', '        set alias "Initech-Fiber"', '    next',
+    '    edit "x1"', '        set vdom "root"', '        set type physical', '    next',
+    '    edit "mgmt"', '        set vdom "root"', '        set ip 192.168.1.99 255.255.255.0', '        set allowaccess ping https ssh', '        set type physical', '    next',
+    '    edit "ssl.root"', '        set vdom "root"', '        set type tunnel', '    next',
+    '    edit "fortilink"', '        set vdom "root"', '        set fortilink enable', '        set ip 10.255.1.1 255.255.255.0', '        set type aggregate',
+    '        set member "x1"', '    next',
+    '    edit "Initech-Fiber"', '        set vdom "root"', '        set ip 198.51.100.2 255.255.255.252', '        set type aggregate', '        set member "port1"',
+    '        set alias "Initech-Fiber"', '    next',
+    '    edit "Vandelay"', '        set vdom "root"', '        set type vlan', '        set interface "Initech-Fiber"', '        set vlanid 300', '    next',
+    '    edit "Globex-Guest"', '        set vdom "root"', '        set ip 10.20.10.1 255.255.255.0', '        set alias "Globex-Guest"', '        set interface "fortilink"',
+    '        set vlanid 10', '    next',
+    '    edit "Hooli-Lab"', '        set vdom "root"', '        set interface "fortilink"', '        set vlanid 20', '    next',
+    '    edit "Smith-Office"', '        set vdom "root"', '        set interface "fortilink"', '        set vlanid 30', '    next',
+    '    edit "voice"', '        set vdom "root"', '        set interface "fortilink"', '        set vlanid 40', '    next',
+    '    edit "physical"', '        set vdom "root"', '        set interface "fortilink"', '        set vlanid 50', '    next',
+    '    edit "lag-Pied-Piper"', '        set vdom "root"', '        set type aggregate', '        set member "x2"', '    next',
+    '    edit "quarantine"', '        set vdom "root"', '        set interface "fortilink"', '        set vlanid 4093', '    next',
+    'end', '',
+    'FW-ACME-01 # show switch-controller managed-switch', 'config switch-controller managed-switch',
+    '    edit "S248EPTF19004711"', '        set sn "S248EPTF19004711"', '        set fsw-wan1-peer "fortilink"', '        set switch-profile "Initech-Profile"',
+    '        config ports',
+    '            edit "port1"', '                set vlan "Globex-Guest"', allowed.slice(0, cut), allowed.slice(cut),
+    '                set untagged-vlans "Hooli-Lab" "physical"', '                set port-owner "Initech-Fiber"', '            next',
+    '            edit "port2"', '                set port-owner "wonka-nas"', '            next',
+    '            edit "wonka-nas"', '                set type trunk', '                set members "port2" "port3"', '            next',
+    '            edit "_FlInK1_MLAG0_"', '                set type trunk', '                set members "port23"', '            next',
+    '        end', '    next',
+    '    edit "IDF2-SW1"', '        set sn "S124FPTF20001234"', '        config ports', '            edit "port1"', '                set vlan "Smith-Office"', '            next',
+    '        end', '    next',
+    'end', '',
+    'FW-ACME-01 # show vpn ipsec phase1-interface', 'config vpn ipsec phase1-interface', '    edit "dialup"', '        set interface "Initech-Fiber"',
+    '        set ike-saml-server "Acme-Entra"', '    next', 'end', '',
+    'FW-ACME-01 # get system status', 'Version: FortiGate-201F v7.4.4,build2662,240514 (GA.F)', 'Serial-Number: FG201FT921900123', 'Hostname: FW-ACME-01', ''].join('\n');
+  const r = NP.sanitize(raw);
+  assert.equal(r.vendor, 'fortigate');
+  assert.deepEqual([r.checked, r.same, r.leftovers], [true, true, []]);
+  for (const s of ['Initech', 'Vandelay', 'Globex', 'Hooli', 'Smith', 'Office', 'Pied', 'Piper', 'wonka', 'Acme', 'ACME', 'S248EPTF19004711', 'S124FPTF20001234',
+    'FG201FT921900123', 'IDF2']) assert.ok(!r.text.replace(/\n/g, '').includes(s), s + ' removed');
+  // built-in names, and a name that is also a keyword, keep working
+  for (const s of ['edit "port1"', 'edit "x1"', 'edit "mgmt"', 'edit "ssl.root"', 'edit "fortilink"', 'edit "voice"', 'edit "quarantine"', 'set member "x1"',
+    'set type physical', 'set fsw-wan1-peer "fortilink"', 'edit "_FlInK1_MLAG0_"']) assert.ok(r.text.includes(s), s + ' kept');
+  assert.ok(!r.text.includes('"physical"'));
+  // one placeholder per name, wherever it is used
+  const ph = (re) => r.text.match(re)[1];
+  const fiber = ph(/set ip 10\.\d+\.100\.2 255\.255\.255\.252\n(?:.*\n){2}\s+set alias "([^"]+)"/);
+  assert.equal(fiber.length, 'Initech-Fiber'.length);
+  assert.equal(r.text.split('"' + fiber + '"').length - 1, 6);                 // port1 alias, edit, own alias, VLAN parent, port-owner, VPN interface
+  const guest = ph(/set vlan "([^"]+)"\n\s+set allowed-vlans/);
+  assert.ok(r.text.includes('edit "' + guest + '"') && r.text.includes('set allowed-vlans "' + guest + '" '));
+  const office = ph(/edit "([^"]+)"\n.*\n\s+set interface "fortilink"\n\s+set vlanid 30/);
+  assert.match(r.text, new RegExp('"video" "' + office.slice(0, 2) + '\\n' + office.slice(2) + '"\\n'));      // the wrapped copy
+  assert.ok(r.text.includes('set vlan "' + office + '"'));
+  assert.equal(new Set(r.text.match(/^    edit "[^"]+"$/gm)).size, 14 + 2 + 1);                      // no two names share a placeholder
+  assert.match(r.text, /edit "lag-[^"]+"/);                                      // still an aggregate to the parser
+  // the switches still come out with the same ports and VLANs
+  const shape = (text) => NP.ingest(text, { devices: [] }).extra.map(x => x.dev.ports.map(p => [p.name.length, p.mode, p.untagged, p.lag.length].join()).sort().join(';') +
+    '|' + x.dev.vlans.map(v => v.id));
+  assert.deepEqual(shape(r.text), shape(raw));
+  assert.equal(shape(raw).length, 2);
+  assert.ok(shape(raw)[0].split(';').includes('5,trunk,10,0') && shape(raw)[0].split(';').includes('5,,,9'));      // port1; port2 in the trunk
+  const nas = ph(/set port-owner "([^"]+)"\n\s+next\n\s+edit "port2"/) && ph(/edit "port2"\n\s+set port-owner "([^"]+)"/);
+  assert.ok(r.text.includes('edit "' + nas + '"\n                set type trunk') && nas.length === 'wonka-nas'.length);
+  // options: names off leaves interfaces alone
+  const partial = NP.sanitize(raw, { names: false });
+  assert.ok(partial.same && partial.text.includes('edit "Initech-Fiber"') && !partial.text.includes('S248EPTF19004711'));
+  // other vendors are untouched by the FortiGate rules
+  const cisco = NP.sanitize('hostname SW1\ninterface GigabitEthernet1/0/1\n description Initech-Fiber\n set sn "S248EPTF19004711"\n', { vendor: 'ios' });
+  assert.ok(cisco.text.includes('S248EPTF19004711'));
+});
+
+test('sanitize: real FortiGate 201F session, interface names replaced everywhere', () => {
+  const text = require('fs').readFileSync(require('path').join(__dirname, 'fixtures', 'fortigate-201f-fortilink.txt'), 'utf8');
+  const r = NP.sanitize(text);
+  assert.deepEqual([r.vendor, r.checked, r.same, r.ports, r.vlans], ['fortigate', true, true, 97, 45]);
+  for (const s of ['vrtx-lag', 'pve-r730xd-1', '3850-lag', 'WAN1-FIBER', 'WAN2-CABLE', 'LAB-COM-ROUTING', 'Implement Lab', 'VPN-HQ Hub', 'TENANT-LAB-3300', 'LAB-VLAN-3065', 'v.3000', 'v.3051-Lab-DMZ']) {
+    assert.ok(!r.text.includes(s), s + ' removed');
+  }
+  for (const s of ['edit "x1"', 'edit "naf.root"', 'edit "fortilink"', 'edit "_default"', 'edit "nac_segment"']) assert.ok(r.text.includes(s), s + ' kept');
+  // the managed switches come out with the same ports and VLANs (in name order, so compared sorted), including the allowed-vlans lists wrapped at 224 columns
+  const shape = (t) => NP.ingest(t, { devices: [] }).extra.map(x => x.dev.ports.map(p => [p.name.length, p.mode, p.untagged, p.tagged, p.lag.length].join()).sort().join(';') + '|' + x.dev.vlans.map(v => v.id));
+  assert.deepEqual(shape(r.text), shape(text));
+  assert.equal(shape(text).length, 3);
+});
+
 test('real FortiGate 201F (FortiOS 8.0) FortiLink session, sanitized', () => {
   const text = require('fs').readFileSync(require('path').join(__dirname, 'fixtures', 'fortigate-201f-fortilink.txt'), 'utf8');
   const r = NP.ingest(text, { devices: [] });
