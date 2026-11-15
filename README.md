@@ -71,6 +71,7 @@ Loaded devices are remembered in the browser's local storage; use **Export backu
 | Cisco NX-OS | `show running-config` | `show interface status`, `show lldp neighbors`, `show cdp neighbors detail`, `show version` |
 | Arista EOS | `show running-config` | `show interfaces status`, `show lldp neighbors`, `show version` |
 | Dell OS6 (N-series) | `show running-config` | `show interfaces status`, `show power inline`, `show lldp remote-device all`, `show version` |
+| Dell OS9 (S/Z-series, FTOS) | `show running-config` | `show interfaces status`, `show lldp neighbors`, `show version` |
 | Dell OS10 | `show running-configuration` | |
 | Aruba AOS-CX | `show running-config` | `show interface brief`, `show lldp neighbor-info` |
 | ArubaOS-Switch / HP ProCurve | `show running-config` | `show interfaces brief`, `show power-over-ethernet brief`, `show lldp info remote-device` |
@@ -86,6 +87,8 @@ Tested against real output so far (`test/fixtures/`): Cisco Catalyst 3850 on IOS
 was written against the vendors' documented formats and the made-up samples in `js/samples.js`, so expect
 gaps on real devices; when you find one, add the output (sanitised) to `test/fixtures/` with a test and fix
 the parser.
+
+Dell OS9 was written from memory of the format and has not seen real output yet.
 
 Not covered yet: Palo Alto, pfSense/OPNsense, UniFi, EdgeOS/VyOS.
 

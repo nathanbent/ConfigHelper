@@ -135,6 +135,11 @@
       { cmd: 'show version', gives: 'model, software version, serial' }] },
     os10: { pager: 'terminal length 0', cmds: [
       { cmd: 'show running-configuration', gives: CFG }] },
+    os9: { pager: 'terminal length 0', cmds: [
+      { cmd: 'show running-config', gives: CFG },
+      { cmd: 'show interfaces status', gives: 'link state, speed, duplex' },
+      { cmd: 'show lldp neighbors', gives: 'what is plugged in' },
+      { cmd: 'show version', gives: 'model, software version' }] },
     os6: { pager: 'terminal length 0', cmds: [
       { cmd: 'show running-config', gives: CFG },
       { cmd: 'show interfaces status', gives: 'link state, speed, duplex' },
@@ -207,7 +212,8 @@
     { id: 'comware', brand: 'Aruba / HPE', name: 'Comware / H3C' },
     { id: 'ios', brand: 'Cisco', name: 'IOS / IOS-XE' },
     { id: 'nxos', brand: 'Cisco', name: 'NX-OS' },
-    { id: 'os10', brand: 'Dell', name: 'OS10' },
+    { id: 'os10', brand: 'Dell', name: 'OS10 (SmartFabric)' },
+    { id: 'os9', brand: 'Dell', name: 'OS9 (S/Z-series, FTOS)' },
     { id: 'os6', brand: 'Dell', name: 'OS6 (N-series)' },
     { id: 'fortigate', brand: 'Fortinet', name: 'FortiGate' },
     { id: 'fortilink', parser: 'fortigate', brand: 'Fortinet', name: 'FortiSwitch via FortiGate (FortiLink)' },

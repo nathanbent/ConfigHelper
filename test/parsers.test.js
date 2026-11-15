@@ -160,6 +160,32 @@ test('Dell OS6 (N-series)', () => {
   assert.match(NP.commandScript('os6'), /show lldp remote-device all/);
 });
 
+test('Dell OS9', () => {
+  const r = run('os9');
+  const d = r.dev;
+  assert.equal(r.vendor, 'os9');
+  assert.deepEqual(r.cleaned, []);
+  assert.deepEqual([d.hostname, d.model, d.version], ['S4048-TOR1', 'S4048-ON', '9.14(2.4)']);
+  assert.deepEqual([d.gateway, d.domain, d.dns.join(), d.ntp.join(), d.syslog.join()], ['10.70.99.1', 'dc.example.org', '10.70.0.53', '10.70.0.1', '10.70.0.60']);
+  assert.deepEqual([d.stp.enabled, d.stp.mode, d.stp.priority.join()], ['yes', 'rstp', '8192']);
+  assert.equal(d.vlans.map(v => v.id + ':' + v.name).join(), '1:,10:Servers,20:vMotion,30:Backup');
+  const t1 = port(d, 'Te1/1');
+  assert.deepEqual([t1.description, t1.mode, t1.untagged, t1.tagged, t1.stp, t1.link, t1.speed, t1.neighbor],
+    ['ESX-01 vmnic0', 'trunk', '1', '10,20', 'edge, bpduguard', 'up', '10G', 'esx-01']);     // hybrid keeps the default VLAN untagged
+  assert.deepEqual([port(d, 'Te1/2').mode, port(d, 'Te1/2').untagged], ['access', '10']);
+  assert.deepEqual([port(d, 'Te1/3').untagged, port(d, 'Te1/3').speed], ['30', '1G']);
+  assert.deepEqual([port(d, 'Te1/4').adminUp, port(d, 'Te1/4').link], [false, 'down']);
+  const u = port(d, 'Te1/47');
+  assert.deepEqual([u.lag, u.mode, u.neighbor, u.neighborPort], ['Po10', '', 'CORE-1', 'TenGigabitEthernet 1/10']);
+  const po = port(d, 'Po10');
+  assert.deepEqual([po.kind, po.mode, po.untagged, po.tagged], ['lag', 'trunk', '', '10,20,30']);
+  assert.deepEqual([port(d, 'Fo1/49').lag, port(d, 'Fo1/50').lag], ['Po100', 'Po100']);
+  assert.match(d.mgmtIp, /^10\.70\.99\.11\/24 \(Ma1\/1\)/);
+  assert.equal(port(d, 'Vlan30').ip, '10.70.30.2/24');
+  assert.equal(d.ports.filter(p => p.kind === 'physical').length, 8);
+  assert.match(NP.commandScript('os9'), /^terminal length 0\nshow running-config\n/);
+});
+
 test('Aruba AOS-CX', () => {
   const d = run('aoscx').dev;
   assert.equal(d.hostname, 'CX-IDF-3');
@@ -906,7 +932,7 @@ test('platform picker: brands, platforms, parser behind each', () => {
   for (const id of NP.vendorOrder) assert.ok(NP.platform(id), id + ' can be picked');
   assert.equal(NP.platformParser('fortilink'), 'fortigate');
   assert.equal(NP.platformParser('auto'), 'auto');
-  assert.deepEqual(NP.platforms.filter(p => p.brand === 'Dell').map(p => p.id), ['os10', 'os6']);
+  assert.deepEqual(NP.platforms.filter(p => p.brand === 'Dell').map(p => p.id), ['os10', 'os9', 'os6']);
   assert.deepEqual(NP.platforms.filter(p => p.brand === 'Fortinet').map(p => p.id), ['fortigate', 'fortilink', 'fortiswitch']);
 });
 

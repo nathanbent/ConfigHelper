@@ -107,7 +107,7 @@
     twogigabitethernet: 'Tw', tw: 'Tw', two: 'Tw',
     fivegigabitethernet: 'Fi', fi: 'Fi', fiv: 'Fi',
     tengigabitethernet: 'Te', te: 'Te', ten: 'Te', 'ten-gigabitethernet': 'Te', xge: 'Te',
-    twentyfivegige: 'Twe', twe: 'Twe', twentyfivegigabitethernet: 'Twe', 'twenty-fivegige': 'Twe', wge: 'Twe',
+    twentyfivegige: 'Twe', twe: 'Twe', tf: 'Twe', twentyfivegigabitethernet: 'Twe', 'twenty-fivegige': 'Twe', wge: 'Twe',
     fortygigabitethernet: 'Fo', fo: 'Fo', 'for': 'Fo', fortygige: 'Fo', fge: 'Fo',
     hundredgige: 'Hu', hu: 'Hu', hun: 'Hu', hundredgigabitethernet: 'Hu', hge: 'Hu',
     appgigabitethernet: 'Ap', ap: 'Ap',
@@ -116,7 +116,7 @@
     'bridge-aggregation': 'BAGG', bagg: 'BAGG',
     vlan: 'Vlan', vl: 'Vlan', 'vlan-interface': 'Vlan',
     loopback: 'Lo', lo: 'Lo', loop: 'Lo',
-    management: 'Ma', ma: 'Ma', mgmt: 'mgmt',
+    management: 'Ma', ma: 'Ma', mgmt: 'mgmt', managementethernet: 'Ma',
     tunnel: 'Tu', tu: 'Tu',
     lag: 'lag', lg: 'lag'
   };
