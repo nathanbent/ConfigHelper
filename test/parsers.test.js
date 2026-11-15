@@ -1010,8 +1010,8 @@ test('bundled P-touch template matches templates/ and carries no personal data',
   assert.equal(Buffer.from(NP.b64Bytes(t.b64)).equals(file), true);
   assert.equal(file.subarray(0, 2).toString(), 'PK');
   const xml = require('zlib').inflateRawSync(file.subarray(30 + file.readUInt16LE(26) + file.readUInt16LE(28))).toString();
-  ['Line1', 'Line2', 'Line3'].forEach(l => assert.ok(xml.includes('dbMergeFieldStyleName="' + l + '"')));
-  assert.match(xml, /databasePath="labels\.csv"/);
+  ['line1', 'line2', 'line3'].forEach(l => assert.ok(xml.includes('<pt:data>' + l + '</pt:data>')));   // placeholder text, one per line
+  assert.doesNotMatch(xml, /databasePath/);                 // no database link saved in the template
   assert.doesNotMatch(xml, /[A-Z]:\\|Users|Downloads/);
   // the zipped form for the phone app: one stored entry holding the same bytes
   const zip = Buffer.from(NP.zipStore(t.file, NP.b64Bytes(t.b64)));
