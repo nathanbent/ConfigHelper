@@ -4,7 +4,7 @@ Paste a switch, router or firewall config (and optionally show-command output) a
 
 - an **overview**: hostname, model, software, management IP, DNS, NTP, syslog, SNMP, spanning tree, multicast, VLANs and other notable settings
 - a **port table**: description, admin/link state, speed, mode, untagged/native and tagged VLANs, voice VLAN, LAG, PoE, STP settings, CDP/LLDP neighbor
-- **exports**: port CSV, summary CSV, JSON backup (re-importable), and a label CSV for Brother P-touch Editor
+- **exports**: port table as CSV, tab-separated text, Markdown or JSON (shown or all columns and rows, one or all devices); a per-device Markdown report; summary CSV; JSON backup (re-importable); and a label file for Brother P-touch Editor
 
 Everything runs in the browser. Nothing is uploaded, and secrets (password hashes, SNMP communities, keys) are never stored or exported.
 
@@ -48,10 +48,12 @@ Not covered yet: Palo Alto, pfSense/OPNsense, UniFi, EdgeOS/VyOS.
 
 ## Labels and P-touch Editor
 
-The Labels tab produces a CSV with `Line1`, `Line2`, `Line3` columns built from templates, plus the raw
-`Device`, `Port`, `Description`, `VLAN` columns.
+The Labels tab produces a file with only the `Line1`, `Line2`, `Line3` columns you fill in (empty lines are
+left out). Options: label type presets (port, patch panel, port + VLAN, cable, one-per-device asset label),
+a port match filter, a per-line character limit, duplicate removal, comma/semicolon/tab output, and optional
+reference columns (`Device`, `Port`, `Description`, `VLAN`).
 
-- `{host} {port} {portfull} {num} {desc} {vlan} {tagged} {voice} {mode} {neighbor} {nport} {ninfo} {ip} {lag} {speed}`
+- `{host} {port} {portfull} {num} {desc} {vlan} {tagged} {voice} {mode} {neighbor} {nport} {ninfo} {ip} {lag} {speed}`, and per device `{mgmtip} {model} {serial} {version} {location}`
 - `{neighbor|desc}` uses the first field that has a value
 - `[VLAN {vlan}]` is dropped when the field inside is empty
 

@@ -347,6 +347,32 @@ test('every vendor has command suggestions the parser can actually read', () => 
   assert.match(NP.commandScript('ios'), /^terminal length 0\nshow running-config\n/);
 });
 
+test('label options: per-device labels, match filter, max length, dedupe', () => {
+  const d = run('ios').dev;
+  const dev = NP.labelRows([d], { per: 'device', lines: NP.labelPresets.device.lines });
+  assert.deepEqual(dev, [['Line1', 'Line2', 'Line3'], ['SW-ACCESS-01', '10.10.99.11', 'WS-C2960X-48FPD-L SN FOC1234X5YZ']]);
+  const ap = NP.labelRows([d], { lines: ['{port}', '{desc}'], physicalOnly: true, match: 'ap-lobby, printer' });
+  assert.deepEqual(ap.slice(1).map(r => r[0]), ['Gi1/0/2', 'Gi1/0/3']);
+  const short = NP.labelRows([d], { lines: ['{desc}'], physicalOnly: true, maxLen: 8 });
+  assert.ok(short.slice(1).every(r => r[0].length <= 8));
+  assert.equal(short[1][0], 'Receptio');
+  const dup = NP.labelRows([d], { lines: ['VLAN {vlan}'], physicalOnly: true, dedupe: true });
+  assert.deepEqual(dup.slice(1).map(r => r[0]), ['VLAN 10', 'VLAN 99']);
+});
+
+test('export formats and device report', () => {
+  const rows = [['Port', 'Description'], ['Gi1/0/1', 'a|b, "c"'], ['Gi1/0/2', '']];
+  assert.equal(NP.formatRows(rows, 'csv'), '\ufeffPort,Description\r\nGi1/0/1,"a|b, ""c"""\r\nGi1/0/2,\r\n');
+  assert.equal(NP.formatRows(rows, 'tsv'), 'Port\tDescription\r\nGi1/0/1\ta|b, "c"\r\nGi1/0/2\t\r\n');
+  assert.equal(NP.formatRows(rows, 'md').split('\n')[2], '| Gi1/0/1 | a\\|b, "c" |');
+  assert.deepEqual(JSON.parse(NP.formatRows(rows, 'json'))[0], { Port: 'Gi1/0/1', Description: 'a|b, "c"' });
+  assert.equal(NP.csv([['a;b', 'c']], ';'), '"a;b";c\r\n');
+  const rep = NP.deviceReport(run('ios').dev, ['name', 'description', 'untagged']);
+  assert.match(rep, /^# SW-ACCESS-01\n/);
+  assert.match(rep, /## VLANs\n\n\| VLAN \| Name \|/);
+  assert.match(rep, /\| GigabitEthernet1\/0\/1 \| Reception PC \+ phone \| 10 \|/);
+});
+
 test('forcing a vendor and unknown input', () => {
   assert.throws(() => NP.ingest('hello world\nnothing here', { devices: [] }), /vendor/);
   assert.throws(() => NP.ingest('hello world', { vendor: 'ios', devices: [] }), /Nothing recognisable/);
@@ -359,7 +385,10 @@ test('label templates, CSV and backup round-trip', () => {
   assert.equal(NP.fillTemplate('{neighbor|desc}', d, port(d, 'Gi1/0/3')), 'Printer 2nd floor');
   assert.equal(NP.fillTemplate('{num} [VLAN {voice}]', d, p), '2');
   assert.equal(NP.fillTemplate('{num} [VLAN {vlan}]', d, p), '2 VLAN 99');
-  const rows = NP.labelRows([d], { lines: ['{port}', '{desc}', ''], physicalOnly: true, skipDisabled: true });
+  const lean = NP.labelRows([d], { lines: ['{port}', '{desc}', ''], physicalOnly: true, skipDisabled: true });
+  assert.deepEqual(lean[0], ['Line1', 'Line2']);           // lean by default: only the label lines
+  assert.deepEqual(lean[1], ['Gi1/0/1', 'Reception PC + phone']);
+  const rows = NP.labelRows([d], { lines: ['{port}', '{desc}', ''], physicalOnly: true, skipDisabled: true, refCols: true });
   assert.deepEqual(rows[0], ['Line1', 'Line2', 'Device', 'Port', 'Description', 'VLAN']);
   assert.equal(rows.length, 1 + 5);       // 6 physical ports, one disabled
   assert.equal(NP.csv([['a', 'b,c', 'say "hi"']]), 'a,"b,c","say ""hi"""\r\n');

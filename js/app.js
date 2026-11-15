@@ -9,8 +9,10 @@
     devices: [], current: null, tab: 'ports',
     cols: NP.columns.filter(function (c) { return c.on; }).map(function (c) { return c.id; }),
     search: '', physOnly: false, hideDown: false, sort: null,
-    label: { preset: 'port', lines: NP.labelPresets.port.lines.slice(), scope: 'device',
-      physicalOnly: true, upOnly: false, describedOnly: false, skipDisabled: true }
+    exp: { fmt: 'csv', cols: 'shown', rows: 'shown', devs: 'device' },
+    label: { preset: 'port', per: 'port', lines: NP.labelPresets.port.lines.slice(), scope: 'device',
+      physicalOnly: true, upOnly: false, describedOnly: false, skipDisabled: true,
+      match: '', maxLen: 0, refCols: false, dedupe: false, delim: ',' }
   };
 
   function h(tag, attrs) {
@@ -211,6 +213,9 @@
         h('button', { onclick: function () {
           download(fileSafe(dev.hostname) + '-summary.csv', '﻿' + NP.csv(NP.summaryRows(dev)), 'text/csv');
         } }, 'Export summary CSV'),
+        h('button', { title: 'Overview, VLANs and the port table as one Markdown document', onclick: function () {
+          download(fileSafe(dev.hostname) + '-report.md', NP.deviceReport(dev, state.cols), 'text/markdown');
+        } }, 'Export device report'),
         h('button', { onclick: function () { window.print(); } }, 'Print')),
       h('h2', { text: 'Loaded input' }),
       h('div', { class: 'chips' }, dev.sources.map(function (s) {
@@ -225,14 +230,17 @@
     return h('span', { class: 'pill ' + cls, text: text });
   }
 
-  function visiblePorts(dev) {
+  function portPredicate() {
     const q = state.search.trim().toLowerCase();
-    let list = dev.ports.filter(function (p) {
+    return function (p) {
       if (state.physOnly && p.kind !== 'physical') return false;
       if (state.hideDown && p.link !== 'up') return false;
       if (!q) return true;
       return NP.columns.some(function (c) { return String(c.get(p)).toLowerCase().includes(q); });
-    });
+    };
+  }
+  function visiblePorts(dev) {
+    let list = dev.ports.filter(portPredicate());
     if (state.sort) {
       const col = NP.columns.find(function (c) { return c.id === state.sort.id; });
       if (col) {
@@ -245,10 +253,35 @@
     }
     return list;
   }
+  function copyText(text, btn, label) {
+    navigator.clipboard.writeText(text).then(function () { btn.textContent = 'Copied'; },
+      function () { btn.textContent = 'Copy failed'; });
+    setTimeout(function () { btn.textContent = label; }, 1500);
+  }
+  function sel(value, options, onchange, aria) {
+    return h('select', { 'aria-label': aria, onchange: function (e) { onchange(e.target.value); } }, options.map(function (o) {
+      return h('option', { value: o[0], selected: String(value) === String(o[0]), text: o[1] });
+    }));
+  }
+
+  // rows for the port export, honouring the Export menu choices
+  function exportRows(dev, list) {
+    const E = state.exp;
+    const cols = NP.columns.filter(function (c) { return E.cols === 'all' || state.cols.includes(c.id); });
+    const devs = E.devs === 'all' ? state.devices : [dev];
+    const pred = portPredicate();
+    const rows = [['Device'].concat(cols.map(function (c) { return c.label; }))];
+    devs.forEach(function (d) {
+      const ports = E.rows === 'all' ? d.ports : d === dev ? list : d.ports.filter(pred);
+      ports.forEach(function (p) { rows.push([d.hostname].concat(cols.map(function (c) { return c.get(p); }))); });
+    });
+    return rows;
+  }
 
   function ports(view, dev) {
     const cols = NP.columns.filter(function (c) { return state.cols.includes(c.id); });
     const list = visiblePorts(dev);
+    const E = state.exp;
     const check = function (label, key) {
       return h('label', { class: 'check' },
         h('input', { type: 'checkbox', checked: state[key], onchange: function (e) { state[key] = e.target.checked; render(); } }), label);
@@ -270,24 +303,24 @@
             document.querySelector('details.cols').open = true;
           } }), c.label);
       })));
-    const inView = function (p) { return list.includes(p); };
+    const setExp = function (k) { return function (v) { E[k] = v; save(); render(); document.querySelector('details.exp').open = true; }; };
+    const expMenu = h('details', { class: 'cols exp' }, h('summary', { class: 'primary', text: 'Export…' }),
+      h('div', { class: 'pop right' },
+        h('label', {}, 'Format', sel(E.fmt, Object.keys(NP.formats).map(function (k) { return [k, NP.formats[k].label]; }), setExp('fmt'))),
+        h('label', {}, 'Columns', sel(E.cols, [['shown', 'Columns shown (' + cols.length + ')'], ['all', 'All columns (' + NP.columns.length + ')']], setExp('cols'))),
+        h('label', {}, 'Rows', sel(E.rows, [['shown', 'Rows shown (filters applied)'], ['all', 'All ports']], setExp('rows'))),
+        h('label', {}, 'Devices', sel(E.devs, [['device', 'This device'], ['all', 'All loaded devices (' + state.devices.length + ')']], setExp('devs'))),
+        h('div', { class: 'btnrow' },
+          h('button', { class: 'primary', onclick: function () {
+            const f = NP.formats[E.fmt];
+            download((E.devs === 'all' ? 'all-devices' : fileSafe(dev.hostname)) + '-ports.' + f.ext, NP.formatRows(exportRows(dev, list), E.fmt), f.mime);
+          } }, 'Download'),
+          h('button', { title: 'Copy in the chosen format', onclick: function (e) {
+            copyText(NP.formatRows(exportRows(dev, list), E.fmt).replace(/^﻿/, ''), e.target, 'Copy');
+          } }, 'Copy'))));
     const toolbar = h('div', { class: 'toolbar' }, search, check('Physical only', 'physOnly'), check('Link up only', 'hideDown'),
       colPicker, h('span', { class: 'count', text: list.length + ' of ' + dev.ports.length + ' shown' }), h('span', { class: 'spacer' }),
-      h('button', { title: 'The rows and columns currently shown', onclick: function () {
-        download(fileSafe(dev.hostname) + '-ports.csv', '﻿' + NP.csv(NP.portRows([dev], state.cols, inView)), 'text/csv');
-      } }, 'Export CSV'),
-      h('button', { title: 'Every column, every port', onclick: function () {
-        download(fileSafe(dev.hostname) + '-ports-full.csv', '﻿' + NP.csv(NP.portRows([dev])), 'text/csv');
-      } }, 'Export all columns'),
-      h('button', { title: 'Tab-separated, pastes straight into a spreadsheet', onclick: function (e) {
-        const tsv = NP.portRows([dev], state.cols, inView).map(function (r) {
-          return r.map(function (c) { return String(c).replace(/[\t\r\n]+/g, ' '); }).join('\t');
-        }).join('\n');
-        const btn = e.target;
-        navigator.clipboard.writeText(tsv).then(function () { btn.textContent = 'Copied'; },
-          function () { btn.textContent = 'Copy failed'; });
-      } }, 'Copy'),
-      h('button', { onclick: function () { window.print(); } }, 'Print'));
+      expMenu, h('button', { onclick: function () { window.print(); } }, 'Print'));
 
     const thead = h('thead', {}, h('tr', {}, cols.map(function (c) {
       const s = state.sort && state.sort.id === c.id ? (state.sort.dir > 0 ? 'ascending' : 'descending') : null;
@@ -314,23 +347,25 @@
 
   function labels(view, dev) {
     const L = state.label;
+    const perDevice = L.per === 'device';
     const devs = L.scope === 'all' ? state.devices : [dev];
     const rows = NP.labelRows(devs, L);
     const set = function (fn) { return function (e) { fn(e.target); save(); render(); }; };
-    const check = function (label, key) {
+    const check = function (label, key, disabled) {
       return h('label', { class: 'check' },
-        h('input', { type: 'checkbox', checked: L[key], onchange: set(function (t) { L[key] = t.checked; }) }), label);
+        h('input', { type: 'checkbox', checked: L[key], disabled: disabled, onchange: set(function (t) { L[key] = t.checked; }) }), label);
     };
     const lineInput = function (i) {
-      return h('label', {}, 'Line ' + (i + 1),
-        h('input', { type: 'text', value: L.lines[i] || '', 'data-line': i,
+      return h('label', {}, 'Line ' + (i + 1) + (i ? ' (optional)' : ''),
+        h('input', { type: 'text', value: L.lines[i] || '',
           onchange: set(function (t) { L.lines[i] = t.value; L.preset = 'custom'; }) }));
     };
     const form = h('div', { class: 'labelform' },
       h('label', {}, 'Label type',
         h('select', { onchange: set(function (t) {
           L.preset = t.value;
-          if (NP.labelPresets[t.value]) L.lines = NP.labelPresets[t.value].lines.slice();
+          const pr = NP.labelPresets[t.value];
+          if (pr) { L.lines = pr.lines.slice(); L.per = pr.per; }
         }) }, Object.keys(NP.labelPresets).map(function (k) {
           return h('option', { value: k, selected: L.preset === k, text: NP.labelPresets[k].label });
         }), h('option', { value: 'custom', selected: L.preset === 'custom', text: 'Custom' }))),
@@ -338,30 +373,44 @@
         h('select', { onchange: set(function (t) { L.scope = t.value; }) },
           h('option', { value: 'device', selected: L.scope === 'device', text: 'This device only' }),
           h('option', { value: 'all', selected: L.scope === 'all', text: 'All loaded devices (' + state.devices.length + ')' }))),
-      lineInput(0), lineInput(1), lineInput(2));
+      lineInput(0), lineInput(1), lineInput(2),
+      h('label', {}, 'Only ports matching (comma = or)',
+        h('input', { type: 'text', value: L.match, placeholder: 'e.g. AP, 1/0/1, trunk', disabled: perDevice,
+          onchange: set(function (t) { L.match = t.value; }) })),
+      h('label', {}, 'Max characters per line (0 = no limit)',
+        h('input', { type: 'text', inputmode: 'numeric', value: String(L.maxLen || 0),
+          onchange: set(function (t) { L.maxLen = Math.max(0, parseInt(t.value, 10) || 0); }) })),
+      h('label', {}, 'File format',
+        sel(L.delim, [[',', 'CSV, comma'], [';', 'CSV, semicolon'], ['\t', 'Tab-separated .txt']], function (v) { L.delim = v; save(); render(); })));
     const head = rows[0];
+    const lineCount = (L.lines || []).filter(function (l) { return l && l.trim(); }).length;
     view.appendChild(h('section', { class: 'card' },
       form,
-      h('div', { class: 'opts' }, check('Physical ports only', 'physicalOnly'), check('Link up only', 'upOnly'),
-        check('Only ports with a description or neighbor', 'describedOnly'), check('Skip disabled ports', 'skipDisabled')),
+      h('div', { class: 'opts' },
+        check('Physical ports only', 'physicalOnly', perDevice), check('Link up only', 'upOnly', perDevice),
+        check('Only ports with a description or neighbor', 'describedOnly', perDevice), check('Skip disabled ports', 'skipDisabled', perDevice),
+        check('Remove duplicate labels', 'dedupe'), check('Add reference columns (device, port, description, VLAN)', 'refCols')),
       h('p', { class: 'tokens' }, 'Fields: ',
         Object.keys(NP.labelTokens).map(function (t) { return [h('code', { text: '{' + t + '}' }), ' ']; }),
         h('br'), h('code', { text: '{neighbor|desc}' }), ' uses the first one that has a value. ',
         h('code', { text: '[VLAN {vlan}]' }), ' is left out when the field inside is empty.'),
       h('div', { class: 'toolbar' },
-        h('span', { class: 'count', text: (rows.length - 1) + ' label(s)' }), h('span', { class: 'spacer' }),
+        h('span', { class: 'count', text: (rows.length - 1) + ' label(s), ' + head.length + ' column(s) in the file' }), h('span', { class: 'spacer' }),
+        h('button', { disabled: rows.length < 2, onclick: function (e) {
+          copyText(NP.csv(rows, '\t'), e.target, 'Copy');
+        } }, 'Copy'),
         h('button', { class: 'primary', disabled: rows.length < 2, onclick: function () {
-          const name = (L.scope === 'all' ? 'all-devices' : fileSafe(dev.hostname)) + '-labels.csv';
-          download(name, NP.csv(rows), 'text/csv');
-        } }, 'Export label CSV')),
+          const name = (L.scope === 'all' ? 'all-devices' : fileSafe(dev.hostname)) + '-labels.' + (L.delim === '\t' ? 'txt' : 'csv');
+          download(name, NP.csv(rows, L.delim), L.delim === '\t' ? 'text/plain' : 'text/csv');
+        } }, 'Export label file')),
       rows.length > 1
         ? h('div', { class: 'tablewrap' }, h('table', { class: 'labelprev' },
             h('thead', {}, h('tr', {}, head.map(function (c) { return h('th', { class: 'nosort', scope: 'col', text: c }); }))),
             h('tbody', {}, rows.slice(1).map(function (r) {
-              return h('tr', {}, r.map(function (c) { return h('td', { text: c }); }));
+              return h('tr', {}, r.map(function (c, i) { return h('td', { class: i < lineCount ? 'line' : '', text: c }); }));
             }))))
         : h('p', { class: 'empty', text: 'No ports match these options.' }),
-      h('p', { class: 'hint', text: 'In P-touch Editor: File > Database > Connect, choose this CSV, tick "Header row contains field names", then drag the Line fields onto the label and print all records.' })));
+      h('p', { class: 'hint', text: 'In P-touch Editor: File > Database > Connect, choose this file, tick "Header row contains field names", then drag the Line fields onto the label and print all records.' })));
   }
 
   // -------------------------------------------------------------------- wire

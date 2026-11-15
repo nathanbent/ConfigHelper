@@ -3,13 +3,45 @@
   'use strict';
   const NP = root.NP;
 
-  NP.csv = function (rows) {
+  NP.csv = function (rows, delim) {
+    delim = delim || ',';
+    const needs = new RegExp('["\\r\\n' + (delim === '\t' ? '\\t' : delim) + ']');
     return rows.map(function (r) {
       return r.map(function (c) {
         c = String(c == null ? '' : c);
-        return /[",\r\n]/.test(c) || /^\s|\s$/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c;
-      }).join(',');
+        return needs.test(c) || /^\s|\s$/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c;
+      }).join(delim);
     }).join('\r\n') + '\r\n';
+  };
+
+  // rows (first row = header) -> text in one of the export formats
+  NP.formats = {
+    csv: { label: 'CSV (Excel, Sheets)', ext: 'csv', mime: 'text/csv' },
+    tsv: { label: 'Tab-separated text', ext: 'txt', mime: 'text/plain' },
+    md: { label: 'Markdown table (wiki, tickets)', ext: 'md', mime: 'text/markdown' },
+    json: { label: 'JSON', ext: 'json', mime: 'application/json' }
+  };
+  NP.mdTable = function (rows) {
+    const cell = function (c) { return String(c == null ? '' : c).replace(/\|/g, '\\|').replace(/[\r\n]+/g, ' '); };
+    if (!rows.length) return '';
+    return ['| ' + rows[0].map(cell).join(' | ') + ' |', '|' + rows[0].map(function () { return ' --- '; }).join('|') + '|']
+      .concat(rows.slice(1).map(function (r) { return '| ' + r.map(cell).join(' | ') + ' |'; })).join('\n') + '\n';
+  };
+  NP.formatRows = function (rows, fmt) {
+    if (fmt === 'tsv') {
+      return rows.map(function (r) {
+        return r.map(function (c) { return String(c == null ? '' : c).replace(/[\t\r\n]+/g, ' '); }).join('\t');
+      }).join('\r\n') + '\r\n';
+    }
+    if (fmt === 'md') return NP.mdTable(rows);
+    if (fmt === 'json') {
+      return JSON.stringify(rows.slice(1).map(function (r) {
+        const o = {};
+        rows[0].forEach(function (h, i) { o[h] = r[i] == null ? '' : r[i]; });
+        return o;
+      }), null, 1) + '\n';
+    }
+    return '\ufeff' + NP.csv(rows);          // BOM so Excel reads UTF-8
   };
 
   NP.vendorLabel = function (dev) {
@@ -161,12 +193,21 @@
     ninfo: function (d, p) { return p.neighborInfo; },
     ip: function (d, p) { return p.ip; },
     lag: function (d, p) { return p.lag; },
-    speed: function (d, p) { return p.speed; }
+    speed: function (d, p) { return p.speed; },
+    // device-level
+    mgmtip: function (d) { return (d.mgmtIp || '').split(',')[0].replace(/\/\d+/, '').replace(/\s*\(.*\)$/, '').trim(); },
+    model: function (d) { return d.model; },
+    serial: function (d) { return d.serial; },
+    version: function (d) { return d.version; },
+    location: function (d) { return d.snmp ? d.snmp.location : ''; }
   };
+  // per: 'port' = one label per port, 'device' = one label per device
   NP.labelPresets = {
-    port: { label: 'Port labels (faceplate / patch panel)', lines: ['{port}', '{desc}', ''] },
-    cable: { label: 'Cable labels (both ends)', lines: ['{host} {port}', '{neighbor|desc} {nport}', ''] },
-    vlan: { label: 'Port number + VLAN', lines: ['{num}', '[VLAN {vlan}]', '{desc}'] }
+    port: { label: 'Port labels (port + description)', per: 'port', lines: ['{port}', '{desc}', ''] },
+    panel: { label: 'Patch panel / faceplate (port number only)', per: 'port', lines: ['{num}', '', ''] },
+    vlan: { label: 'Port number + VLAN', per: 'port', lines: ['{num}', '[VLAN {vlan}]', ''] },
+    cable: { label: 'Cable labels (this end and far end)', per: 'port', lines: ['{host} {port}', '{neighbor|desc} {nport}', ''] },
+    device: { label: 'Device / asset labels (one per device)', per: 'device', lines: ['{host}', '{mgmtip}', '{model} [SN {serial}]'] }
   };
 
   // "{a|b}" = first non-empty of a, b.  "[text {a}]" = dropped entirely when a is empty.
@@ -192,30 +233,67 @@
     return sub(withOpt).text.replace(/\s+/g, ' ').trim();
   };
 
-  // opts: {lines:[..], physicalOnly, upOnly, describedOnly, skipDisabled}
+  // opts: physicalOnly, upOnly, describedOnly, skipDisabled, match ("ap, 1/0/1" = any of these, anywhere in the row)
   NP.labelFilter = function (opts) {
+    const terms = String(opts.match || '').toLowerCase().split(',').map(function (t) { return t.trim(); }).filter(Boolean);
     return function (p) {
       if (opts.physicalOnly && p.kind !== 'physical') return false;
       if (p.link === 'not present') return false;
       if (opts.upOnly && p.link !== 'up') return false;
       if (opts.describedOnly && !p.description && !p.neighbor) return false;
       if (opts.skipDisabled && p.adminUp === false) return false;
+      if (terms.length) {
+        const hay = [p.name, p.short, p.description, p.neighbor, p.untagged, p.mode, p.lag].join(' ').toLowerCase();
+        if (!terms.some(function (t) { return hay.includes(t); })) return false;
+      }
       return true;
     };
   };
+
+  // opts adds: lines:[..], per:'port'|'device', refCols (extra Device/Port/Description/VLAN columns),
+  //            maxLen (trim each line to N characters, 0 = no limit), dedupe (drop repeated labels)
   NP.labelRows = function (devs, opts) {
     const lines = (opts.lines || []).map(function (l, i) { return { tpl: l, name: 'Line' + (i + 1) }; })
       .filter(function (l) { return l.tpl && l.tpl.trim(); });
-    const rows = [lines.map(function (l) { return l.name; }).concat(['Device', 'Port', 'Description', 'VLAN'])];
+    const perDevice = opts.per === 'device';
+    const ref = opts.refCols ? (perDevice ? ['Device'] : ['Device', 'Port', 'Description', 'VLAN']) : [];
+    const rows = [lines.map(function (l) { return l.name; }).concat(ref)];
     const keep = NP.labelFilter(opts);
-    devs.forEach(function (dev) {
-      dev.ports.filter(keep).forEach(function (p) {
-        const filled = lines.map(function (l) { return NP.fillTemplate(l.tpl, dev, p); });
-        if (!filled.some(Boolean)) return;
-        rows.push(filled.concat([dev.hostname, p.short, p.description, p.untagged]));
+    const max = +opts.maxLen || 0;
+    const seen = {};
+    const add = function (dev, p) {
+      const filled = lines.map(function (l) {
+        const t = NP.fillTemplate(l.tpl, dev, p);
+        return max > 0 && t.length > max ? t.slice(0, max).trim() : t;
       });
+      if (!filled.some(Boolean)) return;
+      if (opts.dedupe) {
+        const k = filled.join('\u0001');
+        if (seen[k]) return;
+        seen[k] = true;
+      }
+      rows.push(filled.concat(!opts.refCols ? [] : perDevice ? [dev.hostname] : [dev.hostname, p.short, p.description, p.untagged]));
+    };
+    devs.forEach(function (dev) {
+      if (perDevice) add(dev, NP.newPort(''));
+      else dev.ports.filter(keep).forEach(function (p) { add(dev, p); });
     });
     return rows;
+  };
+
+  // ------------------------------------------------------------- device report
+  // One Markdown document per device: overview, VLANs, port table.
+  NP.deviceReport = function (dev, colIds) {
+    const out = ['# ' + (dev.hostname || 'Device'), ''];
+    NP.summary(dev).forEach(function (s) {
+      out.push('## ' + s.title, '', NP.mdTable([['Item', 'Value']].concat(s.rows)));
+    });
+    if (dev.vlans.length) {
+      out.push('## VLANs', '', NP.mdTable([['VLAN', 'Name']].concat(dev.vlans.map(function (v) { return [v.id, v.name]; }))));
+    }
+    const rows = NP.portRows([dev], colIds).map(function (r) { return r.slice(1); });
+    out.push('## Ports', '', NP.mdTable(rows));
+    return out.join('\n');
   };
 
   // ------------------------------------------------------------------ backup

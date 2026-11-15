@@ -122,7 +122,10 @@ td.mono { font-family: var(--mono); font-size: 12.5px; }
 .opts { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-bottom: 10px; }
 .tokens { font-size: 12.5px; color: var(--muted); margin: 0 0 12px; }
 .tokens code { font-family: var(--mono); background: var(--row); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; color: var(--ink); }
-.labelprev td:first-child, .labelprev td:nth-child(2), .labelprev td:nth-child(3) { font-weight: 600; }
+.labelprev td.line { font-weight: 600; }
+details.cols .pop.right { left: auto; right: 0; grid-template-columns: 1fr; width: 280px; gap: 8px; }
+details.cols .pop.right label select { width: 100%; }
+details.cols summary.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
 
 @media print {
   .top, aside, .toolbar, .tabs, .labelform, .opts, .tokens { display: none !important; }
