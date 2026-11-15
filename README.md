@@ -10,7 +10,9 @@ Everything runs in the browser. Nothing is uploaded, and secrets (password hashe
 
 ## Use it
 
-Open `dist/confighelper.html` in a browser. That single file is the whole app; copy it anywhere.
+Online: https://nathanbent.github.io/ConfigHelper/ (deployed from `main` by GitHub Actions; it is the same single file, and pasted configs still never leave your browser).
+
+Offline: Open `dist/confighelper.html` in a browser. That single file is the whole app; copy it anywhere.
 (`index.html` also works directly and is the one to use while editing the source.)
 
 1. Optional: choose a platform to see the commands to run on the device, with a **Copy all** button.
