@@ -771,6 +771,7 @@
         : h('p', { class: 'empty', text: 'No ports match.' })));
   }
 
+  let labelCaret = { line: 0, pos: null };   // the label line the field buttons write into
   function labels(view, dev) {
     const L = state.label;
     const perDevice = L.per === 'device';
@@ -783,10 +784,41 @@
       return h('label', { class: 'check' },
         h('input', { type: 'checkbox', checked: L[key], disabled: disabled, onchange: set(function (t) { L[key] = t.checked; }) }), label);
     };
+    const remember = function (i) {
+      return function (e) {
+        labelCaret = { line: i, pos: e.target.selectionStart };
+        view.querySelectorAll('input[data-line]').forEach(function (el) { el.classList.toggle('target', el === e.target); });
+        const which = view.querySelector('.tokens .which');
+        if (which) which.textContent = 'Line ' + (i + 1);
+      };
+    };
     const lineInput = function (i) {
       return h('label', {}, 'Line ' + (i + 1) + (i ? ' (optional)' : ''),
-        h('input', { type: 'text', value: L.lines[i] || '',
+        h('input', { type: 'text', value: L.lines[i] || '', 'data-line': i, class: labelCaret.line === i ? 'target' : null,
+          onfocus: remember(i), onkeyup: remember(i), onclick: remember(i), onselect: remember(i),
           onchange: set(function (t) { L.lines[i] = t.value; L.preset = 'custom'; }) }));
+    };
+    // Field buttons put their text into the line last clicked, at the cursor. mousedown is cancelled so the
+    // line keeps focus (and its typed, not yet saved text) while the button is clicked.
+    const insertField = function (text) {
+      const i = labelCaret.line;
+      const input = view.querySelector('input[data-line="' + i + '"]');
+      const cur = input ? input.value : (L.lines[i] || '');
+      let pos = input && document.activeElement === input ? input.selectionStart : labelCaret.pos;
+      if (pos == null || pos > cur.length) pos = cur.length;
+      const before = cur.slice(0, pos), after = cur.slice(pos);
+      const pad = before && !/\s$/.test(before) ? ' ' : '';
+      L.lines[i] = before + pad + text + after;
+      if (input) input.value = L.lines[i];   // removing the focused line on re-render fires its change event
+      L.preset = 'custom';
+      labelCaret = { line: i, pos: (before + pad + text).length };
+      save(); render();
+      const again = document.querySelector('input[data-line="' + i + '"]');
+      if (again) { again.focus(); again.setSelectionRange(labelCaret.pos, labelCaret.pos); }
+    };
+    const fieldButton = function (text, help) {
+      return h('button', { type: 'button', class: 'token', title: help, text: text,
+        onmousedown: function (e) { e.preventDefault(); }, onclick: function () { insertField(text); } });
     };
     const form = h('div', { class: 'labelform' },
       h('label', {}, 'Label type',
@@ -820,10 +852,18 @@
         check('Physical ports only', 'physicalOnly', perDevice), check('Link up only', 'upOnly', perDevice),
         check('Only ports with a description or neighbor', 'describedOnly', perDevice), check('Skip disabled ports', 'skipDisabled', perDevice),
         check('Remove duplicate labels', 'dedupe'), check('Add reference columns (device, port, description, VLAN)', 'refCols')),
-      h('p', { class: 'tokens' }, 'Fields: ',
-        Object.keys(NP.labelTokens).map(function (t) { return [h('code', { text: '{' + t + '}' }), ' ']; }),
-        h('br'), h('code', { text: '{neighbor|desc}' }), ' uses the first one that has a value. ',
-        h('code', { text: '[VLAN {vlan}]' }), ' is left out when the field inside is empty.'),
+      h('div', { class: 'tokens' },
+        h('p', {}, 'Click a field to add it to ', h('b', { class: 'which', text: 'Line ' + (labelCaret.line + 1) }),
+          ' at the cursor (click in a line first to choose it). Hover a field for what it holds.'),
+        h('div', { class: 'tokenrow' }, h('span', { class: 'tokenhead', text: 'Port' }),
+          Object.keys(NP.labelTokens).filter(function (t) { return !NP.labelDeviceTokens[t]; })
+            .map(function (t) { return fieldButton('{' + t + '}', NP.labelTokenHelp[t]); })),
+        h('div', { class: 'tokenrow' }, h('span', { class: 'tokenhead', text: 'Device' }),
+          Object.keys(NP.labelDeviceTokens).map(function (t) { return fieldButton('{' + t + '}', NP.labelTokenHelp[t]); })),
+        h('div', { class: 'tokenrow' }, h('span', { class: 'tokenhead', text: 'Combos' }),
+          NP.labelSnippets.map(function (sn) { return fieldButton(sn.text, sn.help); })),
+        h('p', {}, h('code', { text: '{a|b}' }), ' uses the first field that has a value. ',
+          h('code', { text: '[text {a}]' }), ' is left out when the field inside is empty.')),
       h('div', { class: 'toolbar' },
         h('span', { class: 'count', text: (rows.length - 1) + ' label(s), ' + head.length + ' column(s) in the file' }), h('span', { class: 'spacer' }),
         h('button', { disabled: rows.length < 2, onclick: function (e) {

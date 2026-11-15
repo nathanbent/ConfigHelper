@@ -149,6 +149,12 @@ td.mono { font-family: var(--mono); font-size: 12.5px; }
 .opts { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-bottom: 10px; }
 .tokens { font-size: 12.5px; color: var(--muted); margin: 0 0 12px; }
 .tokens code { font-family: var(--mono); background: var(--row); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; color: var(--ink); }
+.tokens p { margin: 0 0 6px; }
+.tokenrow { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 0 0 6px; }
+.tokenhead { min-width: 52px; font-weight: 600; }
+.tokens button.token { font-family: var(--mono); font-size: 12.5px; background: var(--row); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; min-height: 0; color: var(--ink); cursor: pointer; }
+.tokens button.token:hover, .tokens button.token:focus-visible { border-color: var(--accent, currentColor); }
+.labelform input.target { outline: 2px solid var(--accent, currentColor); outline-offset: -1px; }
 .labelprev td.line { font-weight: 600; }
 td.edited { box-shadow: inset 3px 0 0 var(--accent); }
 td.editcell { padding: 3px 6px; min-width: 180px; }

@@ -276,11 +276,28 @@
     version: function (d) { return d.version; },
     location: function (d) { return d.snmp ? d.snmp.location : ''; }
   };
+  // what each field holds, shown when hovering a field button on the Labels tab
+  NP.labelTokenHelp = {
+    host: 'Device hostname', port: 'Short port name (Gi1/0/1)', portfull: 'Full port name (GigabitEthernet1/0/1)',
+    num: 'Port number only (1)', desc: 'Port description', vlan: 'Access or native (untagged) VLAN',
+    tagged: 'Tagged (trunk) VLANs', voice: 'Voice VLAN', mode: 'access, trunk, routed ...', neighbor: 'CDP/LLDP neighbor name',
+    nport: 'Neighbor port', ninfo: 'Neighbor platform / details', ip: 'Port IP address', lag: 'Port-channel / LAG',
+    speed: 'Port speed', mgmtip: 'Device management IP', model: 'Device model', serial: 'Device serial number',
+    version: 'Software version', location: 'SNMP location'
+  };
+  NP.labelDeviceTokens = { host: true, mgmtip: true, model: true, serial: true, version: true, location: true };
+  // ready-made snippets offered next to the fields
+  NP.labelSnippets = [
+    { text: '[n{vlan}] [t{tagged}]', help: 'Native and tagged VLANs: n10 t20,30 (each part left out when empty)' },
+    { text: '[VLAN {vlan}]', help: 'VLAN 10, left out when the port has no VLAN' },
+    { text: '{neighbor|desc}', help: 'Neighbor name, or the description when there is no neighbor' }
+  ];
   // per: 'port' = one label per port, 'device' = one label per device
   NP.labelPresets = {
     port: { label: 'Port labels (port + description)', per: 'port', lines: ['{port}', '{desc}', ''] },
     panel: { label: 'Patch panel / faceplate (port number only)', per: 'port', lines: ['{num}', '', ''] },
     vlan: { label: 'Port number + VLAN', per: 'port', lines: ['{num}', '[VLAN {vlan}]', ''] },
+    vlans: { label: 'Port number + native/tagged VLAN', per: 'port', lines: ['{num}', '[n{vlan}] [t{tagged}]', ''] },
     cable: { label: 'Cable labels (this end and far end)', per: 'port', lines: ['{host} {port}', '{neighbor|desc} {nport}', ''] },
     device: { label: 'Device / asset labels (one per device)', per: 'device', lines: ['{host}', '{mgmtip}', '{model} [SN {serial}]'] }
   };
