@@ -116,7 +116,8 @@ reference columns (`Device`, `Port`, `Description`, `VLAN`).
 
 `P-touch template (.lbx)` downloads a ready-made P-touch Editor layout (`templates/cable-wrap-3line.lbx`: a 3-line
 cable wrap on 24 mm tape, bold port, italic description, small VLAN line) whose fields are already bound to
-`Line1`-`Line3`; open it and connect the exported file as its database.
+`Line1`-`Line3`; open it and connect the exported file as its database. `Zipped (.zip, phone app)` gives the same
+template inside a `.zip`, the form Brother's Pro Label Tool app imports.
 
 - `{host} {port} {portfull} {num} {desc} {vlan} {tagged} {voice} {mode} {neighbor} {nport} {ninfo} {ip} {lag} {speed}`, and per device `{mgmtip} {model} {serial} {version} {location}`
 - `{neighbor|desc}` uses the first field that has a value

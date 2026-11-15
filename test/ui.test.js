@@ -102,6 +102,9 @@ test('ui', { skip: chromium ? false : 'Playwright is not installed' }, async (t)
     const lbx = await save(page, () => page.click('button:has-text("P-touch template")'));
     assert.equal(lbx.name, 'cable-wrap-3line.lbx');
     assert.match(lbx.text, /^PK[\s\S]*label\.xml/);
+    const zipped = await save(page, () => page.click('button:has-text("Zipped (.zip")'));
+    assert.equal(zipped.name, 'cable-wrap-3line.zip');
+    assert.match(zipped.text, /^PK[\s\S]*cable-wrap-3line\.lbx/);
     // field buttons write into the line last clicked, at the cursor, keeping text typed but not yet saved
     const line2 = page.locator('input[data-line="1"]');
     await line2.fill('Port');

@@ -872,6 +872,10 @@
         h('button', { title: 'A ready-made P-touch Editor layout for Line1, Line2 and Line3: ' + NP.labelTemplates.wrap.label, onclick: function () {
           download(NP.labelTemplates.wrap.file, NP.b64Bytes(NP.labelTemplates.wrap.b64), 'application/octet-stream');
         } }, 'P-touch template (.lbx)'),
+        h('button', { title: 'The same template inside a .zip, which is how Brother\'s phone app (Pro Label Tool) imports P-touch Editor layouts', onclick: function () {
+          const t = NP.labelTemplates.wrap;
+          download(t.file.replace(/\.lbx$/, '.zip'), NP.zipStore(t.file, NP.b64Bytes(t.b64)), 'application/zip');
+        } }, 'Zipped (.zip, phone app)'),
         h('button', { class: 'primary', disabled: rows.length < 2, onclick: function () {
           const name = (L.scope === 'all' ? 'all-devices' : fileSafe(dev.hostname)) + '-labels.' + (L.delim === '\t' ? 'txt' : 'csv');
           download(name, NP.csv(rows, L.delim), L.delim === '\t' ? 'text/plain' : 'text/csv');
@@ -883,7 +887,7 @@
               return h('tr', {}, r.map(function (c, i) { return h('td', { class: i < lineCount ? 'line' : '', text: c }); }));
             }))))
         : h('p', { class: 'empty', text: 'No ports match these options.' }),
-      h('p', { class: 'hint', text: 'In P-touch Editor: File > Database > Connect, choose this file, tick "Header row contains field names", then drag the Line fields onto the label and print all records. Or start from the P-touch template (a 3-line cable wrap for 24 mm tape, made for the Cable wrap label type): open it, connect this file the same way and the three lines fill in.' })));
+      h('p', { class: 'hint', text: 'In P-touch Editor: File > Database > Connect, choose this file, tick "Header row contains field names", then drag the Line fields onto the label and print all records. Or start from the P-touch template (a 3-line cable wrap for 24 mm tape, made for the Cable wrap label type): open it, connect this file the same way and the three lines fill in. Brother\'s phone app (Pro Label Tool) takes the zipped template instead.' })));
   }
 
   // -------------------------------------------------------------------- wire

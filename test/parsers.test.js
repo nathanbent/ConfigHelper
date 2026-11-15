@@ -974,6 +974,14 @@ test('bundled P-touch template matches templates/ and carries no personal data',
   ['Line1', 'Line2', 'Line3'].forEach(l => assert.ok(xml.includes('dbMergeFieldStyleName="' + l + '"')));
   assert.match(xml, /databasePath="labels\.csv"/);
   assert.doesNotMatch(xml, /[A-Z]:\\|Users|Downloads/);
+  // the zipped form for the phone app: one stored entry holding the same bytes
+  const zip = Buffer.from(NP.zipStore(t.file, NP.b64Bytes(t.b64)));
+  assert.equal(zip.readUInt32LE(0), 0x04034b50);
+  assert.equal(zip.readUInt32LE(14), require('zlib').crc32(file));
+  assert.equal(zip.subarray(30, 30 + t.file.length).toString(), t.file);
+  assert.equal(zip.subarray(30 + t.file.length, 30 + t.file.length + file.length).equals(file), true);
+  assert.equal(zip.readUInt32LE(zip.length - 22), 0x06054b50);
+  assert.equal(zip.readUInt32LE(zip.length - 6), 30 + t.file.length + file.length);   // where the central directory starts
 });
 
 test('label templates, CSV and backup round-trip', () => {

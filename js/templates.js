@@ -12,4 +12,25 @@
     for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
     return out;
   };
+  // One file in an uncompressed .zip. Brother's phone app (Pro Label Tool) only imports a .lbx that is zipped.
+  NP.zipStore = function (name, bytes) {
+    let crc = -1;
+    for (let i = 0; i < bytes.length; i++) {
+      crc ^= bytes[i];
+      for (let k = 0; k < 8; k++) crc = (crc >>> 1) ^ (0xEDB88320 & -(crc & 1));
+    }
+    crc = ~crc >>> 0;
+    const fn = [];
+    for (let i = 0; i < name.length; i++) fn.push(name.charCodeAt(i) & 0x7f);
+    const u16 = function (v) { return [v & 255, v >>> 8 & 255]; };
+    const u32 = function (v) { return [v & 255, v >>> 8 & 255, v >>> 16 & 255, v >>> 24 & 255]; };
+    // version 2.0, no flags, stored, DOS time 00:00 and date 2026-01-01, crc, sizes, name length, no extra field
+    const common = [].concat(u16(20), u16(0), u16(0), u16(0), u16((46 << 9) | (1 << 5) | 1), u32(crc), u32(bytes.length), u32(bytes.length), u16(fn.length), u16(0));
+    const local = [0x50, 0x4b, 3, 4].concat(common, fn);
+    const central = [0x50, 0x4b, 1, 2].concat(u16(20), common, u16(0), u16(0), u16(0), u32(0), u32(0), fn);
+    const end = [0x50, 0x4b, 5, 6].concat(u16(0), u16(0), u16(1), u16(1), u32(central.length), u32(local.length + bytes.length), u16(0));
+    const out = new Uint8Array(local.length + bytes.length + central.length + end.length);
+    out.set(local, 0); out.set(bytes, local.length); out.set(central, local.length + bytes.length); out.set(end, local.length + bytes.length + central.length);
+    return out;
+  };
 })(typeof globalThis !== 'undefined' ? globalThis : this);
