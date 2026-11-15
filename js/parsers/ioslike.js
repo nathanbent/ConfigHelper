@@ -174,6 +174,7 @@
       if ((m = l.match(/^ip dhcp snooping vlan (\S+)/))) { NP.addOther(dev, 'DHCP snooping', 'VLAN ' + m[1]); return; }
       if ((m = l.match(/^ip dhcp pool (\S+)/))) { NP.addOther(dev, 'DHCP pools', m[1]); return; }
       if ((m = l.match(/^errdisable recovery cause (\S+)/))) { NP.addOther(dev, 'Errdisable recovery', m[1]); return; }
+      NP.miss(l, 'global');
     }
 
     function sub(l) {
@@ -181,6 +182,7 @@
       if (ctx.type === 'vlan') {
         if ((m = l.match(/^name (.+)/))) NP.addVlan(dev, ctx.ids[0], m[1]);
         else if (/^ip igmp snooping( enable)?$/.test(l)) addUnique(mc.notes, 'snooping on VLAN ' + ctx.ids.join(','));
+        else NP.miss(l, 'vlan');
         return;
       }
       if (ctx.type === 'line') {
@@ -191,6 +193,7 @@
         if ((m = l.match(/^name (\S+)/))) addUnique(stp.notes, 'MST region ' + m[1]);
         else if ((m = l.match(/^revision (\d+)/))) addUnique(stp.notes, 'MST revision ' + m[1]);
         else if ((m = l.match(/^instance (\d+) vlan (.+)/))) addUnique(stp.notes, 'MST ' + m[1] + ' = VLAN ' + m[2]);
+        else NP.miss(l, 'spanning-tree mst');
         return;
       }
       const p = ctx.p, c = ctx.c;
@@ -238,6 +241,7 @@
       }
       if (/^no lldp (transmit|receive)/.test(l)) { NP.addNote(p, 'lldp off'); return; }
       if (/^no cdp enable/.test(l)) { NP.addNote(p, 'cdp off'); return; }
+      NP.miss(l, 'interface');
     }
 
     text.split(/\r?\n/).forEach(function (raw) {
@@ -246,8 +250,9 @@
       if (!l) return;
       const indented = /^\s/.test(line);
       if (l[0] === '!') { comment(l); if (!indented) finish(); return; }
-      if (!indented) { finish(); global(l); }
+      if (!indented) { finish(); NP._lastMiss = null; global(l); }
       else if (ctx) sub(l);
+      else NP.missInner();
     });
     finish();
 

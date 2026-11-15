@@ -281,6 +281,41 @@
     return rows;
   };
 
+  // --------------------------------------------------------------- not parsed
+  // -> [{title, hint, items:[{text, count, inner}]}] in a fixed, useful order
+  NP.unparsedGroups = function (dev) {
+    const known = {
+      command: ['Commands whose output was not used', 'Either the parser does not know this command, or its output format was not recognised.'],
+      'interface': ['Interface settings not read', 'Lines under an interface that were skipped.'],
+      vlan: ['VLAN settings not read', 'Lines under a VLAN that were skipped.'],
+      global: ['Global lines not read', 'Top-level config lines that were skipped. "+N lines" counts the indented lines beneath one.'],
+      section: ['Config sections not read', 'Whole sections that were skipped.'],
+      block: ['Config sections not read', 'Whole "config ..." sections that were skipped, with the number of settings inside.']
+    };
+    const order = ['command', 'interface', 'vlan', 'global'];
+    const by = {};
+    (dev.unparsed || []).forEach(function (e) { (by[e.ctx] = by[e.ctx] || []).push(e); });
+    const ctxs = Object.keys(by).sort(function (a, b) {
+      const ia = order.indexOf(a), ib = order.indexOf(b);
+      const ra = ia >= 0 ? ia : known[a] ? 90 : 50, rb = ib >= 0 ? ib : known[b] ? 90 : 50;
+      return ra - rb || (a < b ? -1 : 1);
+    });
+    return ctxs.map(function (c) {
+      const k = known[c] || ['Settings not read in "config ' + c + '"', 'Setting names only; values are never kept.'];
+      return { ctx: c, title: k[0], hint: k[1], items: by[c].slice().sort(function (a, b) { return b.count - a.count || (a.text < b.text ? -1 : 1); }) };
+    });
+  };
+  NP.unparsedText = function (dev) {
+    const out = ['ConfigHelper: input not parsed for ' + (dev.hostname || 'device') + ' (' + NP.vendorLabel(dev) + ')'];
+    NP.unparsedGroups(dev).forEach(function (g) {
+      out.push('', g.title + ':');
+      g.items.forEach(function (e) {
+        out.push('  ' + e.text + (e.count > 1 ? '   x' + e.count : '') + (e.inner ? '   (+' + e.inner + ' lines)' : ''));
+      });
+    });
+    return out.join('\n') + '\n';
+  };
+
   // ------------------------------------------------------------- device report
   // One Markdown document per device: overview, VLANs, port table.
   NP.deviceReport = function (dev, colIds) {

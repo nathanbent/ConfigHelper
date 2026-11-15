@@ -357,7 +357,8 @@ A whole terminal session works too, for example:
       vlans: [],          // {id, name}
       ports: [],
       other: {},          // free-form "Label" -> "value"
-      sources: []         // what was pasted in, for the record (names only)
+      sources: [],        // what was pasted in, for the record (names only)
+      unparsed: []        // {ctx, text, count, inner}: input the parser did not use
     };
   };
 
@@ -410,6 +411,69 @@ A whole terminal session works too, for example:
     if (!cur.includes(val)) cur.push(val);
     dev.other[key] = cur.join(', ');
   };
+
+  // ---------------------------------------------------- "not parsed" tracking
+  // Parsers call NP.miss() for a line they recognise nothing in. NP.ingest collects these,
+  // drops known noise, strips secrets and stores the rest on the device.
+  NP._collector = null;
+  NP._lastMiss = null;
+  NP.miss = function (text, ctx, inner) {
+    if (!NP._collector) return null;
+    text = String(text).trim();
+    const key = ctx + '\u0001' + text;
+    const e = NP._collector[key] = NP._collector[key] || { ctx: ctx, text: text, count: 0, inner: 0 };
+    e.count++;
+    e.inner += inner || 0;
+    NP._lastMiss = e;
+    return e;
+  };
+  // an indented line under a block the parser skipped: count it against that block
+  NP.missInner = function () { if (NP._collector && NP._lastMiss) NP._lastMiss.inner++; };
+
+  NP.redact = function (t) {
+    return String(t)
+      .replace(/\b(secret|password|passwd|key|key-string|community|auth|priv|md5|sha\d*|psk|passphrase|pre-shared-key|encrypted-password|cipher|simple|hash)\b(\s+\d)?\s+\S+/gi, '$1 ***')
+      .replace(/\$\d\$\S+|\b[0-9A-Fa-f]{16,}\b|[A-Za-z0-9+\/=]{28,}/g, '***');
+  };
+  // lines nobody needs to hear about
+  const NOISE = new RegExp('^(' + [
+    '[!#;]', 'end$', 'exit$', 'quit$', 'return$', 'Building configuration', 'Current configuration', 'Running configuration',
+    'version ', 'ver ', 'boot[ -]', '(no )?service ', '(no )?platform ', 'license ', 'diagnostic ', 'memory ', 'redundancy',
+    'transceiver ', 'control-plane', 'line (con|aux)', 'banner ', 'crypto ', 'call-home', 'class-map ', 'policy-map ',
+    'no (login|device-tracking|ip domain[- ]lookup|ip address|aaa new-model|untagged|tagged)', 'enable (secret|password|super-user)',
+    'archive', 'alias ', 'hw-module', 'ip forward-protocol', 'ip classless', 'ip subnet-zero', 'login ', 'subscriber ',
+    'mls ', 'module \\d', 'stack-port', 'ip http (authentication|client)', 'switch \\d+ provision', 'system mtu'
+  ].join('|') + ')', 'i');
+  const NOISE_CMD = /^(terminal |term |skip-page|no page|screen-length|set cli |config system console|set output|show int$|exit|end$|enable$)/i;
+
+  NP.storeMisses = function (dev, collector) {
+    Object.keys(collector).forEach(function (k) {
+      const e = collector[k];
+      if (e.ctx !== 'command' && e.ctx !== 'block' && NOISE.test(e.text)) return;
+      const text = NP.redact(e.text);
+      const old = dev.unparsed.find(function (x) { return x.ctx === e.ctx && x.text === text; });
+      if (old) { old.count = Math.max(old.count, e.count); old.inner = Math.max(old.inner, e.inner); }
+      else dev.unparsed.push({ ctx: e.ctx, text: text, count: e.count, inner: e.inner });
+    });
+  };
+  // Commands whose whole output changed nothing: parse each prompted section on its own and compare.
+  function unusedCommands(text, vendor) {
+    const print = function (t) {
+      const d = NP.newDevice(); d.id = '';
+      NP.vendors[vendor].parse(t, d);
+      delete d.pendingChildren;
+      return JSON.stringify(d);
+    };
+    const empty = print('');
+    const out = {};
+    NP.sections(text).forEach(function (s) {
+      if (!s.cmd || NOISE_CMD.test(s.cmd)) return;
+      if (print(s.text) !== empty) return;
+      const key = 'command\u0001' + s.cmd;
+      out[key] = { ctx: 'command', text: s.cmd, count: 1, inner: s.text.split('\n').filter(function (l) { return l.trim(); }).length };
+    });
+    return out;
+  }
 
   // ------------------------------------------------------- input splitting
   // A paste may be a whole terminal session ("sw1#show run ... sw1#show int status ...").
@@ -532,7 +596,12 @@ A whole terminal session works too, for example:
     const isNew = !dev;
     if (isNew) dev = NP.newDevice();
     if (!dev.vendor) dev.vendor = vendor;
-    NP.parseInto(text, vendor, dev);
+    NP._collector = {}; NP._lastMiss = null;
+    let misses;
+    try { NP.parseInto(text, vendor, dev); } finally { misses = NP._collector; NP._collector = null; }
+    if (!dev.unparsed) dev.unparsed = [];
+    NP.storeMisses(dev, misses);
+    NP.storeMisses(dev, unusedCommands(text, vendor));
     // A parser may describe further devices found in the same input (FortiLink-managed
     // switches inside a FortiGate config): [{hostname, vendor, apply(dev)}]
     const kids = dev.pendingChildren || [];
@@ -800,6 +869,7 @@ A whole terminal session works too, for example:
       if ((m = l.match(/^ip dhcp snooping vlan (\S+)/))) { NP.addOther(dev, 'DHCP snooping', 'VLAN ' + m[1]); return; }
       if ((m = l.match(/^ip dhcp pool (\S+)/))) { NP.addOther(dev, 'DHCP pools', m[1]); return; }
       if ((m = l.match(/^errdisable recovery cause (\S+)/))) { NP.addOther(dev, 'Errdisable recovery', m[1]); return; }
+      NP.miss(l, 'global');
     }
 
     function sub(l) {
@@ -807,6 +877,7 @@ A whole terminal session works too, for example:
       if (ctx.type === 'vlan') {
         if ((m = l.match(/^name (.+)/))) NP.addVlan(dev, ctx.ids[0], m[1]);
         else if (/^ip igmp snooping( enable)?$/.test(l)) addUnique(mc.notes, 'snooping on VLAN ' + ctx.ids.join(','));
+        else NP.miss(l, 'vlan');
         return;
       }
       if (ctx.type === 'line') {
@@ -817,6 +888,7 @@ A whole terminal session works too, for example:
         if ((m = l.match(/^name (\S+)/))) addUnique(stp.notes, 'MST region ' + m[1]);
         else if ((m = l.match(/^revision (\d+)/))) addUnique(stp.notes, 'MST revision ' + m[1]);
         else if ((m = l.match(/^instance (\d+) vlan (.+)/))) addUnique(stp.notes, 'MST ' + m[1] + ' = VLAN ' + m[2]);
+        else NP.miss(l, 'spanning-tree mst');
         return;
       }
       const p = ctx.p, c = ctx.c;
@@ -864,6 +936,7 @@ A whole terminal session works too, for example:
       }
       if (/^no lldp (transmit|receive)/.test(l)) { NP.addNote(p, 'lldp off'); return; }
       if (/^no cdp enable/.test(l)) { NP.addNote(p, 'cdp off'); return; }
+      NP.miss(l, 'interface');
     }
 
     text.split(/\r?\n/).forEach(function (raw) {
@@ -872,8 +945,9 @@ A whole terminal session works too, for example:
       if (!l) return;
       const indented = /^\s/.test(line);
       if (l[0] === '!') { comment(l); if (!indented) finish(); return; }
-      if (!indented) { finish(); global(l); }
+      if (!indented) { finish(); NP._lastMiss = null; global(l); }
       else if (ctx) sub(l);
+      else NP.missInner();
     });
     finish();
 
@@ -1193,6 +1267,7 @@ A whole terminal session works too, for example:
           }
           else if (/^spanning-tree /.test(l)) stpFlags(dev, [p.name], l);
           else if (/^(aaa port-access|port-security)/.test(l)) NP.addNote(p, l.split(' ').slice(0, 2).join(' '));
+          else if (p === ctx.ports[0]) NP.miss(l, 'interface');
         });
         return;
       }
@@ -1217,6 +1292,7 @@ A whole terminal session works too, for example:
         else if (l === 'ip igmp') { dev.multicast.igmpSnooping = 'enabled'; addUnique(dev.multicast.notes, 'IGMP on VLAN ' + id); }
         else if (/^ip igmp querier/.test(l)) addUnique(dev.multicast.notes, 'querier on VLAN ' + id);
         else if ((m = l.match(/^ip helper-address (\S+)/))) NP.addNote(NP.port(dev, 'Vlan' + id), 'helper ' + m[1]);
+        else NP.miss(l, 'vlan');
         return;
       }
 
@@ -1252,6 +1328,8 @@ A whole terminal session works too, for example:
       else if (/^ip ssh/.test(l)) dev.other.SSH = 'enabled';
       else if ((m = l.match(/^dhcp-snooping( vlan (.+))?$/))) NP.addOther(dev, 'DHCP snooping', m[2] ? 'VLAN ' + m[2] : 'enabled');
       else if (/^loop-protect /.test(l)) NP.addOther(dev, 'Loop protect', l.replace(/^loop-protect /, ''));
+      else if (indented) NP.missInner();
+      else NP.miss(l, 'global');
     });
 
     dev.stp.enabled = stpOn ? 'yes' : (dev.stp.enabled || 'no (default)');
@@ -1333,7 +1411,7 @@ A whole terminal session works too, for example:
   }
 
   function parseConfig(text, dev) {
-    let ctx = null, m;
+    let ctx = null, m, other = false;
     function finish() {
       if (!ctx || ctx.type !== 'if') { ctx = null; return; }
       const p = ctx.p, c = ctx.c;
@@ -1355,7 +1433,7 @@ A whole terminal session works too, for example:
     text.split(/\r?\n/).forEach(function (raw) {
       const l = raw.trim();
       if (!l) return;
-      if (l === '#' || l === 'return') { finish(); return; }
+      if (l === '#' || l === 'return') { finish(); other = false; return; }
       if ((m = l.match(/^interface (\S+)$/))) {
         finish();
         ctx = { type: 'if', p: NP.port(dev, m[1]),
@@ -1369,10 +1447,14 @@ A whole terminal session works too, for example:
         return;
       }
       if (ctx && !/^\s/.test(raw)) finish();
+      // a column-0 line that is not interface/vlan opens some other block; its indented lines are not globals
+      if (!/^\s/.test(raw)) { other = true; NP._lastMiss = null; }
+      else if (other && !ctx) { NP.missInner(); return; }
 
       if (ctx && ctx.type === 'vlan') {
         if ((m = l.match(/^(?:name|description) (.+)/))) NP.addVlan(dev, ctx.id, m[1]);
         else if (/^igmp-snooping enable/.test(l)) addUnique(dev.multicast.notes, 'snooping on VLAN ' + ctx.id);
+        else NP.miss(l, 'vlan');
         return;
       }
       if (ctx && ctx.type === 'if') {
@@ -1409,6 +1491,7 @@ A whole terminal session works too, for example:
         else if (/^dhcp snooping trust/.test(l)) NP.addNote(p, 'dhcp-snooping trust');
         else if (/^igmp enable/.test(l)) addUnique(dev.multicast.notes, 'IGMP on ' + p.short);
         else if ((m = l.match(/^pim (sm|dm)/))) addUnique(dev.multicast.notes, 'PIM-' + m[1].toUpperCase() + ' on ' + p.short);
+        else NP.miss(l, 'interface');
         return;
       }
 
@@ -1439,6 +1522,7 @@ A whole terminal session works too, for example:
       else if (/^telnet server enable/.test(l)) dev.other.Telnet = 'enabled';
       else if (/^dhcp snooping enable/.test(l) || l === 'dhcp-snooping') dev.other['DHCP snooping'] = 'enabled';
       else if ((m = l.match(/^irf member (\d+) priority (\d+)/))) NP.addOther(dev, 'IRF members', m[1] + ' (prio ' + m[2] + ')');
+      else NP.miss(l, 'global');
     });
     finish();
     if (!dev.stp.mode) dev.stp.mode = 'mstp (default)';
@@ -1593,6 +1677,7 @@ A whole terminal session works too, for example:
           dev.multicast.igmpSnooping = dev.multicast.igmpSnooping || 'enabled (per VLAN)';
           addUnique(dev.multicast.notes, 'VLAN ' + id + ' ' + m[1] + (m[1] === 'active' ? ' (querier)' : ''));
         }
+        else NP.miss(l, 'vlan');
         return;
       }
       if (ctx && ctx.type === 'if') {
@@ -1622,6 +1707,7 @@ A whole terminal session works too, for example:
           else if (/^dhcp snooping trust/.test(l)) NP.addNote(p, 'dhcp-snooping trust');
           else if (/^no lldp|^lldp disable/.test(l)) NP.addNote(p, 'lldp off');
           else if ((m = l.match(/^ip pim(?:-(\S+))?/))) addUnique(dev.multicast.notes, 'PIM on ' + p.short);
+          else if (p === ctx.ports[0]) NP.miss(l, 'interface');
         });
         return;
       }
@@ -1645,7 +1731,8 @@ A whole terminal session works too, for example:
         if ((m = l.match(/^(server|peer) (\S+)/))) addUnique(dev.ntp, m[2] + (m[1] === 'peer' ? ' (peer)' : ''));
         return;
       }
-      if (indented) return;
+      if (indented) { NP.missInner(); return; }
+      NP._lastMiss = null;
 
       // ---- global
       if ((m = l.match(/^hostname (\S+)/))) dev.hostname = NP.unquote(m[1]);
@@ -1676,6 +1763,7 @@ A whole terminal session works too, for example:
       else if ((m = l.match(/^ip dhcp snooping vlan (.+)/))) NP.addOther(dev, 'DHCP snooping', 'VLAN ' + m[1]);
       else if (/^lldp run/.test(l)) dev.other.LLDP = 'enabled';
       else if (/^stack enable/.test(l)) dev.other.Stacking = 'enabled';
+      else NP.miss(l, 'global');
     });
 
     dev.stp.mode = stpModes.join('; ') || dev.stp.mode;
@@ -1877,6 +1965,7 @@ A whole terminal session works too, for example:
         else if ((x = rest.match(/^vlan-id (\d+)/))) { p.tagged = x[1]; p.mode = 'subinterface'; }
         else if ((x = rest.match(/^mtu (\d+)/))) NP.addNote(p, 'mtu ' + x[1]);
         else if ((x = rest.match(/^(?:giga)?ether-options (no-auto-negotiation|speed \S+)/))) NP.addNote(p, x[1]);
+        else NP.miss(rest.replace(/ \d+\.\d+\.\d+\.\d+\S*/g, ' <addr>'), 'interface');
         return;
       }
       if ((m = l.match(/^set system host-name (\S+)/))) dev.hostname = m[1];
@@ -1931,6 +2020,8 @@ A whole terminal session works too, for example:
         else NP.port(dev, m[1]).poeAdmin = m[2] ? 'disabled' : 'enabled';
       }
       else if ((m = l.match(/^set virtual-chassis member (\d+)(?: role (\S+))?/))) NP.addOther(dev, 'Virtual chassis', 'member ' + m[1] + (m[2] ? ' ' + m[2] : ''));
+      // everything else: group by the first three words so a long policy counts as one entry
+      else if (!/^set (vlans|interfaces) /.test(l)) NP.miss(l.split(/\s+/).slice(0, 3).join(' ') + ' …', 'global');
     });
 
     const resolve = function (list) {
@@ -2034,17 +2125,23 @@ A whole terminal session works too, for example:
 
   // -> tree of {name, set:{k:[v..]}, entries:[{name,set,blocks}], blocks:[...]}
   function tree(text) {
-    const top = { name: '', set: {}, entries: [], blocks: [] };
+    // each node's "set" is wrapped so we can tell afterwards which settings were ever looked at
+    const node = function (name, isEntry) {
+      const used = {};
+      return { name: name, used: used, entries: [], blocks: [], isEntry: !!isEntry,
+        set: new Proxy({}, { get: function (o, k) { if (typeof k === 'string' && k in o) used[k] = true; return o[k]; } }) };
+    };
+    const top = node('');
     const stack = [top];
     text.split(/\r?\n/).forEach(function (raw) {
       const l = raw.trim();
       const cur = stack[stack.length - 1];
       let m;
       if ((m = l.match(/^config (.+)$/))) {
-        const b = { name: m[1], set: {}, entries: [], blocks: [] };
+        const b = node(m[1]);
         cur.blocks.push(b); stack.push(b);
       } else if ((m = l.match(/^edit (.+)$/))) {
-        const e = { name: tokens(m[1])[0] || '', set: {}, entries: [], blocks: [], isEntry: true };
+        const e = node(tokens(m[1])[0] || '', true);
         cur.entries.push(e); stack.push(e);
       } else if (l === 'next') { if (stack.length > 1 && cur.isEntry) stack.pop(); }
       else if (l === 'end') {
@@ -2061,7 +2158,22 @@ A whole terminal session works too, for example:
     return out;
   }
   const one = function (b, k) { return b && b.set[k] ? b.set[k][0] : ''; };
-  NP.fortiTree = { tree: tree, find: find, one: one };      // shared with the FortiSwitch parser
+  // Report what was never read: whole "config" sections as one entry each, and for sections
+  // that were used, the individual setting names (never the values).
+  function report(t) {
+    t.blocks.forEach(function (b) {
+      const keys = [];
+      let any = false;
+      (function walk(n, path) {
+        Object.keys(n.set).forEach(function (k) { if (n.used[k]) any = true; else keys.push(path + 'set ' + k); });
+        n.entries.forEach(function (e) { walk(e, path); });
+        n.blocks.forEach(function (c) { walk(c, path + 'config ' + c.name + ' > '); });
+      })(b, '');
+      if (!any) { if (keys.length) NP.miss('config ' + b.name, 'block', keys.length); }
+      else keys.forEach(function (k) { NP.miss(k, b.name); });
+    });
+  }
+  NP.fortiTree = { tree: tree, find: find, one: one, report: report };      // shared with the FortiSwitch parser
 
   // ---- FortiLink: switches whose port config lives on the FortiGate.
   // Each one becomes its own device (see NP.ingest), so tables and labels work per switch.
@@ -2267,6 +2379,9 @@ A whole terminal session works too, for example:
       });
     });
     managedSwitches(t, dev);
+    // FortiLink switch settings are only read later, when the switch devices are built: do not report them
+    t.blocks = t.blocks.filter(function (b) { return b.name !== 'switch-controller managed-switch'; });
+    report(t);
     if (!dev.stp.enabled) dev.stp.enabled = 'n/a (firewall)';
   });
 })(typeof globalThis !== 'undefined' ? globalThis : this);
@@ -2391,6 +2506,7 @@ A whole terminal session works too, for example:
       if (one(e, 'description') && !p.description) p.description = one(e, 'description');
       if (e.set.allowaccess && e.set.allowaccess.length) NP.addNote(p, 'access ' + e.set.allowaccess.join('/'));
     });
+    F.report(t);
   }
 
   function parseShow(text, dev) {
@@ -2597,7 +2713,7 @@ A whole terminal session works too, for example:
         if (svc && yes(a.disabled)) NP.addOther(dev, 'Disabled services', svc);
       } else if (path === '/interface list member') {
         if (a.interface && a.list) NP.addNote(touch(a.interface), 'list ' + a.list);
-      }
+      } else if (path) NP.miss(path, 'section');
     });
 
     dev.ports.forEach(function (p) {
@@ -3864,6 +3980,41 @@ set enabled=yes location="Workshop cabinet"
     return rows;
   };
 
+  // --------------------------------------------------------------- not parsed
+  // -> [{title, hint, items:[{text, count, inner}]}] in a fixed, useful order
+  NP.unparsedGroups = function (dev) {
+    const known = {
+      command: ['Commands whose output was not used', 'Either the parser does not know this command, or its output format was not recognised.'],
+      'interface': ['Interface settings not read', 'Lines under an interface that were skipped.'],
+      vlan: ['VLAN settings not read', 'Lines under a VLAN that were skipped.'],
+      global: ['Global lines not read', 'Top-level config lines that were skipped. "+N lines" counts the indented lines beneath one.'],
+      section: ['Config sections not read', 'Whole sections that were skipped.'],
+      block: ['Config sections not read', 'Whole "config ..." sections that were skipped, with the number of settings inside.']
+    };
+    const order = ['command', 'interface', 'vlan', 'global'];
+    const by = {};
+    (dev.unparsed || []).forEach(function (e) { (by[e.ctx] = by[e.ctx] || []).push(e); });
+    const ctxs = Object.keys(by).sort(function (a, b) {
+      const ia = order.indexOf(a), ib = order.indexOf(b);
+      const ra = ia >= 0 ? ia : known[a] ? 90 : 50, rb = ib >= 0 ? ib : known[b] ? 90 : 50;
+      return ra - rb || (a < b ? -1 : 1);
+    });
+    return ctxs.map(function (c) {
+      const k = known[c] || ['Settings not read in "config ' + c + '"', 'Setting names only; values are never kept.'];
+      return { ctx: c, title: k[0], hint: k[1], items: by[c].slice().sort(function (a, b) { return b.count - a.count || (a.text < b.text ? -1 : 1); }) };
+    });
+  };
+  NP.unparsedText = function (dev) {
+    const out = ['ConfigHelper: input not parsed for ' + (dev.hostname || 'device') + ' (' + NP.vendorLabel(dev) + ')'];
+    NP.unparsedGroups(dev).forEach(function (g) {
+      out.push('', g.title + ':');
+      g.items.forEach(function (e) {
+        out.push('  ' + e.text + (e.count > 1 ? '   x' + e.count : '') + (e.inner ? '   (+' + e.inner + ' lines)' : ''));
+      });
+    });
+    return out.join('\n') + '\n';
+  };
+
   // ------------------------------------------------------------- device report
   // One Markdown document per device: overview, VLANs, port table.
   NP.deviceReport = function (dev, colIds) {
@@ -4074,7 +4225,8 @@ set enabled=yes location="Workshop cabinet"
         h('p', { class: 'hint', text: 'Not sure what it looks like? Pick one of the samples under the Parse button.' })));
       return;
     }
-    const tabs = [['overview', 'Overview'], ['ports', 'Ports (' + dev.ports.length + ')'], ['labels', 'Labels']];
+    const tabs = [['overview', 'Overview'], ['ports', 'Ports (' + dev.ports.length + ')'], ['labels', 'Labels'],
+      ['unparsed', 'Not parsed (' + (dev.unparsed || []).length + ')']];
     view.appendChild(h('section', { class: 'card' },
       h('div', { class: 'devhead' },
         h('h1', { text: dev.hostname || '(unnamed device)' }),
@@ -4089,6 +4241,7 @@ set enabled=yes location="Workshop cabinet"
       }))));
     if (state.tab === 'overview') overview(view, dev);
     else if (state.tab === 'labels') labels(view, dev);
+    else if (state.tab === 'unparsed') unparsed(view, dev);
     else ports(view, dev);
   }
 
@@ -4120,6 +4273,32 @@ set enabled=yes location="Workshop cabinet"
       h('div', { class: 'chips' }, dev.sources.map(function (s) {
         return h('span', { class: 'chip', text: s.name + ' (' + s.lines + ' lines)' });
       }))));
+  }
+
+  function unparsed(view, dev) {
+    const groups = NP.unparsedGroups(dev);
+    if (!groups.length) {
+      view.appendChild(h('section', { class: 'card' },
+        h('p', { class: 'empty', text: 'Everything in the input for this device was either used or is on the list of lines that never matter (certificates, banners, console settings and the like).' })));
+      return;
+    }
+    view.appendChild(h('section', { class: 'card' },
+      h('div', { class: 'toolbar' },
+        h('span', { class: 'count', text: 'Input the parser saw but did not use. Most of it is harmless; anything about a port, VLAN or service that matters to you is a gap worth reporting. Passwords and keys are replaced with ***.' }),
+        h('span', { class: 'spacer' }),
+        h('button', { onclick: function (e) { copyText(NP.unparsedText(dev), e.target, 'Copy list'); } }, 'Copy list'),
+        h('button', { title: 'Forget this list; it is rebuilt from whatever you paste next', onclick: function () { dev.unparsed = []; save(); render(); } }, 'Clear'))));
+    groups.forEach(function (g) {
+      view.appendChild(h('section', { class: 'card' },
+        h('h2', { text: g.title + ' (' + g.items.length + ')' }),
+        h('p', { class: 'hint', text: g.hint }),
+        h('div', { class: 'tablewrap' }, h('table', {},
+          h('thead', {}, h('tr', {}, h('th', { class: 'nosort', scope: 'col', text: g.ctx === 'command' ? 'Command' : 'Line' }),
+            h('th', { class: 'nosort', scope: 'col', text: 'Times seen' }), h('th', { class: 'nosort', scope: 'col', text: g.ctx === 'command' ? 'Output lines' : 'Lines inside' }))),
+          h('tbody', {}, g.items.map(function (e) {
+            return h('tr', {}, h('td', { class: 'mono wrap', text: e.text }), h('td', { text: e.count }), h('td', { text: e.inner || '' }));
+          }))))));
+    });
   }
 
   function pill(text) {

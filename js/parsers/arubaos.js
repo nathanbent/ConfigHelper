@@ -70,6 +70,7 @@
           }
           else if (/^spanning-tree /.test(l)) stpFlags(dev, [p.name], l);
           else if (/^(aaa port-access|port-security)/.test(l)) NP.addNote(p, l.split(' ').slice(0, 2).join(' '));
+          else if (p === ctx.ports[0]) NP.miss(l, 'interface');
         });
         return;
       }
@@ -94,6 +95,7 @@
         else if (l === 'ip igmp') { dev.multicast.igmpSnooping = 'enabled'; addUnique(dev.multicast.notes, 'IGMP on VLAN ' + id); }
         else if (/^ip igmp querier/.test(l)) addUnique(dev.multicast.notes, 'querier on VLAN ' + id);
         else if ((m = l.match(/^ip helper-address (\S+)/))) NP.addNote(NP.port(dev, 'Vlan' + id), 'helper ' + m[1]);
+        else NP.miss(l, 'vlan');
         return;
       }
 
@@ -129,6 +131,8 @@
       else if (/^ip ssh/.test(l)) dev.other.SSH = 'enabled';
       else if ((m = l.match(/^dhcp-snooping( vlan (.+))?$/))) NP.addOther(dev, 'DHCP snooping', m[2] ? 'VLAN ' + m[2] : 'enabled');
       else if (/^loop-protect /.test(l)) NP.addOther(dev, 'Loop protect', l.replace(/^loop-protect /, ''));
+      else if (indented) NP.missInner();
+      else NP.miss(l, 'global');
     });
 
     dev.stp.enabled = stpOn ? 'yes' : (dev.stp.enabled || 'no (default)');

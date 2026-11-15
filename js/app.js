@@ -175,7 +175,8 @@
         h('p', { class: 'hint', text: 'Not sure what it looks like? Pick one of the samples under the Parse button.' })));
       return;
     }
-    const tabs = [['overview', 'Overview'], ['ports', 'Ports (' + dev.ports.length + ')'], ['labels', 'Labels']];
+    const tabs = [['overview', 'Overview'], ['ports', 'Ports (' + dev.ports.length + ')'], ['labels', 'Labels'],
+      ['unparsed', 'Not parsed (' + (dev.unparsed || []).length + ')']];
     view.appendChild(h('section', { class: 'card' },
       h('div', { class: 'devhead' },
         h('h1', { text: dev.hostname || '(unnamed device)' }),
@@ -190,6 +191,7 @@
       }))));
     if (state.tab === 'overview') overview(view, dev);
     else if (state.tab === 'labels') labels(view, dev);
+    else if (state.tab === 'unparsed') unparsed(view, dev);
     else ports(view, dev);
   }
 
@@ -221,6 +223,32 @@
       h('div', { class: 'chips' }, dev.sources.map(function (s) {
         return h('span', { class: 'chip', text: s.name + ' (' + s.lines + ' lines)' });
       }))));
+  }
+
+  function unparsed(view, dev) {
+    const groups = NP.unparsedGroups(dev);
+    if (!groups.length) {
+      view.appendChild(h('section', { class: 'card' },
+        h('p', { class: 'empty', text: 'Everything in the input for this device was either used or is on the list of lines that never matter (certificates, banners, console settings and the like).' })));
+      return;
+    }
+    view.appendChild(h('section', { class: 'card' },
+      h('div', { class: 'toolbar' },
+        h('span', { class: 'count', text: 'Input the parser saw but did not use. Most of it is harmless; anything about a port, VLAN or service that matters to you is a gap worth reporting. Passwords and keys are replaced with ***.' }),
+        h('span', { class: 'spacer' }),
+        h('button', { onclick: function (e) { copyText(NP.unparsedText(dev), e.target, 'Copy list'); } }, 'Copy list'),
+        h('button', { title: 'Forget this list; it is rebuilt from whatever you paste next', onclick: function () { dev.unparsed = []; save(); render(); } }, 'Clear'))));
+    groups.forEach(function (g) {
+      view.appendChild(h('section', { class: 'card' },
+        h('h2', { text: g.title + ' (' + g.items.length + ')' }),
+        h('p', { class: 'hint', text: g.hint }),
+        h('div', { class: 'tablewrap' }, h('table', {},
+          h('thead', {}, h('tr', {}, h('th', { class: 'nosort', scope: 'col', text: g.ctx === 'command' ? 'Command' : 'Line' }),
+            h('th', { class: 'nosort', scope: 'col', text: 'Times seen' }), h('th', { class: 'nosort', scope: 'col', text: g.ctx === 'command' ? 'Output lines' : 'Lines inside' }))),
+          h('tbody', {}, g.items.map(function (e) {
+            return h('tr', {}, h('td', { class: 'mono wrap', text: e.text }), h('td', { text: e.count }), h('td', { text: e.inner || '' }));
+          }))))));
+    });
   }
 
   function pill(text) {

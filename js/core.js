@@ -153,7 +153,8 @@
       vlans: [],          // {id, name}
       ports: [],
       other: {},          // free-form "Label" -> "value"
-      sources: []         // what was pasted in, for the record (names only)
+      sources: [],        // what was pasted in, for the record (names only)
+      unparsed: []        // {ctx, text, count, inner}: input the parser did not use
     };
   };
 
@@ -206,6 +207,69 @@
     if (!cur.includes(val)) cur.push(val);
     dev.other[key] = cur.join(', ');
   };
+
+  // ---------------------------------------------------- "not parsed" tracking
+  // Parsers call NP.miss() for a line they recognise nothing in. NP.ingest collects these,
+  // drops known noise, strips secrets and stores the rest on the device.
+  NP._collector = null;
+  NP._lastMiss = null;
+  NP.miss = function (text, ctx, inner) {
+    if (!NP._collector) return null;
+    text = String(text).trim();
+    const key = ctx + '\u0001' + text;
+    const e = NP._collector[key] = NP._collector[key] || { ctx: ctx, text: text, count: 0, inner: 0 };
+    e.count++;
+    e.inner += inner || 0;
+    NP._lastMiss = e;
+    return e;
+  };
+  // an indented line under a block the parser skipped: count it against that block
+  NP.missInner = function () { if (NP._collector && NP._lastMiss) NP._lastMiss.inner++; };
+
+  NP.redact = function (t) {
+    return String(t)
+      .replace(/\b(secret|password|passwd|key|key-string|community|auth|priv|md5|sha\d*|psk|passphrase|pre-shared-key|encrypted-password|cipher|simple|hash)\b(\s+\d)?\s+\S+/gi, '$1 ***')
+      .replace(/\$\d\$\S+|\b[0-9A-Fa-f]{16,}\b|[A-Za-z0-9+\/=]{28,}/g, '***');
+  };
+  // lines nobody needs to hear about
+  const NOISE = new RegExp('^(' + [
+    '[!#;]', 'end$', 'exit$', 'quit$', 'return$', 'Building configuration', 'Current configuration', 'Running configuration',
+    'version ', 'ver ', 'boot[ -]', '(no )?service ', '(no )?platform ', 'license ', 'diagnostic ', 'memory ', 'redundancy',
+    'transceiver ', 'control-plane', 'line (con|aux)', 'banner ', 'crypto ', 'call-home', 'class-map ', 'policy-map ',
+    'no (login|device-tracking|ip domain[- ]lookup|ip address|aaa new-model|untagged|tagged)', 'enable (secret|password|super-user)',
+    'archive', 'alias ', 'hw-module', 'ip forward-protocol', 'ip classless', 'ip subnet-zero', 'login ', 'subscriber ',
+    'mls ', 'module \\d', 'stack-port', 'ip http (authentication|client)', 'switch \\d+ provision', 'system mtu'
+  ].join('|') + ')', 'i');
+  const NOISE_CMD = /^(terminal |term |skip-page|no page|screen-length|set cli |config system console|set output|show int$|exit|end$|enable$)/i;
+
+  NP.storeMisses = function (dev, collector) {
+    Object.keys(collector).forEach(function (k) {
+      const e = collector[k];
+      if (e.ctx !== 'command' && e.ctx !== 'block' && NOISE.test(e.text)) return;
+      const text = NP.redact(e.text);
+      const old = dev.unparsed.find(function (x) { return x.ctx === e.ctx && x.text === text; });
+      if (old) { old.count = Math.max(old.count, e.count); old.inner = Math.max(old.inner, e.inner); }
+      else dev.unparsed.push({ ctx: e.ctx, text: text, count: e.count, inner: e.inner });
+    });
+  };
+  // Commands whose whole output changed nothing: parse each prompted section on its own and compare.
+  function unusedCommands(text, vendor) {
+    const print = function (t) {
+      const d = NP.newDevice(); d.id = '';
+      NP.vendors[vendor].parse(t, d);
+      delete d.pendingChildren;
+      return JSON.stringify(d);
+    };
+    const empty = print('');
+    const out = {};
+    NP.sections(text).forEach(function (s) {
+      if (!s.cmd || NOISE_CMD.test(s.cmd)) return;
+      if (print(s.text) !== empty) return;
+      const key = 'command\u0001' + s.cmd;
+      out[key] = { ctx: 'command', text: s.cmd, count: 1, inner: s.text.split('\n').filter(function (l) { return l.trim(); }).length };
+    });
+    return out;
+  }
 
   // ------------------------------------------------------- input splitting
   // A paste may be a whole terminal session ("sw1#show run ... sw1#show int status ...").
@@ -328,7 +392,12 @@
     const isNew = !dev;
     if (isNew) dev = NP.newDevice();
     if (!dev.vendor) dev.vendor = vendor;
-    NP.parseInto(text, vendor, dev);
+    NP._collector = {}; NP._lastMiss = null;
+    let misses;
+    try { NP.parseInto(text, vendor, dev); } finally { misses = NP._collector; NP._collector = null; }
+    if (!dev.unparsed) dev.unparsed = [];
+    NP.storeMisses(dev, misses);
+    NP.storeMisses(dev, unusedCommands(text, vendor));
     // A parser may describe further devices found in the same input (FortiLink-managed
     // switches inside a FortiGate config): [{hostname, vendor, apply(dev)}]
     const kids = dev.pendingChildren || [];

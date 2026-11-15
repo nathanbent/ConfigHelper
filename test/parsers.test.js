@@ -373,6 +373,40 @@ test('export formats and device report', () => {
   assert.match(rep, /\| GigabitEthernet1\/0\/1 \| Reception PC \+ phone \| 10 \|/);
 });
 
+test('not parsed: skipped lines are reported, noise is dropped, secrets are stripped', () => {
+  const text = require('fs').readFileSync(require('path').join(__dirname, 'fixtures', 'cisco-3850-lab.txt'), 'utf8');
+  const d = NP.ingest(text, { devices: [] }).dev;
+  assert.deepEqual(d.unparsed.map(e => e.ctx + ': ' + e.text).sort(),
+    ['global: vlan configuration 3240', 'interface: negotiation auto']);        // no crypto, class-map, line con ...
+  assert.equal(NP.unparsedGroups(d)[0].ctx, 'interface');
+
+  const cfg = ['hostname R1', 'ip ospf authentication-key SuperSecret1', 'router-thing foo', ' child one', ' child two',
+    'interface GigabitEthernet0/1', ' mystery knob 5', 'interface GigabitEthernet0/2', ' mystery knob 5', ''].join('\n');
+  const r = NP.ingest('R1#show running-config\n' + cfg + 'R1#show clock\n*10:00:00.000 UTC Mon Jan 1 2026\nR1#show interfaces status\n\n' +
+    'Port      Name               Status       Vlan       Duplex  Speed Type\nGi0/1                        connected    1          a-full a-1000 10/100/1000BaseTX\n',
+    { vendor: 'ios', devices: [] }).dev;
+  const get = (ctx, t) => r.unparsed.find(e => e.ctx === ctx && e.text === t);
+  assert.ok(!JSON.stringify(r.unparsed).includes('SuperSecret1'));
+  assert.ok(get('global', 'ip ospf authentication-key ***'));
+  assert.deepEqual([get('global', 'router-thing foo').inner, get('interface', 'mystery knob 5').count], [2, 2]);
+  assert.deepEqual(r.unparsed.filter(e => e.ctx === 'command').map(e => [e.text, e.inner]), [['show clock', 1]]);
+  assert.match(NP.unparsedText(r), /Commands whose output was not used:\n {2}show clock/);
+  // pasting the same thing again does not double the counts
+  const again = NP.ingest('R1#show running-config\n' + cfg, { vendor: 'ios', devices: [r] }).dev;
+  assert.equal(again, r);
+  assert.equal(get('interface', 'mystery knob 5').count, 2);
+});
+
+test('not parsed: Fortinet reports setting names and whole sections, never values', () => {
+  const text = 'config system global\n    set hostname "FW1"\n    set admintimeout 30\nend\n' +
+    'config firewall policy\n    edit 1\n        set name "secret-policy"\n        set action accept\n    next\nend\n' +
+    'config system interface\n    edit "port1"\n        set ip 10.0.0.1 255.255.255.0\n        set password ENC abc123\n    next\nend\n';
+  const d = NP.ingest(text, { devices: [] }).dev;
+  const lines = d.unparsed.map(e => e.ctx + ': ' + e.text + ' ' + e.inner).sort();
+  assert.deepEqual(lines, ['block: config firewall policy 2', 'system global: set admintimeout 0', 'system interface: set password 0']);
+  assert.ok(!JSON.stringify(d.unparsed).includes('abc123') && !JSON.stringify(d.unparsed).includes('secret-policy'));
+});
+
 test('forcing a vendor and unknown input', () => {
   assert.throws(() => NP.ingest('hello world\nnothing here', { devices: [] }), /vendor/);
   assert.throws(() => NP.ingest('hello world', { vendor: 'ios', devices: [] }), /Nothing recognisable/);

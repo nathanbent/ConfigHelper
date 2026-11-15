@@ -14,17 +14,23 @@
 
   // -> tree of {name, set:{k:[v..]}, entries:[{name,set,blocks}], blocks:[...]}
   function tree(text) {
-    const top = { name: '', set: {}, entries: [], blocks: [] };
+    // each node's "set" is wrapped so we can tell afterwards which settings were ever looked at
+    const node = function (name, isEntry) {
+      const used = {};
+      return { name: name, used: used, entries: [], blocks: [], isEntry: !!isEntry,
+        set: new Proxy({}, { get: function (o, k) { if (typeof k === 'string' && k in o) used[k] = true; return o[k]; } }) };
+    };
+    const top = node('');
     const stack = [top];
     text.split(/\r?\n/).forEach(function (raw) {
       const l = raw.trim();
       const cur = stack[stack.length - 1];
       let m;
       if ((m = l.match(/^config (.+)$/))) {
-        const b = { name: m[1], set: {}, entries: [], blocks: [] };
+        const b = node(m[1]);
         cur.blocks.push(b); stack.push(b);
       } else if ((m = l.match(/^edit (.+)$/))) {
-        const e = { name: tokens(m[1])[0] || '', set: {}, entries: [], blocks: [], isEntry: true };
+        const e = node(tokens(m[1])[0] || '', true);
         cur.entries.push(e); stack.push(e);
       } else if (l === 'next') { if (stack.length > 1 && cur.isEntry) stack.pop(); }
       else if (l === 'end') {
@@ -41,7 +47,22 @@
     return out;
   }
   const one = function (b, k) { return b && b.set[k] ? b.set[k][0] : ''; };
-  NP.fortiTree = { tree: tree, find: find, one: one };      // shared with the FortiSwitch parser
+  // Report what was never read: whole "config" sections as one entry each, and for sections
+  // that were used, the individual setting names (never the values).
+  function report(t) {
+    t.blocks.forEach(function (b) {
+      const keys = [];
+      let any = false;
+      (function walk(n, path) {
+        Object.keys(n.set).forEach(function (k) { if (n.used[k]) any = true; else keys.push(path + 'set ' + k); });
+        n.entries.forEach(function (e) { walk(e, path); });
+        n.blocks.forEach(function (c) { walk(c, path + 'config ' + c.name + ' > '); });
+      })(b, '');
+      if (!any) { if (keys.length) NP.miss('config ' + b.name, 'block', keys.length); }
+      else keys.forEach(function (k) { NP.miss(k, b.name); });
+    });
+  }
+  NP.fortiTree = { tree: tree, find: find, one: one, report: report };      // shared with the FortiSwitch parser
 
   // ---- FortiLink: switches whose port config lives on the FortiGate.
   // Each one becomes its own device (see NP.ingest), so tables and labels work per switch.
@@ -247,6 +268,9 @@
       });
     });
     managedSwitches(t, dev);
+    // FortiLink switch settings are only read later, when the switch devices are built: do not report them
+    t.blocks = t.blocks.filter(function (b) { return b.name !== 'switch-controller managed-switch'; });
+    report(t);
     if (!dev.stp.enabled) dev.stp.enabled = 'n/a (firewall)';
   });
 })(typeof globalThis !== 'undefined' ? globalThis : this);

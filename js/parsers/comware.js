@@ -12,7 +12,7 @@
   }
 
   function parseConfig(text, dev) {
-    let ctx = null, m;
+    let ctx = null, m, other = false;
     function finish() {
       if (!ctx || ctx.type !== 'if') { ctx = null; return; }
       const p = ctx.p, c = ctx.c;
@@ -34,7 +34,7 @@
     text.split(/\r?\n/).forEach(function (raw) {
       const l = raw.trim();
       if (!l) return;
-      if (l === '#' || l === 'return') { finish(); return; }
+      if (l === '#' || l === 'return') { finish(); other = false; return; }
       if ((m = l.match(/^interface (\S+)$/))) {
         finish();
         ctx = { type: 'if', p: NP.port(dev, m[1]),
@@ -48,10 +48,14 @@
         return;
       }
       if (ctx && !/^\s/.test(raw)) finish();
+      // a column-0 line that is not interface/vlan opens some other block; its indented lines are not globals
+      if (!/^\s/.test(raw)) { other = true; NP._lastMiss = null; }
+      else if (other && !ctx) { NP.missInner(); return; }
 
       if (ctx && ctx.type === 'vlan') {
         if ((m = l.match(/^(?:name|description) (.+)/))) NP.addVlan(dev, ctx.id, m[1]);
         else if (/^igmp-snooping enable/.test(l)) addUnique(dev.multicast.notes, 'snooping on VLAN ' + ctx.id);
+        else NP.miss(l, 'vlan');
         return;
       }
       if (ctx && ctx.type === 'if') {
@@ -88,6 +92,7 @@
         else if (/^dhcp snooping trust/.test(l)) NP.addNote(p, 'dhcp-snooping trust');
         else if (/^igmp enable/.test(l)) addUnique(dev.multicast.notes, 'IGMP on ' + p.short);
         else if ((m = l.match(/^pim (sm|dm)/))) addUnique(dev.multicast.notes, 'PIM-' + m[1].toUpperCase() + ' on ' + p.short);
+        else NP.miss(l, 'interface');
         return;
       }
 
@@ -118,6 +123,7 @@
       else if (/^telnet server enable/.test(l)) dev.other.Telnet = 'enabled';
       else if (/^dhcp snooping enable/.test(l) || l === 'dhcp-snooping') dev.other['DHCP snooping'] = 'enabled';
       else if ((m = l.match(/^irf member (\d+) priority (\d+)/))) NP.addOther(dev, 'IRF members', m[1] + ' (prio ' + m[2] + ')');
+      else NP.miss(l, 'global');
     });
     finish();
     if (!dev.stp.mode) dev.stp.mode = 'mstp (default)';

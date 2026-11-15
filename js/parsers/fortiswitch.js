@@ -117,6 +117,7 @@
       if (one(e, 'description') && !p.description) p.description = one(e, 'description');
       if (e.set.allowaccess && e.set.allowaccess.length) NP.addNote(p, 'access ' + e.set.allowaccess.join('/'));
     });
+    F.report(t);
   }
 
   function parseShow(text, dev) {

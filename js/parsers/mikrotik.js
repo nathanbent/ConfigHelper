@@ -145,7 +145,7 @@
         if (svc && yes(a.disabled)) NP.addOther(dev, 'Disabled services', svc);
       } else if (path === '/interface list member') {
         if (a.interface && a.list) NP.addNote(touch(a.interface), 'list ' + a.list);
-      }
+      } else if (path) NP.miss(path, 'section');
     });
 
     dev.ports.forEach(function (p) {

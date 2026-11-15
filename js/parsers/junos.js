@@ -90,6 +90,7 @@
         else if ((x = rest.match(/^vlan-id (\d+)/))) { p.tagged = x[1]; p.mode = 'subinterface'; }
         else if ((x = rest.match(/^mtu (\d+)/))) NP.addNote(p, 'mtu ' + x[1]);
         else if ((x = rest.match(/^(?:giga)?ether-options (no-auto-negotiation|speed \S+)/))) NP.addNote(p, x[1]);
+        else NP.miss(rest.replace(/ \d+\.\d+\.\d+\.\d+\S*/g, ' <addr>'), 'interface');
         return;
       }
       if ((m = l.match(/^set system host-name (\S+)/))) dev.hostname = m[1];
@@ -144,6 +145,8 @@
         else NP.port(dev, m[1]).poeAdmin = m[2] ? 'disabled' : 'enabled';
       }
       else if ((m = l.match(/^set virtual-chassis member (\d+)(?: role (\S+))?/))) NP.addOther(dev, 'Virtual chassis', 'member ' + m[1] + (m[2] ? ' ' + m[2] : ''));
+      // everything else: group by the first three words so a long policy counts as one entry
+      else if (!/^set (vlans|interfaces) /.test(l)) NP.miss(l.split(/\s+/).slice(0, 3).join(' ') + ' …', 'global');
     });
 
     const resolve = function (list) {

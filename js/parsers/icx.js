@@ -106,6 +106,7 @@
           dev.multicast.igmpSnooping = dev.multicast.igmpSnooping || 'enabled (per VLAN)';
           addUnique(dev.multicast.notes, 'VLAN ' + id + ' ' + m[1] + (m[1] === 'active' ? ' (querier)' : ''));
         }
+        else NP.miss(l, 'vlan');
         return;
       }
       if (ctx && ctx.type === 'if') {
@@ -135,6 +136,7 @@
           else if (/^dhcp snooping trust/.test(l)) NP.addNote(p, 'dhcp-snooping trust');
           else if (/^no lldp|^lldp disable/.test(l)) NP.addNote(p, 'lldp off');
           else if ((m = l.match(/^ip pim(?:-(\S+))?/))) addUnique(dev.multicast.notes, 'PIM on ' + p.short);
+          else if (p === ctx.ports[0]) NP.miss(l, 'interface');
         });
         return;
       }
@@ -158,7 +160,8 @@
         if ((m = l.match(/^(server|peer) (\S+)/))) addUnique(dev.ntp, m[2] + (m[1] === 'peer' ? ' (peer)' : ''));
         return;
       }
-      if (indented) return;
+      if (indented) { NP.missInner(); return; }
+      NP._lastMiss = null;
 
       // ---- global
       if ((m = l.match(/^hostname (\S+)/))) dev.hostname = NP.unquote(m[1]);
@@ -189,6 +192,7 @@
       else if ((m = l.match(/^ip dhcp snooping vlan (.+)/))) NP.addOther(dev, 'DHCP snooping', 'VLAN ' + m[1]);
       else if (/^lldp run/.test(l)) dev.other.LLDP = 'enabled';
       else if (/^stack enable/.test(l)) dev.other.Stacking = 'enabled';
+      else NP.miss(l, 'global');
     });
 
     dev.stp.mode = stpModes.join('; ') || dev.stp.mode;
