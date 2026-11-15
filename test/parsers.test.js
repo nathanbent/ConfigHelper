@@ -984,6 +984,66 @@ test('label templates, CSV and backup round-trip', () => {
   assert.throws(() => NP.restore('{"x":1}'), /not a ConfigHelper backup/);
 });
 
+const icxLab = () => require('fs').readFileSync(require('path').join(__dirname, 'fixtures', 'ruckus-icx7150-lab.txt'), 'utf8');
+
+test('real ICX7150-48P (FastIron 10.0.10) session', () => {
+  const r = NP.ingest(icxLab(), { devices: [] });
+  const d = r.dev;
+  assert.deepEqual([d.vendor, d.hostname, d.model, d.version, d.serial], ['icx', 'SW-OFFICE-01', 'ICX7150-48P-4X1G', '10.0.10g_cd11T213', 'FEC0000X000']);
+  assert.deepEqual([d.mgmtIp, d.gateway], ['10.0.0.7/24 (ve3000)', '10.0.0.1']);
+  assert.equal(d.ntp.length, 6);
+  assert.deepEqual(d.syslog, ['10.1.254.169']);
+  assert.equal(d.vlans.length, 34);
+  // 25 "mstp instance 0 vlan ..." lines become one note
+  assert.deepEqual([d.stp.mode, d.stp.priority, d.stp.notes], ['mstp', ['MST 0: 61440'], ['MST region LAB-MST', 'MST revision 1',
+    'MST 0 = VLAN 1,20,69,300,306,2369,3000,3005-3006,3010-3011,3056,3060-3069,3200,3202,3205,3215,3220,3240,3250,3254,3265,3270,3300,3669']]);
+  assert.deepEqual(d.multicast.notes, ['IGMPv3']);
+  // "web-management http" then "web-management disable" is off, not plain HTTP
+  assert.equal(d.other['Web management'], 'disabled');
+  assert.deepEqual([d.other.Stacking, d.other.CDP, d.other.ACLs, d.other.AAA, d.other.RESTCONF],
+    ['disabled', 'enabled', 'WAN-ONLY', 'login local, web-server local', 'enabled']);
+  assert.deepEqual(d.unparsed, []);
+  assert.equal(d.ports.filter(p => p.kind === 'physical').length, 54);
+  const p1 = port(d, '1/1/1');
+  assert.deepEqual([p1.description, p1.mode, p1.untagged, p1.tagged, p1.link, p1.speed, p1.poeStatus],
+    ['OPS-ARUBA-WAP', 'trunk', '3065', '3066-3069,3220,3669', 'up', '1G', 'non-pd']);
+  const p2 = port(d, '1/1/2');
+  assert.deepEqual([p2.description, p2.mode, p2.untagged, p2.voiceVlan, p2.speed, p2.poeWatts, p2.poeClass, p2.notes],
+    ['OPS-Aerohive-WAP', 'access', '3240', '3240', '100M', '1.3', '', 'speed-duplex 100-full']);   // config name beats the truncated table copy
+  const p48 = port(d, '1/1/48');
+  assert.deepEqual([p48.untagged, p48.tagged, p48.poeWatts, p48.poeClass, p48.neighbor, p48.neighborPort, p48.neighborInfo],
+    ['3254', '3066-3069,3220,3250,3270', '6.2', '4', 'RuckusAP', 'eth1', '10.2.254.50']);          // port ID is a MAC, so the description is used
+  // tagged only: FastIron 10 keeps the port untagged in the default VLAN, with or without the PVID column
+  const up = port(d, '1/3/4');
+  assert.deepEqual([up.mode, up.untagged, up.neighbor, up.neighborPort, up.neighborInfo], ['trunk', '1', 'SW-PATCH-01.example.lab', 'Te1/0/48', '10.0.249.2']);
+  const text = icxLab();
+  const cfgOnly = NP.ingest(text.slice(0, text.indexOf('SW-OFFICE-01#show interfaces brief')), { devices: [] }).dev;
+  assert.deepEqual([port(cfgOnly, '1/3/4').untagged, port(cfgOnly, '1/2/1').untagged, cfgOnly.model], ['1', '1', 'ICX7150-48P-POE']);
+  assert.deepEqual([port(d, '1/3/3').neighbor, port(d, '1/3/3').neighborPort, port(d, '1/3/3').neighborInfo], ['EX-LAB-DESK-01', 'xe-0/1/1', '']);
+  // no "router-interface" in FastIron 10: ve N is VLAN N
+  assert.deepEqual([port(d, 've3000').description, port(d, 've3000').ip, port(d, 've3065').description, port(d, 'mgmt1').link],
+    ['lab-com-mgmt', '10.0.0.7/24', 'lab-test-desk', 'down']);
+  const st = NP.portStats(d);
+  assert.deepEqual([st.physical, st.up, st.poePorts, st.poeWatts], [54, 8, 2, 7.5]);
+  const found = NP.checks(d);
+  assert.deepEqual(found.filter(f => f.severity === 'warn').map(f => f.id), []);
+  assert.deepEqual(found.find(f => f.id === 'native1').ports.map(p => p.short), ['1/2/1', '1/3/4']);
+  assert.ok(!JSON.stringify(d).includes('REDACTED') && !JSON.stringify(d).includes('UkVE'), 'hashes and communities are not stored');
+});
+
+test('sanitize: real ICX session', () => {
+  const r = NP.sanitize(icxLab());
+  assert.deepEqual([r.checked, r.same, r.ports, r.vlans, r.leftovers], [true, true, 57, 34, []]);
+  for (const s of ['SW-OFFICE-01', 'labadmin', 'example.lab', 'EX-LAB-DESK', 'Office-Room-B', 'lab-com-mgmt', 'WAN-ONLY', 'HueHub', 'FEC0000X000',
+    'REDACTED', 'UkVEQUNURUQ', 'MobaXterm', 'example.org', '10.0.0.7']) assert.ok(!r.text.includes(s), s + ' removed');
+  // the trap receiver's community has no keyword in front of it
+  assert.match(r.text, /^snmp-server host 10\.\d+\.4\.21 version v1 2 removed$/m);
+  assert.match(NP.sanitize('snmp-server host 192.0.2.9 version 2c s3cretRO\nsnmp-server host 192.0.2.9 traps version 3 priv snmpuser').text,
+    /version 2c removed\n.* version 3 priv removed$/);
+  // a keyword at the end of a line does not swallow the start of the next one
+  assert.match(r.text, /duplicated ssh-rsa host key\nX11 forwarding request failed/);
+});
+
 // ---- found with real output: Junos 25.2 on an EX2300-C, FastIron 08.0.30 on an ICX6610
 // (made-up names and addresses below; the layouts are the real ones)
 test('Junos: newer PoE table, LLDP columns pushed right, voice VLAN on access ports, absent ports', () => {

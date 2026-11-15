@@ -83,7 +83,13 @@
         (before.other.VTP || '').split(', ').forEach(function (t) { const m = t.match(/^domain (.+)$/); if (m) want(m[1], 'names', 'R'); });
         before.ntp.concat(before.syslog).forEach(function (h) { if (/[a-z]/i.test(h) && h.indexOf('.') > 0) host(h.split(' ')[0]); });
       }
+      if (opts.names) (before.other.ACLs || '').split(', ').forEach(function (a) { want(a, 'names', 'A'); });
       if (opts.descriptions) before.ports.forEach(function (p) { want(p.description, 'descriptions', 'D'); });
+      // LLDP detail quotes the far port's description, which the parser only uses when the port ID is a MAC
+      if (opts.descriptions) (text.match(/^\s*\+ Port description\s*:.*$/gm) || []).forEach(function (ln) {
+        const d = NP.unquote(ln.replace(/^[^:]*:\s*/, '').trim());
+        if (!/^[A-Za-z\-]{0,24}\d+(?:[\/.:]\d+)*$/.test(d)) want(d, 'descriptions', 'D');      // xe-0/1/1 and eth1 are port names
+      });
       if (opts.vlanNames) before.vlans.forEach(function (v) { want(v.name, 'vlanNames', 'V'); });
       if (opts.addresses) want(before.serial, 'serials', 'SN');
     }
@@ -114,6 +120,10 @@
         return typeof to === 'function' ? to.apply(null, args) : to.replace(/\$(\d)/g, function (all, n) { return args[+n] === undefined ? '' : args[+n]; });
       });
     };
+    // terminal program banners drawn in a box (MobaXterm prints the licensee there)
+    text = text.replace(/^[ \t]*[\u2500-\u257f].*\n/gm, function () { counts.secrets++; return ''; });
+    // trap receivers carry the community last, with no keyword in front: "snmp-server host 10.1.1.1 version 2c public"
+    sec(/^(snmp-server host \S+(?:[ \t]+vrf \S+)?(?:[ \t]+(?:traps|informs))?(?:[ \t]+version[ \t]+\S+(?:[ \t]+(?:auth|noauth|priv))?)?)([ \t]+\d)?[ \t]+(?!removed\b|version\b|vrf\b|traps\b|informs\b)\S+/gm, '$1$2 removed');
     // banners: keep the command, drop the text
     text = text.replace(/^(banner \S+ )(\^C|\S)([\s\S]*?)\2[^\n]*$/gm, function (all, cmd, d) { counts.secrets++; return cmd + d + ' removed ' + d; });
     // FastIron ends every banner line with ^C: the lines after the command are banner text too
@@ -127,7 +137,7 @@
     sec(/"(x_\w+|\w*(?:password|passphrase|secret|authkey|psk|private_key|fingerprint)\w*)"(\s*:\s*)"(?!removed")[^"]*"/gi, '"$1"$2"removed"');
     sec(/\bENC\s+\S+/g, 'ENC removed');
     sec(/\b(password|secret|passphrase|key|community|psksecret|passwd)=("[^"]*"|\S+)/gi, '$1=removed');
-    sec(/\b(secret|password|passwd|key|key-string|community|auth|priv|md5|sha\d*|psk|passphrase|pre-shared-key|encrypted-password|cipher|simple|hash|super-user-password)\b(\s+\d)?\s+(?!removed\b)("[^"]*"|\S+)/gi,
+    sec(/\b(secret|password|passwd|key|key-string|community|auth|priv|md5|sha\d*|psk|passphrase|pre-shared-key|encrypted-password|cipher|simple|hash|super-user-password)\b([ \t]+\d)?[ \t]+(?!removed\b)("[^"]*"|\S+)/gi,
       function (all, k, d) { return k + (d || '') + ' removed'; });
     sec(/\$\d\$[^\s"]+|\b[0-9A-Fa-f]{24,}\b|[A-Za-z0-9+\/]{40,}={0,2}/g, 'removed');
     text = text.replace(/^(\s*(?:access-list \S+ )?remark ).+$/gm, '$1removed');
