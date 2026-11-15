@@ -43,10 +43,13 @@ test('ui', { skip: chromium ? false : 'Playwright is not installed' }, async (t)
       for (const name of ['Overview', 'Ports', 'Labels', 'Checks', 'Compare', 'Not parsed']) {
         await tab(page, name);
         assert.ok(await page.locator('#view section').count() >= 2, id + ' / ' + name);
+        assert.equal(await page.locator('#view .pagedesc').count(), 1, id + ' / ' + name + ' description');
+        assert.equal(await page.locator('#view details.pagehelp').count(), 1, id + ' / ' + name + ' help');
       }
     }
     await page.click('#btnCables');
     assert.match(await page.textContent('.devhead h1'), /Cable list/);
+    assert.equal(await page.locator('#view details.pagehelp[data-help=cables]').count(), 1);
     assert.deepEqual(errors, []);
   });
 
@@ -214,6 +217,31 @@ test('ui', { skip: chromium ? false : 'Playwright is not installed' }, async (t)
       await tab(page, name);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), 390, name);
     }
+    assert.deepEqual(errors, []);
+  });
+
+  await t.test('page help: closed by default, remembers being opened, experimental parsers say so in words', async (t) => {
+    const { page, errors } = await open(t);
+    assert.equal(await page.locator('#inputHelp details.pagehelp').count(), 1);
+    assert.equal(await page.locator('#inputHelp details.pagehelp').evaluate(d => d.open), false);
+    await paste(page, FIXTURE);
+    await page.click('#btnParse');
+    const help = page.locator('#view details.pagehelp');
+    assert.equal(await help.getAttribute('data-help'), 'ports');
+    assert.equal(await help.evaluate(d => d.open), false);
+    assert.equal(await page.locator('#view .warnhint').count(), 0);                   // verified platform
+    await help.locator('summary').click();
+    assert.match(await help.textContent(), /Use it for.*Limits/s);
+    assert.equal(await help.locator('input, button, select, textarea').count(), 0);  // reading matter only
+    await tab(page, 'Labels');
+    assert.equal(await page.locator('#view details.pagehelp').evaluate(d => d.open), false);
+    await page.reload();
+    await tab(page, 'Ports');
+    assert.equal(await page.locator('#view details.pagehelp').evaluate(d => d.open), true);
+    const exp = await page.locator('#selSample option').evaluateAll(o => o.map(x => x.value).filter(Boolean));
+    await page.selectOption('#selSample', exp.find(v => v !== 'ios') || exp[0]);
+    await page.click('#btnParse');
+    if (await page.locator('.devhead .pill.warn').count()) assert.match(await page.textContent('#view .warnhint'), /Experimental parser/);
     assert.deepEqual(errors, []);
   });
 });

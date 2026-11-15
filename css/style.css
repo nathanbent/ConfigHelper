@@ -69,6 +69,17 @@ textarea.drag { border-color: var(--accent); border-style: dashed; }
 .msg { margin: 8px 0 0; font-size: 13px; min-height: 1.2em; }
 .msg.ok { color: var(--up); } .msg.err { color: var(--off); }
 .hint { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
+.warnhint { color: var(--warn); }
+/* Page help: one line saying what the view is for, then a collapsed panel of reading matter. Never holds controls. */
+.pagedesc { margin: 10px 0 0; color: var(--muted); }
+.pagehelp { margin: 8px 0 0; border: 1px solid var(--line); border-radius: 6px; background: var(--row); }
+.pagehelp summary { cursor: pointer; padding: 6px 10px; font-size: 13px; color: var(--muted); }
+.pagehelp summary:hover { color: var(--ink); }
+.pagehelp-body { padding: 0 10px 8px; max-width: 75ch; font-size: 13px; }
+.pagehelp-body p { margin: 5px 0; }
+.pagehelp-body code { font: 12px/1.4 var(--mono); background: var(--head); border-radius: 4px; padding: 0 4px; }
+.pagehelp-body a { color: var(--accent); }
+#inputHelp .pagehelp { margin: 0 0 8px; }
 
 .devices { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .devices li { display: flex; align-items: center; gap: 6px; border: 1px solid transparent; border-radius: 6px; }
@@ -159,7 +170,7 @@ details.cols .pop.right label select { width: 100%; }
 details.cols summary.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
 
 @media print {
-  .top, aside, .toolbar, .tabs, .labelform, .opts, .tokens { display: none !important; }
+  .top, aside, .toolbar, .tabs, .labelform, .opts, .tokens, .pagedesc, .pagehelp, .warnhint { display: none !important; }
   .layout { display: block; padding: 0; }
   body { background: #fff; color: #000; }
   .card { border: 0; padding: 0; }

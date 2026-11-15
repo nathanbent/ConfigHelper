@@ -63,6 +63,9 @@ The **Not parsed** tab on each device lists the config lines and command output 
 
 Loaded devices are remembered in the browser's local storage; use **Export backup** for a real copy.
 
+Every tab, the cable list and the paste panel have a one-line description and a collapsed **How this page
+works** panel: what the view is for, what it needs, what you get and its limits.
+
 ## What it reads
 
 | Platform | Config | Show output |
@@ -144,10 +147,26 @@ Layout:
 - `js/export.js` summary, CSV, labels, backup
 - `js/app.js` the UI
 - `js/samples.js` sample inputs (also the test fixtures)
+- `js/help.js` the description and "How this page works" text for each view
 
 To add a vendor: write `js/parsers/<name>.js` that fills a device via `NP.port(dev, name)` and friends,
 add a detection rule in `js/detect.js`, add a `<script>` tag in `index.html` and the file in `test/load.js`,
 then add a sample and a test.
+
+### Page help
+
+Each view has an entry in `NP.help` in `js/help.js`: a one-sentence `desc`, shown under the tabs, and up to
+five sections in a fixed order (Use it for, Give it, You get, Limits, More), shown in the collapsed panel.
+A section is a list of paragraphs; backticks mark code and `[text](https://...)` is a link.
+
+- the limit is 200 words per view: anything longer belongs in this README, linked under More
+- the panel is reading matter only. Controls stay on the page, and anything a user must know to get correct
+  output is a visible hint as well, because most people never open the panel
+- change the help in the same commit as the behavior it describes
+
+`test/help.test.js` fails when a tab has no entry or an entry breaks the shape. A new view needs its id in
+`NP.helpPages`, an entry in `NP.help`, and a `pageHead('<id>')` call where it renders. Whether a panel is
+open is remembered per view in local storage, under its own key.
 
 ## Licence
 
