@@ -44,6 +44,10 @@ certificates and banners are removed, and hostnames, usernames, descriptions, VL
 and serials are replaced consistently with same-length placeholders, so tables still line up. It then checks
 that the result parses to the same ports and VLANs as the original. Always read it through before sharing.
 
+Pasted text is cleaned up before parsing: `--More--` prompts, backspace and carriage-return overwrites,
+colour codes, logger timestamps, mail quote marks, curly quotes, hard line wraps and lost indentation. The
+status line says what was fixed.
+
 The **Not parsed** tab on each device lists the config lines and command output the parser saw but did not use
 (with known noise left out and passwords and keys replaced by `***`). Use it to spot gaps on a new device; the
 **Copy list** button gives you something to paste into a bug report.

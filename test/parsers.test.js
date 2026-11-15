@@ -624,6 +624,57 @@ test('sanitize: secrets and addresses without a recognised platform', () => {
   assert.match(r.text, /mac 00:00:5e:00:53:01 and 0000\.5e00\.5301/);                                          // same MAC in both notations
 });
 
+test('messy paste cleanup', () => {
+  const BS = '\b', ESC = '\x1b';
+  const cfg = ['hostname SW7', '!', 'interface GigabitEthernet0/1', ' description Till 1', ' switchport mode access', ' switchport access vlan 10', '!',
+    'interface GigabitEthernet0/2', ' description Till 2', ' switchport mode trunk', '!', 'interface GigabitEthernet0/3', ' shutdown', '!', 'end'];
+  const want = d => [d.hostname, d.ports.length, NP.findPort(d, 'Gi0/1').description, NP.findPort(d, 'Gi0/1').untagged,
+    NP.findPort(d, 'Gi0/2').mode, NP.findPort(d, 'Gi0/3').adminUp].join('|');
+  const good = 'SW7|3|Till 1|10|trunk|false';
+  const run = t => NP.ingest(t, { vendor: 'ios', devices: [] });
+  assert.equal(want(run(cfg.join('\n')).dev), good);
+  assert.deepEqual(run(cfg.join('\n')).cleaned, []);
+
+  // Cisco pager: " --More-- " erased with backspaces, in the middle of an interface block
+  const erase = ' --More-- ' + BS.repeat(9) + ' '.repeat(9) + BS.repeat(9);
+  let r = run(cfg.slice(0, 4).join('\r\n') + '\r\n' + erase + cfg.slice(4).join('\r\n' ));
+  assert.equal(want(r.dev), good);
+  assert.match(r.cleaned.join(), /overwrites replayed/);
+  // same, using carriage returns and an erase-line code, with colour codes around the prompt line
+  r = run(ESC + '[1mSW7#' + ESC + '[0mshow run\n' + cfg.slice(0, 5).join('\n') + '\n --More-- \r' + ESC + '[K' + cfg.slice(5).join('\n'));
+  assert.equal(want(r.dev), good);
+  assert.match(r.cleaned.join(), /colour\/cursor code/);
+  // a log that kept the prompt and the spaces that erased it, plus prompts alone on a line
+  r = run(cfg.slice(0, 5).join('\n') + '\n --More--           ' + cfg[5].trim() + '\n--More--\n---- More ----\n' + cfg.slice(6).join('\n'));
+  assert.equal(want(r.dev), good);
+  assert.match(r.cleaned.join(), /3 pager prompt/);
+  // logger timestamps on every line
+  r = run(cfg.map((l, i) => '[2026-11-14 19:18:' + String(10 + i) + '] ' + l).join('\n'));
+  assert.equal(want(r.dev), good);
+  assert.match(r.cleaned.join(), /timestamps removed/);
+  // mail quoting and curly quotes
+  r = run(cfg.map(l => '> ' + l).join('\n').replace('Till 1', '\u201cTill 1\u201d'));
+  assert.equal(want(r.dev), good);
+  // indentation lost completely
+  r = run(cfg.map(l => l.trim()).join('\n'));
+  assert.equal(want(r.dev), good);
+  assert.match(r.cleaned.join(), /indentation was missing/);
+  // hard wrap at 80 columns
+  const long = ' description ' + 'x'.repeat(90);
+  const wrapped = cfg.slice(0, 3).concat([long.slice(0, 80), long.slice(80)], ['!', 'interface GigabitEthernet0/9', (' description ' + 'y'.repeat(100)).slice(0, 80),
+    (' description ' + 'y'.repeat(100)).slice(80), '!', 'interface GigabitEthernet0/8', (' description ' + 'z'.repeat(70)).slice(0, 80), 'z'.repeat(3), '!']);
+  r = run(wrapped.join('\n'));
+  assert.equal(NP.findPort(r.dev, 'Gi0/1').description, 'x'.repeat(90));
+  assert.match(r.cleaned.join(), /re-joined/);
+  // ... but a table whose rows are all exactly 80 wide is left alone
+  const table = Array.from({ length: 12 }, (_, i) => ('row' + i + ' ').padEnd(79, '.') + '|').join('\n');
+  assert.deepEqual(NP.clean(table), { text: table, notes: [] });
+  // nothing is touched in clean input, including the real fixture
+  const text = require('fs').readFileSync(require('path').join(__dirname, 'fixtures', 'cisco-3850-lab.txt'), 'utf8');
+  assert.deepEqual(NP.clean(text), { text: text, notes: [] });
+  for (const id of Object.keys(NP.samples)) assert.deepEqual(NP.clean(NP.samples[id].text).notes, [], id);
+});
+
 test('forcing a vendor and unknown input', () => {
   assert.throws(() => NP.ingest('hello world\nnothing here', { devices: [] }), /vendor/);
   assert.throws(() => NP.ingest('hello world', { vendor: 'ios', devices: [] }), /Nothing recognisable/);

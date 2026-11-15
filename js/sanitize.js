@@ -42,7 +42,7 @@
   // opts: vendor, names (hostnames, domain, users), descriptions, vlanNames, addresses (IP, MAC, serials). Default all true.
   NP.sanitize = function (text, opts) {
     opts = Object.assign({ names: true, descriptions: true, vlanNames: true, addresses: true }, opts || {});
-    text = String(text).replace(/\r\n/g, '\n');
+    text = NP.clean ? NP.clean(text).text : String(text).replace(/\r\n/g, '\n');
     const vendor = opts.vendor && opts.vendor !== 'auto' ? opts.vendor : NP.detect(text);
     const before = vendor && NP.vendors[vendor] ? probe(text, vendor) : null;
     const counts = { secrets: 0, names: 0, descriptions: 0, vlanNames: 0, ips: 0, macs: 0, serials: 0 };

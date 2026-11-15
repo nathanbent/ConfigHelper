@@ -416,6 +416,8 @@
   // opts: {vendor:'auto'|id, target:'auto'|'new'|'current', devices:[], current:dev|null, name:''}
   NP.ingest = function (text, opts) {
     opts = opts || {};
+    const cleaned = NP.clean ? NP.clean(text) : { text: text, notes: [] };
+    text = cleaned.text;
     const devices = opts.devices || [];
     let vendor = opts.vendor && opts.vendor !== 'auto' ? opts.vendor : NP.detect(text);
     if (!vendor && opts.current) vendor = opts.current.vendor;
@@ -465,7 +467,7 @@
       child.sources.push({ name: 'managed-switch config from ' + (dev.hostname || 'FortiGate'), vendor: vendor, lines: 0 });
       if (!prior) extra.push({ dev: child, isNew: childNew });
     });
-    return { dev: dev, isNew: isNew, vendor: vendor, extra: extra };
+    return { dev: dev, isNew: isNew, vendor: vendor, extra: extra, cleaned: cleaned.notes };
   };
 
   // ------------------------------------------------------------- port columns
