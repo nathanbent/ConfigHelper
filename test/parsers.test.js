@@ -972,6 +972,7 @@ test('label templates, CSV and backup round-trip', () => {
   assert.equal(NP.fillTemplate('{neighbor|desc}', d, port(d, 'Gi1/0/3')), 'Printer 2nd floor');
   assert.equal(NP.fillTemplate('{num} [VLAN {voice}]', d, p), '2');
   assert.equal(NP.fillTemplate('{num} [VLAN {vlan}]', d, p), '2 VLAN 99');
+  assert.equal(NP.fillTemplate(NP.labelPresets.vlans.lines[1], d, p), 'n99 t30,99');
   const lean = NP.labelRows([d], { lines: ['{port}', '{desc}', ''], physicalOnly: true, skipDisabled: true });
   assert.deepEqual(lean[0], ['Line1', 'Line2']);           // lean by default: only the label lines
   assert.deepEqual(lean[1], ['Gi1/0/1', 'Reception PC + phone']);

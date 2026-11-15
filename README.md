@@ -110,13 +110,14 @@ Not covered yet: EdgeOS/VyOS.
 ## Labels and P-touch Editor
 
 The Labels tab produces a file with only the `Line1`, `Line2`, `Line3` columns you fill in (empty lines are
-left out). Options: label type presets (port, patch panel, port + VLAN, cable, one-per-device asset label),
+left out). Options: label type presets (port, patch panel, port + VLAN, port + native/tagged VLAN, cable, one-per-device asset label),
 a port match filter, a per-line character limit, duplicate removal, comma/semicolon/tab output, and optional
 reference columns (`Device`, `Port`, `Description`, `VLAN`).
 
 - `{host} {port} {portfull} {num} {desc} {vlan} {tagged} {voice} {mode} {neighbor} {nport} {ninfo} {ip} {lag} {speed}`, and per device `{mgmtip} {model} {serial} {version} {location}`
 - `{neighbor|desc}` uses the first field that has a value
-- `[VLAN {vlan}]` is dropped when the field inside is empty
+- `[VLAN {vlan}]` is dropped when the field inside is empty; `[n{vlan}] [t{tagged}]` gives `n10 t20,30`
+- Click a field button to add it to the line you last clicked in, at the cursor; hover a field for what it holds
 
 In P-touch Editor, connect the CSV as a database (File > Database > Connect), treat the first row as field
 names, drag the `Line` fields onto the label layout, and print all records. The label CSV is written without

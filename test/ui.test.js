@@ -99,6 +99,18 @@ test('ui', { skip: chromium ? false : 'Playwright is not installed' }, async (t)
     await tab(page, 'Labels');
     const lab = await save(page, () => page.click('button:has-text("Export label file")'));
     assert.match(lab.text, /^Line1,Line2\r\nGi1\/0\/1,Lab-Data\r\n/);
+    // field buttons write into the line last clicked, at the cursor, keeping text typed but not yet saved
+    const line2 = page.locator('input[data-line="1"]');
+    await line2.fill('Port');
+    assert.equal(await page.textContent('.tokens .which'), 'Line 2');
+    await page.click('.tokens button.token:has-text("{num}")');
+    assert.equal(await line2.inputValue(), 'Port {num}');
+    await line2.fill('');
+    await page.click('.tokens button.token:has-text("[n{vlan}] [t{tagged}]")');
+    assert.equal(await page.locator('input[data-line="1"]').inputValue(), '[n{vlan}] [t{tagged}]');
+    await page.selectOption('.labelform select >> nth=0', 'vlans');
+    assert.equal(await page.locator('input[data-line="1"]').inputValue(), '[n{vlan}] [t{tagged}]');
+    assert.match(await page.textContent('#view'), /n3005/);
     await tab(page, 'Checks');
     assert.match(await page.textContent('#view'), /err-disabled/);
     await page.locator('.finding', { hasText: 'err-disabled' }).locator('button').click();
