@@ -55,6 +55,10 @@ textarea.drag { border-color: var(--accent); border-style: dashed; }
 .cmds li code { display: block; font: 12px/1.4 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
 .cmds li span { font-size: 12px; color: var(--muted); }
 .cmds p { margin: 0 0 8px; font-size: 12.5px; color: var(--muted); }
+.cmds.san { margin: 8px 0 0; }
+.cmds.san > div { padding: 0 10px 10px; display: grid; gap: 6px; }
+.cmds.san .check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink); }
+.cmds.san .btnrow { margin-top: 2px; }
 .btnrow { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .btnrow select { flex: 1 1 120px; min-width: 0; }
 .msg { margin: 8px 0 0; font-size: 13px; min-height: 1.2em; }

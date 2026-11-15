@@ -39,6 +39,11 @@ per-port changes, with live state (link, PoE draw, neighbors) optional, and expo
 of links. A link reported by both switches appears once and is marked "both ends"; others are marked "one end
 only", "far end not loaded" or "mismatch". Export it in any format, or as cable labels with one label per end.
 
+**Sanitize for sharing** (under the paste box) rewrites raw output so it can go in a bug report: secrets,
+certificates and banners are removed, and hostnames, usernames, descriptions, VLAN names, IP and MAC addresses
+and serials are replaced consistently with same-length placeholders, so tables still line up. It then checks
+that the result parses to the same ports and VLANs as the original. Always read it through before sharing.
+
 The **Not parsed** tab on each device lists the config lines and command output the parser saw but did not use
 (with known noise left out and passwords and keys replaced by `***`). Use it to spot gaps on a new device; the
 **Copy list** button gives you something to paste into a bug report.

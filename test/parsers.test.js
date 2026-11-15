@@ -578,6 +578,52 @@ test('cable list across devices', () => {
   assert.equal(NP.cableLabelRows(cables, { lines: ['{id} {a}>{b}'], maxLen: 12 })[1][0], 'C001 CORE-01');
 });
 
+test('sanitize: every sample still parses to the same structure, with nothing identifying left', () => {
+  for (const id of Object.keys(NP.samples)) {
+    const before = NP.ingest(NP.samples[id].text, { devices: [] }).dev;
+    const r = NP.sanitize(NP.samples[id].text);
+    assert.equal(r.vendor, id);
+    assert.ok(r.checked && r.same, id + ' parses the same after sanitizing');
+    assert.deepEqual(r.leftovers, [], id + ' leftovers');
+    assert.ok(!r.text.includes(before.hostname), id + ' hostname gone');
+    if (before.domain) assert.ok(!r.text.includes(before.domain), id + ' domain gone');
+    assert.equal(NP.detect(r.text), id, id + ' is still detected');
+    // sanitizing twice changes nothing more of substance
+    assert.ok(NP.sanitize(r.text).same);
+  }
+});
+
+test('sanitize: real 3850 session', () => {
+  const text = require('fs').readFileSync(require('path').join(__dirname, 'fixtures', 'cisco-3850-lab.txt'), 'utf8');
+  const r = NP.sanitize(text);
+  assert.deepEqual([r.checked, r.same, r.ports, r.vlans, r.leftovers], [true, true, 65, 27, []]);
+  for (const s of ['SW-PATCH-01', 'labadmin', 'example.lab', 'WORKBENCH-3560X', 'FW-HQ-01', 'Office-Room', 'lab-com-mgmt', 'LAB-ROUTING',
+    'HQ FortiGate', '10.0.65.169', 'FCW0000X000', '$9$', 'LAB-VTP', 'LAB-MST']) assert.ok(!r.text.includes(s), s + ' removed');
+  // names are replaced consistently, so config, status table and neighbor output still line up
+  const d = NP.ingest(r.text, { devices: [] }).dev;
+  const p = NP.findPort(d, 'Gi1/0/15');
+  assert.equal(p.description.length, 'Temp-Trunk-to-OfficeNextDoor'.length);     // full description from config, not the truncated table copy
+  assert.equal(NP.cables([d]).length, 6);
+  assert.match(d.hostname, /^H\d/);
+  assert.equal(NP.checks(d).map(f => f.id).join(), NP.checks(NP.ingest(text, { devices: [] }).dev).map(f => f.id).join());
+  // options: leave descriptions and VLAN names alone
+  const partial = NP.sanitize(text, { descriptions: false, vlanNames: false });
+  assert.ok(partial.text.includes('TechArea-Test-Rack') && partial.text.includes('lab-com-mgmt') && !partial.text.includes('SW-PATCH-01'));
+});
+
+test('sanitize: secrets and addresses without a recognised platform', () => {
+  const r = NP.sanitize(['enable secret 5 $1$abcd$efghijklmnop', 'snmp-server community s3cr3tRO RO', 'tacacs-server key 7 0822455D0A16',
+    'set password ENC AbCdEf123456', 'add name=u1 password=hunter2 group=full', 'ntp server 203.0.113.9', 'ip route 0.0.0.0 0.0.0.0 198.51.100.1',
+    'ip address 198.51.100.7 255.255.255.0', 'mac 00:1a:2b:3c:4d:5e and 001a.2b3c.4d5e', 'clock 10:15:30', 'contact bob@corp.example.com',
+    'ipv6 address 2001:470:abcd::1/64', 'access-list 10 remark Bob Smith desk'].join('\n'), { vendor: 'auto' });
+  for (const s of ['abcd$efgh', 's3cr3tRO', '0822455D0A16', 'AbCdEf123456', 'hunter2', '203.0.113', '198.51.100', '1a:2b', '2b3c', 'bob@', '2001:470', 'Bob Smith']) {
+    assert.ok(!r.text.includes(s), s + ' removed');
+  }
+  assert.ok(r.text.includes('255.255.255.0') && r.text.includes('0.0.0.0 0.0.0.0') && r.text.includes('10:15:30'));
+  assert.match(r.text, /ip route 0\.0\.0\.0 0\.0\.0\.0 10\.2\.100\.1\nip address 10\.2\.100\.7 /);       // same network, same replacement
+  assert.match(r.text, /mac 00:00:5e:00:53:01 and 0000\.5e00\.5301/);                                          // same MAC in both notations
+});
+
 test('forcing a vendor and unknown input', () => {
   assert.throws(() => NP.ingest('hello world\nnothing here', { devices: [] }), /vendor/);
   assert.throws(() => NP.ingest('hello world', { vendor: 'ios', devices: [] }), /Nothing recognisable/);

@@ -698,6 +698,28 @@
       renderCommands();
     });
     $('selTarget').addEventListener('change', renderCommands);
+    $('btnSanitize').addEventListener('click', function () {
+      const el = $('sanMsg'), ta = $('txtInput');
+      if (!ta.value.trim()) { el.textContent = 'Paste the output into the box above first.'; el.className = 'msg err'; return; }
+      const r = NP.sanitize(ta.value, { vendor: $('selVendor').value, names: $('sanNames').checked, descriptions: $('sanDesc').checked,
+        vlanNames: $('sanVlan').checked, addresses: $('sanAddr').checked });
+      ta.value = r.text;
+      const c = r.counts;
+      const parts = [[c.secrets, 'secret(s) removed'], [c.names, 'name(s)'], [c.descriptions, 'description(s)'], [c.vlanNames, 'VLAN name(s)'],
+        [c.ips, 'IP network(s)'], [c.macs, 'MAC(s)'], [c.serials, 'serial(s)']].filter(function (p) { return p[0]; })
+        .map(function (p) { return p[0] + ' ' + p[1]; });
+      let text = 'Done: ' + (parts.join(', ') || 'nothing needed replacing') + '. ';
+      let cls = 'msg ok';
+      if (!r.checked) { text += 'The platform was not recognised, so only secrets and addresses were handled; names and descriptions are untouched. Pick the platform and try again. '; cls = 'msg err'; }
+      else if (r.same) text += 'Checked: it still parses to the same ' + r.ports + ' ports and ' + r.vlans + ' VLANs. ';
+      else { text += 'Warning: the sanitized text parses differently from the original, so it may not reproduce your problem. '; cls = 'msg err'; }
+      if (r.leftovers.length) { text += 'Still present somewhere in the text: ' + r.leftovers.join(', ') + '. '; cls = 'msg err'; }
+      text += 'Read it through before sharing: free text the parser does not understand (ACL and policy names, comments) is not replaced.';
+      el.textContent = text; el.className = cls;
+      $('btnSanCopy').hidden = false; $('btnSanSave').hidden = false;
+    });
+    $('btnSanCopy').addEventListener('click', function (e) { copyText($('txtInput').value, e.target, 'Copy'); });
+    $('btnSanSave').addEventListener('click', function () { download('sanitized-output.txt', $('txtInput').value, 'text/plain'); });
     $('btnCables').addEventListener('click', function () { state.view = 'cables'; render(); });
     $('btnParse').addEventListener('click', function () { parseText($('txtInput').value, 'pasted text'); });
     $('btnFiles').addEventListener('click', function () { $('fileInput').click(); });
