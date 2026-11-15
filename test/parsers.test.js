@@ -927,6 +927,7 @@ test('problem report bundles the sanitized input with what the parser made of it
   assert.match(r.text, /What looks wrong: Gi1\/0\/14 shows the wrong status/);
   assert.match(r.text, /Ports: 65 \(62 physical, 6 up, 0 disabled, 10 not present\)/);
   assert.match(r.text, /=== Not parsed ===[\s\S]*negotiation auto/);
+  assert.match(r.text, /=== Parse debug ===\nINPUT\n[\s\S]*WORKED OUT\n[\s\S]*OUTPUT\n/);
   assert.match(r.text, /=== Checks ===[\s\S]*err-disabled/);
   assert.match(r.text, /=== Port table ===\nDevice\tPort\t/);
   assert.match(r.text, /=== Sanitized input ===\n/);
@@ -1396,4 +1397,36 @@ test('FortiGate: a wrapped set line is put back together, a real multi-line valu
     assert.equal(r.dev.hostname, 'FW1');
     assert.deepEqual([port(r.extra[0].dev, 'port1').untagged, port(r.extra[0].dev, 'port1').tagged], ['100', '101-111']);
   });
+});
+
+test('parse debug records the input, what was worked out and the output of the last paste', () => {
+  const text = require('fs').readFileSync(require('path').join(__dirname, 'fixtures', 'cisco-3850-lab.txt'), 'utf8');
+  const r = NP.ingest(text, { vendor: 'auto', devices: [], name: 'SW-PATCH-01.txt' });
+  const d = r.dev.debug;
+  assert.equal(r.debug, d);
+  assert.deepEqual([d.detect.vendor, d.detect.how, d.detect.matches[0].vendor], ['ios', 'auto-detected', 'ios']);
+  assert.deepEqual([d.target.isNew, d.output.ports, d.output.portsAdded, d.output.portsChanged], [true, 65, 65, 0]);
+  assert.equal(d.output.kinds.physical, 62);
+  assert.equal(d.output.physical, 62);
+  assert.ok(d.output.filled.link > 0 && d.output.filled.link <= 62);
+  assert.ok(d.input.sections.some(s => /^sh\w* run/.test(s.cmd) && s.used && s.ports > 0));
+  assert.equal(d.misses.unusedCommands, r.dev.unparsed.filter(e => e.ctx === 'command').length);
+  assert.ok(d.ms.total >= 0);
+  const out = NP.debugText(r.dev);
+  assert.match(out, /^ConfigHelper parse debug: /);
+  assert.match(out, /platform: Cisco IOS \/ IOS-XE \[ios\], auto-detected\n {4}detected as ios by \//);
+  assert.match(out, /target: new device \(hostname not loaded yet\)/);
+  assert.match(out, /ports: 65 \(65 new, 0 changed by this paste\): /);
+  // nothing that identifies the device: no hostname, file name, address or community
+  for (const s of ['SW-PATCH-01', 'labadmin', 'example.lab', 'lab-com-mgmt', '10.0.65.169']) assert.ok(!out.includes(s), s + ' not in debug');
+  // pasting the same thing again merges and changes nothing; a hand-picked platform is said
+  const again = NP.ingest(text, { vendor: 'ios', devices: [r.dev] });
+  assert.equal(again.dev, r.dev);
+  assert.deepEqual([again.debug.target.isNew, again.debug.output.portsAdded, again.debug.output.portsChanged, again.debug.detect.how],
+    [false, 0, 0, 'chosen by hand']);
+  // a command the parser does not know is listed as not used; the debug is not kept in snapshots
+  const d2 = NP.ingest('sw9#show clock\n12:00:00 UTC\nsw9#show vlan brief\nVLAN Name Status Ports\n---- ---- ---- ----\n10 users active Gi1/0/1\n', { vendor: 'ios', devices: [] }).dev;
+  assert.match(NP.debugText(d2), /show clock \| 1 lines \| NOT USED/);
+  assert.equal(NP.snapshot(d2, 'x').data.debug, undefined);
+  assert.equal(NP.debugText(NP.newDevice()), '');
 });

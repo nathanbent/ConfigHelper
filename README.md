@@ -61,6 +61,11 @@ The **Not parsed** tab on each device lists the config lines and command output 
 (with known noise left out and passwords and keys replaced by `***`). Use it to spot gaps on a new device; the
 **Copy list** button gives you something to paste into a bug report.
 
+At the bottom of that tab, **Parse debug (last paste)** shows how the last paste for the device was handled:
+the commands it was split into and whether each one's output was used, which detection rule picked the
+platform (and which other platforms also matched), timings, and how many ports each column was filled on.
+It holds counts, commands and pattern names, never config values, and is included in the problem report.
+
 With eight or more devices loaded (a FortiGate brings every managed switch with it), the Devices panel gets a
 search box. Type any part of a name, platform, model, serial number, management IP or description; several
 words must all match. Enter opens the first match and the down arrow moves into the list.

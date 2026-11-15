@@ -392,6 +392,47 @@
     return out.join('\n') + '\n';
   };
 
+  // -------------------------------------------------------------- parse debug
+  // The last paste for this device as plain text: what went in, what was worked out, what came out.
+  // Counts, commands and pattern names only, so it is safe to copy into a bug report.
+  NP.debugText = function (dev) {
+    const d = dev && dev.debug;
+    if (!d) return '';
+    const label = function (v) { return NP.vendors[v] ? NP.vendors[v].label : v; };
+    const out = ['ConfigHelper parse debug: ' + d.app + ', ' + d.at];
+    const i = d.input, o = d.output, m = d.misses;
+    out.push('', 'INPUT',
+      '  source: ' + d.source + (d.part ? ' (device ' + d.part + ' in the paste)' : '') + ', ' + i.chars + ' chars, ' + i.lines + ' lines',
+      '  cleanup: ' + (i.cleaned.join('; ') || 'none needed'),
+      '  sections: ' + i.sectionCount + (i.sectionCount > i.sections.length ? ' (first ' + i.sections.length + ' shown)' : ''));
+    i.sections.forEach(function (s) {
+      out.push('    ' + (s.cmd || '(no command: text before the first prompt)') + ' | ' + s.lines + ' lines | ' +
+        (s.noise ? 'skipped: terminal setup' : s.used ? 'used: ' + s.ports + ' ports, ' + s.vlans + ' VLANs on its own' : 'NOT USED'));
+    });
+    out.push('', 'WORKED OUT',
+      '  platform: ' + label(d.detect.vendor) + ' [' + d.detect.vendor + '], ' + d.detect.how);
+    d.detect.matches.forEach(function (x, n) {
+      out.push('    ' + (n ? 'also matches ' : 'detected as ') + x.vendor + ' by ' + x.pattern);
+    });
+    if (!d.detect.matches.length) out.push('    no detection rule matches this input');
+    else if (d.detect.matches[0].vendor !== d.detect.vendor) out.push('    NOTE: auto-detection would have picked ' + d.detect.matches[0].vendor);
+    out.push('  target: ' + (d.target.isNew ? 'new device' : 'merged into an existing device') + ' (' + d.target.why + ')',
+      '  lines not used: ' + m.seen + ' distinct, ' + m.noise + ' dropped as known noise, ' + m.added + ' new on the Not parsed list; ' +
+        m.unusedCommands + ' command(s) with unused output',
+      '  time: ' + d.ms.total + ' ms (' + ['clean', 'detect', 'probe', 'parse', 'sections', 'finish'].map(function (k) { return k + ' ' + d.ms[k]; }).join(', ') + ')');
+    out.push('', 'OUTPUT',
+      '  ports: ' + o.ports + ' (' + o.portsAdded + ' new, ' + o.portsChanged + ' changed by this paste): ' +
+        (Object.keys(o.kinds).map(function (k) { return o.kinds[k] + ' ' + k; }).join(', ') || 'none'),
+      '  VLANs: ' + o.vlans + ' (' + o.vlansAdded + ' new)' + (o.children ? '   managed switches: ' + o.children : ''));
+    const cols = Object.keys(o.filled);
+    out.push('  filled on the ' + o.physical + ' physical ports: ' +
+      (cols.filter(function (k) { return o.filled[k]; }).map(function (k) { return k + ' ' + o.filled[k]; }).join(', ') || 'nothing'),
+      '  empty on every physical port: ' + (cols.filter(function (k) { return !o.filled[k]; }).join(', ') || 'none'),
+      '  device fields set: ' + (o.set.join(', ') || 'none'),
+      '  device fields empty: ' + (o.empty.join(', ') || 'none'));
+    return out.join('\n') + '\n';
+  };
+
   // ------------------------------------------------------------- device report
   // One Markdown document per device: overview, VLANs, port table.
   NP.deviceReport = function (dev, colIds) {

@@ -314,6 +314,7 @@
         'VLANs: ' + dev.vlans.length + '   Neighbors: ' + dev.ports.filter(function (p) { return p.neighbor; }).length +
         '   PoE ports: ' + st.poePorts + '   Model: ' + (dev.model || '-') + '   Software: ' + (dev.version || '-'));
       out.push('', '=== Not parsed ===', NP.unparsedText(dev).split('\n').slice(1).join('\n').trim() || '(nothing)');
+      out.push('', '=== Parse debug ===', NP.debugText(dev).split('\n').slice(2).join('\n').trim());
       out.push('', '=== Checks ===', NP.checksText(dev).split('\n').slice(1).join('\n').trim());
       out.push('', '=== Port table ===', NP.formatRows(NP.portRows([dev]), 'tsv').trim());
     }

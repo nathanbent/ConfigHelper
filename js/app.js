@@ -131,13 +131,13 @@
     const parts = $('selTarget').value === 'auto' || $('selTarget').value === 'new' ? NP.splitDevices(text) : [text];
     if (parts.length === 1) return ingestOne(text, name);
     const done = [], errs = [];
-    parts.forEach(function (t) { try { done.push(ingestOne(t, name)); } catch (e) { errs.push(e.message); } });
+    parts.forEach(function (t, i) { try { done.push(ingestOne(t, name, (i + 1) + ' of ' + parts.length)); } catch (e) { errs.push(e.message); } });
     if (!done.length) throw new Error(errs[0]);
     const last = done[done.length - 1];
     last.others = done.slice(0, -1);
     return last;
   }
-  function ingestOne(text, name) {
+  function ingestOne(text, name, part) {
     let target = $('selTarget').value;
     if (target === 'snapshot') {
       const dev = cur();
@@ -152,7 +152,7 @@
     }
     const r = NP.ingest(text, {
       vendor: pickedParser(), target: target,
-      devices: state.devices, current: cur(), name: name });
+      devices: state.devices, current: cur(), name: name, part: part });
     state.undo = null;
     if (r.isNew) state.devices.push(r.dev);
     (r.extra || []).forEach(function (x) { if (x.isNew) state.devices.push(x.dev); });
@@ -570,11 +570,25 @@
     table('Ports', ['Port', 'What', 'Before', 'After'], prow);
   }
 
+  // The last paste for this device: what went in, what was worked out, what came out.
+  function parseDebug(view, dev) {
+    const text = NP.debugText(dev);
+    if (!text) return;
+    view.appendChild(h('section', { class: 'card' },
+      h('details', { class: 'debug' },
+        h('summary', { text: 'Parse debug (last paste)' }),
+        h('p', { class: 'hint', text: 'How the last paste for this device was handled: its sections, how the platform was picked, timings, and how much of the port table it filled. It holds counts, the commands you ran and pattern names, never config values. Paste it into a bug report.' }),
+        h('div', { class: 'btnrow' },
+          h('button', { onclick: function (e) { copyText(text, e.target, 'Copy debug'); } }, 'Copy debug')),
+        h('pre', { class: 'debugtext', text: text }))));
+  }
+
   function unparsed(view, dev) {
     const groups = NP.unparsedGroups(dev);
     if (!groups.length) {
       view.appendChild(h('section', { class: 'card' },
         h('p', { class: 'empty', text: 'Everything in the input for this device was either used or is on the list of lines that never matter (certificates, banners, console settings and the like).' })));
+      parseDebug(view, dev);
       return;
     }
     view.appendChild(h('section', { class: 'card' },
@@ -594,6 +608,7 @@
             return h('tr', {}, h('td', { class: 'mono wrap', text: e.text }), h('td', { text: e.count }), h('td', { text: e.inner || '' }));
           }))))));
     });
+    parseDebug(view, dev);
   }
 
   function pill(text) {
