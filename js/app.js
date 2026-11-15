@@ -834,6 +834,7 @@
   let labelCaret = { line: 0, pos: null };   // the label line the field buttons write into
   function labels(view, dev) {
     const L = state.label;
+    const tplKey = NP.labelTemplates[L.tpl] ? L.tpl : Object.keys(NP.labelTemplates)[0], tpl = NP.labelTemplates[tplKey];
     const perDevice = L.per === 'device';
     const devs = L.scope === 'all' ? state.devices : [dev];
     const lunits = L.scope === 'all' ? [] : NP.units(dev);
@@ -929,12 +930,13 @@
         h('button', { disabled: rows.length < 2, onclick: function (e) {
           copyText(NP.csv(rows, '\t'), e.target, 'Copy');
         } }, 'Copy'),
-        h('button', { title: 'A ready-made P-touch Editor layout for Line1, Line2 and Line3: ' + NP.labelTemplates.wrap.label, onclick: function () {
-          download(NP.labelTemplates.wrap.file, NP.b64Bytes(NP.labelTemplates.wrap.b64), 'application/octet-stream');
+        sel(tplKey, Object.keys(NP.labelTemplates).map(function (k) { return [k, NP.labelTemplates[k].label]; }),
+          function (v) { L.tpl = v; save(); render(); }, 'P-touch template'),
+        h('button', { title: 'A ready-made P-touch Editor layout: ' + tpl.label, onclick: function () {
+          download(tpl.file, NP.b64Bytes(tpl.b64), 'application/octet-stream');
         } }, 'P-touch template (.lbx)'),
         h('button', { title: 'The same template inside a .zip, which is how Brother\'s phone app (Pro Label Tool) imports P-touch Editor layouts', onclick: function () {
-          const t = NP.labelTemplates.wrap;
-          download(t.file.replace(/\.lbx$/, '.zip'), NP.zipStore(t.file, NP.b64Bytes(t.b64)), 'application/zip');
+          download(tpl.file.replace(/\.lbx$/, '.zip'), NP.zipStore(tpl.file, NP.b64Bytes(tpl.b64)), 'application/zip');
         } }, 'Zipped (.zip, phone app)'),
         h('button', { class: 'primary', disabled: rows.length < 2, onclick: function () {
           const name = (L.scope === 'all' ? 'all-devices' : fileSafe(dev.hostname)) + '-labels.' + (L.delim === '\t' ? 'txt' : 'csv');
@@ -947,7 +949,7 @@
               return h('tr', {}, r.map(function (c, i) { return h('td', { class: i < lineCount ? 'line' : '', text: c }); }));
             }))))
         : h('p', { class: 'empty', text: 'No ports match these options.' }),
-      h('p', { class: 'hint', text: 'In P-touch Editor: File > Database > Connect, choose this file, tick "Header row contains field names", then drag the Line fields onto the label and print all records. Or start from the P-touch template (a 3-line cable wrap for 24 mm tape, made for the Cable wrap label type): open it, connect this file the same way and link its line1, line2 and line3 text to the matching Line fields. Brother\'s phone app (Pro Label Tool) takes the zipped template instead.' })));
+      h('p', { class: 'hint', text: 'In P-touch Editor: File > Database > Connect, choose this file, tick "Header row contains field names", then drag the Line fields onto the label and print all records. Or start from a P-touch template (pick one next to Export; each uses Line1 and Line2): open it, connect this file the same way and link its Line1 and Line2 text to the matching fields. Brother\'s phone app (Pro Label Tool) takes the zipped template instead.' })));
   }
 
   // -------------------------------------------------------------------- wire

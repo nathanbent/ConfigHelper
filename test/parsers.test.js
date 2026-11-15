@@ -1004,23 +1004,30 @@ test('forcing a vendor and unknown input', () => {
   assert.throws(() => NP.ingest('hello world', { vendor: 'ios', devices: [] }), /Nothing recognisable/);
 });
 
-test('bundled P-touch template matches templates/ and carries no personal data', () => {
-  const t = NP.labelTemplates.wrap;
-  const file = require('fs').readFileSync(require('path').join(__dirname, '..', 'templates', t.file));
-  assert.equal(Buffer.from(NP.b64Bytes(t.b64)).equals(file), true);
-  assert.equal(file.subarray(0, 2).toString(), 'PK');
-  const xml = require('zlib').inflateRawSync(file.subarray(30 + file.readUInt16LE(26) + file.readUInt16LE(28))).toString();
-  ['line1', 'line2', 'line3'].forEach(l => assert.ok(xml.includes('<pt:data>' + l + '</pt:data>')));   // placeholder text, one per line
-  assert.doesNotMatch(xml, /databasePath/);                 // no database link saved in the template
-  assert.doesNotMatch(xml, /[A-Z]:\\|Users|Downloads/);
-  // the zipped form for the phone app: one stored entry holding the same bytes
-  const zip = Buffer.from(NP.zipStore(t.file, NP.b64Bytes(t.b64)));
-  assert.equal(zip.readUInt32LE(0), 0x04034b50);
-  assert.equal(zip.readUInt32LE(14), require('zlib').crc32(file));
-  assert.equal(zip.subarray(30, 30 + t.file.length).toString(), t.file);
-  assert.equal(zip.subarray(30 + t.file.length, 30 + t.file.length + file.length).equals(file), true);
-  assert.equal(zip.readUInt32LE(zip.length - 22), 0x06054b50);
-  assert.equal(zip.readUInt32LE(zip.length - 6), 30 + t.file.length + file.length);   // where the central directory starts
+test('bundled P-touch templates match templates/ and carry no personal data', () => {
+  const fs = require('fs'), path = require('path'), zlib = require('zlib');
+  const dir = path.join(__dirname, '..', 'templates');
+  const keys = Object.keys(NP.labelTemplates);
+  assert.deepEqual(fs.readdirSync(dir).sort(), keys.map(k => NP.labelTemplates[k].file).sort());
+  keys.forEach((k) => {
+    const t = NP.labelTemplates[k];
+    const file = fs.readFileSync(path.join(dir, t.file));
+    assert.equal(Buffer.from(NP.b64Bytes(t.b64)).equals(file), true, k);
+    assert.equal(file.subarray(0, 2).toString(), 'PK');
+    const xml = zlib.inflateRawSync(file.subarray(30 + file.readUInt16LE(26) + file.readUInt16LE(28))).toString();
+    const texts = xml.match(/<pt:data>[^<]*<\/pt:data>/g).map(x => x.replace(/<[^>]+>/g, '').split('\n')[0]);
+    assert.deepEqual(texts.sort(), ['Line1', 'Line1', 'Line2', 'Line2'], k);       // placeholder text only, each line on both halves
+    assert.doesNotMatch(xml, /[A-Z]:\\|Users|Downloads/);
+    if (/databasePath/.test(xml)) assert.match(xml, /databasePath="labels\.csv"/);
+    // the zipped form for the phone app: one stored entry holding the same bytes
+    const zip = Buffer.from(NP.zipStore(t.file, NP.b64Bytes(t.b64)));
+    assert.equal(zip.readUInt32LE(0), 0x04034b50);
+    assert.equal(zip.readUInt32LE(14), zlib.crc32(file));
+    assert.equal(zip.subarray(30, 30 + t.file.length).toString(), t.file);
+    assert.equal(zip.subarray(30 + t.file.length, 30 + t.file.length + file.length).equals(file), true);
+    assert.equal(zip.readUInt32LE(zip.length - 22), 0x06054b50);
+    assert.equal(zip.readUInt32LE(zip.length - 6), 30 + t.file.length + file.length);   // where the central directory starts
+  });
 });
 
 test('label templates, CSV and backup round-trip', () => {

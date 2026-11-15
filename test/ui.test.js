@@ -100,11 +100,12 @@ test('ui', { skip: chromium ? false : 'Playwright is not installed' }, async (t)
     const lab = await save(page, () => page.click('button:has-text("Export label file")'));
     assert.match(lab.text, /^Line1,Line2\r\nGi1\/0\/1,Lab-Data\r\n/);
     const lbx = await save(page, () => page.click('button:has-text("P-touch template")'));
-    assert.equal(lbx.name, 'cable-wrap-3line.lbx');
+    assert.equal(lbx.name, 'cable-wrap-2line.lbx');
     assert.match(lbx.text, /^PK[\s\S]*label\.xml/);
+    await page.selectOption('.toolbar select[aria-label="P-touch template"]', 'flag2');
     const zipped = await save(page, () => page.click('button:has-text("Zipped (.zip")'));
-    assert.equal(zipped.name, 'cable-wrap-3line.zip');
-    assert.match(zipped.text, /^PK[\s\S]*cable-wrap-3line\.lbx/);
+    assert.equal(zipped.name, 'fiber-flag-2line.zip');
+    assert.match(zipped.text, /^PK[\s\S]*fiber-flag-2line\.lbx/);
     // field buttons write into the line last clicked, at the cursor, keeping text typed but not yet saved
     const line2 = page.locator('input[data-line="1"]');
     await line2.fill('Port');
