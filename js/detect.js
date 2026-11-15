@@ -6,6 +6,8 @@
   const RULES = [
     ['fortigate', /^\s*config system (global|interface)\b/m, /^#config-version=F/m],
     ['mikrotik', /by RouterOS/, /^\/(interface|ip|system) [a-z]/m],
+    ['icx', /^ver \d+\.\d+\.\S+\s*$/m, /^stack unit \d+\s*$/m, /^vlan \d+ (name \S+ )?by port\s*$/m,
+      /^interface ethernet \d+\/\d+\/\d+/m, /^Port\s+Link\s+State\s+Dupl\s+Speed/m, /^Lcl Port\s+Chassis ID/m],
     ['junos', /^set (system|interfaces|vlans|protocols|version) /m, /^\s*host-name \S+;/m,
       /^Interface\s+Admin\s+Link\s+Proto/m, /^## Last commit/m],
     ['comware', /^\s*sysname \S/m, /^\s*port link-type /m, /^interface (Bridge-Aggregation|Vlan-interface)\d/m,

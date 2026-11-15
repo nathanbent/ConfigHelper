@@ -349,6 +349,128 @@ HP-2530-IDF1# show power-over-ethernet brief
   4      | Yes    low      usage 17 W  0.0 W              Searching   0     off
 `};
 
+  S.icx = { label: 'Ruckus ICX (FastIron)', text: String.raw`SSH@ICX-OFFICE-1#show running-config
+Current configuration:
+!
+ver 08.0.95hT213
+!
+stack unit 1
+  module 1 icx7150-48p-poe-port-management-module
+  module 2 icx7150-2-copper-port-2g-module
+  module 3 icx7150-4-sfp-plus-port-40g-module
+!
+lag UPLINK dynamic id 1
+ ports ethe 1/3/1 to 1/3/2
+!
+vlan 1 name DEFAULT-VLAN by port
+ spanning-tree 802-1w
+!
+vlan 10 name DATA by port
+ tagged ethe 1/1/1 lag 1
+ untagged ethe 1/1/2 to 1/1/24
+ router-interface ve 10
+ spanning-tree 802-1w
+ spanning-tree 802-1w priority 4096
+ multicast passive
+!
+vlan 20 name VOICE by port
+ tagged ethe 1/1/2 to 1/1/12 lag 1
+ spanning-tree 802-1w
+!
+vlan 99 name MGMT by port
+ tagged lag 1
+ untagged ethe 1/1/1
+ spanning-tree 802-1w
+!
+aaa authentication login default local
+hostname ICX-OFFICE-1
+ip dns domain-list office.example.com
+ip dns server-address 10.80.0.53 10.80.0.54
+ip route 0.0.0.0/0 10.80.10.1
+logging host 10.80.0.60
+no telnet server
+username admin password .....
+snmp-server community ..... ro
+snmp-server location Office comms cupboard
+!
+ntp
+ server 10.80.0.1
+!
+web-management https
+!
+interface ethernet 1/1/1
+ port-name AP Reception
+ inline power
+!
+interface ethernet 1/1/2
+ port-name Desk 12 phone+PC
+ voice-vlan 20
+ inline power
+ spanning-tree 802-1w admin-edge-port
+ stp-bpdu-guard
+!
+interface ethernet 1/1/3
+ port-name Spare
+ disable
+!
+interface ethernet 1/3/1
+ port-name Core uplink A
+!
+interface lag 1
+ port-name Uplink to core
+!
+interface ve 10
+ ip address 10.80.10.2 255.255.255.0
+!
+end
+
+SSH@ICX-OFFICE-1#show interfaces brief
+
+Port       Link    State   Dupl Speed Trunk Tag Pvid Pri MAC             Name
+1/1/1      Up      Forward Full 1G    None  Yes 99   0   0000.5e00.5301  AP Reception
+1/1/2      Up      Forward Full 1G    None  Yes 10   0   0000.5e00.5302  Desk 12 phone+
+1/1/3      Disable None    None None  None  No  10   0   0000.5e00.5303  Spare
+1/1/4      Down    None    None None  None  No  10   0   0000.5e00.5304
+1/3/1      Up      Forward Full 10G   1     Yes N/A  0   0000.5e00.5331  Core uplink A
+1/3/2      Up      Forward Full 10G   1     Yes N/A  0   0000.5e00.5331
+mgmt1      Down    None    None None  None  No  None 0   0000.5e00.5300
+ve10       Up      N/A     N/A  N/A   None  N/A N/A  N/A 0000.5e00.5300
+lg1        Up      Forward Full 20G   1     Yes N/A  0   0000.5e00.5331  Uplink to core
+
+SSH@ICX-OFFICE-1#show inline power
+
+Power Capacity:         Total is 370000 mWatts. Current Free is 345000 mWatts.
+
+Power Allocations:      Requests Honored 4 times
+
+ Port   Admin   Oper    ---Power(mWatts)---  PD Type  PD Class  Pri  Fault/
+        State   State   Consumed  Allocated                           Error
+--------------------------------------------------------------------------
+ 1/1/1  On      On          9800      25500  802.3at  Class 4     3  n/a
+ 1/1/2  On      On          3400      15400  802.3af  Class 2     3  n/a
+ 1/1/3  Off     Off            0          0  n/a      n/a         3  n/a
+ 1/1/4  Off     Off            0          0  n/a      n/a         3  n/a
+
+SSH@ICX-OFFICE-1#show lldp neighbors detail
+Local port: 1/1/1
+  Neighbor: 0000.5e00.53aa, TTL 101 seconds
+    + Chassis ID (MAC address): 0000.5e00.53aa
+    + Port ID (MAC address): 0000.5e00.53ab
+    + Time to live: 120 seconds
+    + System name         : "AP-Reception"
+    + Port description    : "eth0"
+    + Management address (IPv4): 10.80.99.21
+
+Local port: 1/3/1
+  Neighbor: 0000.5e00.53c0, TTL 115 seconds
+    + Chassis ID (MAC address): 0000.5e00.53c0
+    + Port ID (interface name): TenGigabitEthernet1/0/47
+    + Time to live: 120 seconds
+    + System name         : "CORE-01"
+    + Port description    : "ICX-OFFICE-1 uplink A"
+    + Management address (IPv4): 10.80.0.2
+`};
+
   S.comware = { label: 'HPE Comware / H3C', text: String.raw`<CW-STACK-1>display current-configuration
 #
  version 7.1.070, Release 6126P20

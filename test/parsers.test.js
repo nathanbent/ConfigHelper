@@ -162,6 +162,34 @@ test('ArubaOS-Switch / ProCurve', () => {
   assert.equal(d.ports.filter(p => p.kind === 'physical').length, 50);
 });
 
+test('Ruckus ICX (FastIron)', () => {
+  const d = run('icx').dev;
+  assert.equal(d.hostname, 'ICX-OFFICE-1');
+  assert.deepEqual([d.model, d.version], ['ICX7150-48P-POE', '08.0.95hT213']);
+  assert.deepEqual(d.dns, ['10.80.0.53', '10.80.0.54']);
+  assert.deepEqual(d.ntp, ['10.80.0.1']);
+  assert.equal(d.gateway, '10.80.10.1');
+  assert.match(d.stp.mode, /802\.1w/);
+  assert.deepEqual(d.stp.priority, ['VLAN 10: 4096']);
+  assert.equal(d.ports.filter(p => p.kind === 'physical').length, 54);     // 48 + 2 + 4 from the module lines
+  const p1 = port(d, '1/1/1');
+  assert.deepEqual([p1.description, p1.mode, p1.untagged, p1.tagged, p1.poeStatus, p1.poeWatts, p1.poeClass],
+    ['AP Reception', 'trunk', '99', '10', 'on', '9.8', '4']);
+  assert.deepEqual([p1.neighbor, p1.neighborPort, p1.neighborInfo], ['AP-Reception', 'eth0', '10.80.99.21']);
+  const p2 = port(d, '1/1/2');
+  assert.deepEqual([p2.mode, p2.untagged, p2.tagged, p2.voiceVlan, p2.stp, p2.link, p2.speed],
+    ['access', '10', '20', '20', 'edge, bpduguard', 'up', '1G']);
+  assert.equal(port(d, '1/1/3').adminUp, false);
+  assert.deepEqual([port(d, '1/1/30').untagged, port(d, '1/1/30').link], ['1', 'not present']);
+  const u = port(d, '1/3/1');
+  assert.deepEqual([u.lag, u.mode, u.neighbor, u.neighborPort], ['lag1', '', 'CORE-01', 'TenGigabitEthernet1/0/47']);
+  const lag = port(d, 'lg1');
+  assert.deepEqual([lag.name, lag.kind, lag.description, lag.mode, lag.untagged, lag.tagged, lag.link, lag.speed],
+    ['lag 1', 'lag', 'Uplink to core', 'trunk', '', '10,20,99', 'up', '20G']);
+  assert.deepEqual([port(d, 've10').kind, port(d, 've10').ip], ['svi', '10.80.10.2/24']);
+  assert.equal(lag.lag, '');
+});
+
 test('HPE Comware', () => {
   const d = run('comware').dev;
   assert.equal(d.hostname, 'CW-STACK-1');

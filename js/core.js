@@ -110,7 +110,7 @@
     loopback: 'Lo', lo: 'Lo', loop: 'Lo',
     management: 'Ma', ma: 'Ma', mgmt: 'mgmt',
     tunnel: 'Tu', tu: 'Tu',
-    lag: 'lag'
+    lag: 'lag', lg: 'lag'
   };
   const KIND_BY_ABBR = { Po: 'lag', BAGG: 'lag', lag: 'lag', Vlan: 'svi', Lo: 'loopback',
     Ma: 'mgmt', mgmt: 'mgmt', Tu: 'tunnel' };

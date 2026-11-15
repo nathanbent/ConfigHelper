@@ -112,6 +112,12 @@
       { cmd: 'show interfaces brief', gives: 'link state, speed, media type' },
       { cmd: 'show power-over-ethernet brief', gives: 'PoE state, watts, class' },
       { cmd: 'show lldp info remote-device', gives: 'what is plugged in' }] },
+    icx: { pager: 'skip-page-display', cmds: [
+      { cmd: 'show running-config', gives: CFG },
+      { cmd: 'show interfaces brief', gives: 'link state, speed, STP state, LAG membership' },
+      { cmd: 'show inline power', gives: 'PoE state, watts, class' },
+      { cmd: 'show lldp neighbors detail', gives: 'what is plugged in' },
+      { cmd: 'show version', gives: 'model, software version, serial' }] },
     comware: { pager: 'screen-length disable', cmds: [
       { cmd: 'display current-configuration', gives: CFG },
       { cmd: 'display interface brief', gives: 'link state, speed, duplex' }] },
