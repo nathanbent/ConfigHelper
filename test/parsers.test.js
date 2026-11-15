@@ -965,6 +965,17 @@ test('forcing a vendor and unknown input', () => {
   assert.throws(() => NP.ingest('hello world', { vendor: 'ios', devices: [] }), /Nothing recognisable/);
 });
 
+test('bundled P-touch template matches templates/ and carries no personal data', () => {
+  const t = NP.labelTemplates.wrap;
+  const file = require('fs').readFileSync(require('path').join(__dirname, '..', 'templates', t.file));
+  assert.equal(Buffer.from(NP.b64Bytes(t.b64)).equals(file), true);
+  assert.equal(file.subarray(0, 2).toString(), 'PK');
+  const xml = require('zlib').inflateRawSync(file.subarray(30 + file.readUInt16LE(26) + file.readUInt16LE(28))).toString();
+  ['Line1', 'Line2', 'Line3'].forEach(l => assert.ok(xml.includes('dbMergeFieldStyleName="' + l + '"')));
+  assert.match(xml, /databasePath="labels\.csv"/);
+  assert.doesNotMatch(xml, /[A-Z]:\\|Users|Downloads/);
+});
+
 test('label templates, CSV and backup round-trip', () => {
   const d = run('ios').dev;
   const p = port(d, 'Gi1/0/2');
@@ -973,6 +984,9 @@ test('label templates, CSV and backup round-trip', () => {
   assert.equal(NP.fillTemplate('{num} [VLAN {voice}]', d, p), '2');
   assert.equal(NP.fillTemplate('{num} [VLAN {vlan}]', d, p), '2 VLAN 99');
   assert.equal(NP.fillTemplate(NP.labelPresets.vlans.lines[1], d, p), 'n99 t30,99');
+  assert.equal(NP.fillTemplate(NP.labelPresets.wrap.lines[1], d, port(d, 'Gi1/0/3')), '<Printer 2nd floor>');
+  assert.equal(NP.fillTemplate(NP.labelPresets.wrap.lines[1], d, NP.newPort('Gi9/0/9')), '');   // no empty <>
+  assert.equal(NP.fillTemplate(NP.labelPresets.wrap.lines[2], d, p), 'n99 t30,99');
   const lean = NP.labelRows([d], { lines: ['{port}', '{desc}', ''], physicalOnly: true, skipDisabled: true });
   assert.deepEqual(lean[0], ['Line1', 'Line2']);           // lean by default: only the label lines
   assert.deepEqual(lean[1], ['Gi1/0/1', 'Reception PC + phone']);

@@ -110,9 +110,13 @@ Not covered yet: EdgeOS/VyOS.
 ## Labels and P-touch Editor
 
 The Labels tab produces a file with only the `Line1`, `Line2`, `Line3` columns you fill in (empty lines are
-left out). Options: label type presets (port, patch panel, port + VLAN, port + native/tagged VLAN, cable, one-per-device asset label),
+left out). Options: label type presets (port, patch panel, port + VLAN, port + native/tagged VLAN, cable wrap, cable, one-per-device asset label),
 a port match filter, a per-line character limit, duplicate removal, comma/semicolon/tab output, and optional
 reference columns (`Device`, `Port`, `Description`, `VLAN`).
+
+`P-touch template (.lbx)` downloads a ready-made P-touch Editor layout (`templates/cable-wrap-3line.lbx`: a 3-line
+cable wrap on 24 mm tape, bold port, italic description, small VLAN line) whose fields are already bound to
+`Line1`-`Line3`; open it and connect the exported file as its database.
 
 - `{host} {port} {portfull} {num} {desc} {vlan} {tagged} {voice} {mode} {neighbor} {nport} {ninfo} {ip} {lag} {speed}`, and per device `{mgmtip} {model} {serial} {version} {location}`
 - `{neighbor|desc}` uses the first field that has a value

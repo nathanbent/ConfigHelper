@@ -298,6 +298,7 @@
     panel: { label: 'Patch panel / faceplate (port number only)', per: 'port', lines: ['{num}', '', ''] },
     vlan: { label: 'Port number + VLAN', per: 'port', lines: ['{num}', '[VLAN {vlan}]', ''] },
     vlans: { label: 'Port number + native/tagged VLAN', per: 'port', lines: ['{num}', '[n{vlan}] [t{tagged}]', ''] },
+    wrap: { label: 'Cable wrap (port, <description>, native/tagged VLAN)', per: 'port', lines: ['{port}', '[<{desc}>]', '[n{vlan}] [t{tagged}]'] },
     cable: { label: 'Cable labels (this end and far end)', per: 'port', lines: ['{host} {port}', '{neighbor|desc} {nport}', ''] },
     device: { label: 'Device / asset labels (one per device)', per: 'device', lines: ['{host}', '{mgmtip}', '{model} [SN {serial}]'] }
   };
