@@ -1262,8 +1262,9 @@ test('sanitize: FastIron banner lines and chassis name do not survive', () => {
 });
 
 test('sanitize: FortiGate interface names, switch serials and named objects', () => {
-  const allowed = '                set allowed-vlans "Globex-Guest" "Hooli-Lab" "voice" "Smith-Office"';
-  const cut = allowed.indexOf('Smith-Office') + 5;                 // the terminal wrapped inside the quoted name
+  const allowed = '                set allowed-vlans "Globex-Guest" "Hooli-Lab" "voice" "video" "Smith-Office"';
+  const cut = 80;                                                  // the terminal wrapped inside the quoted name
+  assert.equal(allowed.slice(cut - 3, cut + 3), '"Smith-'.slice(0, 3) + 'ith');
   const raw = ['FW-ACME-01 # show system interface', 'config system interface',
     '    edit "port1"', '        set vdom "root"', '        set type physical', '        set alias "Initech-Fiber"', '    next',
     '    edit "x1"', '        set vdom "root"', '        set type physical', '    next',
@@ -1313,7 +1314,7 @@ test('sanitize: FortiGate interface names, switch serials and named objects', ()
   const guest = ph(/set vlan "([^"]+)"\n\s+set allowed-vlans/);
   assert.ok(r.text.includes('edit "' + guest + '"') && r.text.includes('set allowed-vlans "' + guest + '" '));
   const office = ph(/edit "([^"]+)"\n.*\n\s+set interface "fortilink"\n\s+set vlanid 30/);
-  assert.match(r.text, new RegExp('"voice" "' + office.slice(0, 5) + '\\n' + office.slice(5) + '"\\n'));      // the wrapped copy
+  assert.match(r.text, new RegExp('"video" "' + office.slice(0, 2) + '\\n' + office.slice(2) + '"\\n'));      // the wrapped copy
   assert.ok(r.text.includes('set vlan "' + office + '"'));
   assert.equal(new Set(r.text.match(/^    edit "[^"]+"$/gm)).size, 14 + 2 + 1);                      // no two names share a placeholder
   assert.match(r.text, /edit "lag-[^"]+"/);                                      // still an aggregate to the parser
@@ -1329,4 +1330,66 @@ test('sanitize: FortiGate interface names, switch serials and named objects', ()
   // other vendors are untouched by the FortiGate rules
   const cisco = NP.sanitize('hostname SW1\ninterface GigabitEthernet1/0/1\n description Initech-Fiber\n set sn "S248EPTF19004711"\n', { vendor: 'ios' });
   assert.ok(cisco.text.includes('S248EPTF19004711'));
+});
+
+test('sanitize: real FortiGate 201F session, interface names replaced everywhere', () => {
+  const text = require('fs').readFileSync(require('path').join(__dirname, 'fixtures', 'fortigate-201f-fortilink.txt'), 'utf8');
+  const r = NP.sanitize(text);
+  assert.deepEqual([r.vendor, r.checked, r.same, r.ports, r.vlans], ['fortigate', true, true, 97, 45]);
+  for (const s of ['WAN1-FIBER', 'WAN2-CABLE', 'LAB-COM-ROUTING', 'Implement Lab', 'VPN-HQ Hub', 'TENANT-LAB-3300', 'LAB-VLAN-3065', 'v.3000', 'v.3051-Lab-DMZ']) {
+    assert.ok(!r.text.includes(s), s + ' removed');
+  }
+  for (const s of ['edit "x1"', 'edit "naf.root"', 'edit "fortilink"', 'edit "_default"', 'edit "nac_segment"']) assert.ok(r.text.includes(s), s + ' kept');
+  // the managed switches come out with the same ports and VLANs, including the allowed-vlans lists wrapped at 224 columns
+  const shape = (t) => NP.ingest(t, { devices: [] }).extra.map(x => x.dev.ports.map(p => [p.mode, p.untagged, p.tagged, !!p.lag].join()).join(';') + '|' + x.dev.vlans.map(v => v.id));
+  assert.deepEqual(shape(r.text), shape(text));
+  assert.equal(shape(text).length, 3);
+});
+
+test('real FortiGate 201F (FortiOS 8.0) FortiLink session, sanitized', () => {
+  const text = require('fs').readFileSync(require('path').join(__dirname, 'fixtures', 'fortigate-201f-fortilink.txt'), 'utf8');
+  const r = NP.ingest(text, { devices: [] });
+  const fw = r.dev;
+  assert.deepEqual([fw.vendor, fw.hostname, fw.model, fw.version], ['fortigate', 'LAB-FW-1', 'FortiGate-201F', '8.0.2']);   // "(Primary)" is not part of the name
+  assert.equal(fw.other.HA, 'a-p, primary');
+  assert.equal(fw.other['Managed switches'], 'MDF-SW-2, MDF-SW-1, EDGE-SW-1');
+  assert.equal(fw.vlans.find(v => v.id === 1000).name, 'v.1000-Test');          // not the VXLAN sub-interface with the same id
+  assert.deepEqual(['lan', 'SiteSSID1', 'vxlan-evpn', 'mgmt'].map(n => port(fw, n).kind), ['svi', 'svi', 'tunnel', 'mgmt']);
+  assert.match(port(fw, 'v.3005').notes, /secondary 10\.\d+\.100\.1\/24; secondary .*dhcp relay /);
+  assert.match(port(fw, 'VPN-HQ Hub-Back').notes, /on WAN2-CABLE/);
+  // only the FortiLink commands were pasted: nothing is known about NTP or syslog, so nothing is claimed
+  assert.deepEqual(NP.checks(fw).map(f => f.id).filter(id => /^no(ntp|syslog)$/.test(id)), []);
+  assert.ok(!fw.unparsed.some(e => /snmp-index|device-identification|stp-settings/.test(e.text)));
+
+  const [sw2, sw1, edge] = r.extra.map(x => x.dev);
+  assert.deepEqual([sw2.hostname, sw2.serial, sw2.ports.length, edge.ports.length], ['MDF-SW-2', 'FS1D24T000000001', 27, 28]);
+  // the quarantine VLAN is on every port as an untagged extra: that does not make an access port a trunk
+  const p1 = port(sw2, 'port1');
+  assert.deepEqual([p1.mode, p1.untagged, p1.tagged, p1.notes], ['access', '3000', '', 'also untagged: 4093']);
+  assert.deepEqual([port(sw2, 'port16').mode, port(sw2, 'port16').tagged], ['trunk', '3220']);
+  assert.deepEqual([port(sw1, 'port1').mode, port(sw1, 'port1').tagged, port(sw1, 'port1').description], ['trunk', 'all', 'LAB-PATCH-3850']);
+  // the 28-name VLAN list was wrapped by the terminal at 224 columns, in the middle of a name
+  const lag = port(sw2, 'pve-r730xd-1');
+  assert.equal(lag.tagged, '3000,3005,3010-3011,3051,3060,3063,3065-3069,3090,3200-3202,3204,3207,3219-3220,3225,3230,3240,3250,3254,3269-3270');
+  assert.equal(lag.untagged, '3205');
+  assert.match(lag.notes, /lacp-active; lacp fast; MCLAG; .*dhcp-snooping trust/);
+  assert.equal(port(sw2, 'port14').lag, 'pve-r730xd-1');
+  assert.deepEqual(sw2.multicast.notes, ['snooping on VLAN 3269', 'snooping on VLAN 3240']);
+  assert.ok(sw1.stp.notes.includes('STP settings overridden on this switch'));
+  assert.deepEqual(port(edge, 'port1').poeAdmin, 'enabled (default)');
+  // one port per switch is how an MCLAG looks: not a "single member" finding
+  assert.deepEqual(NP.checks(sw2).map(f => f.id), ['trunkall', 'accessvlan1']);
+});
+
+test('FortiGate: a wrapped set line is put back together, a real multi-line value is not split into commands', () => {
+  const long = '        set allowed-vlans ' + Array.from({ length: 12 }, (x, i) => '"vlan-' + (100 + i) + '"').join(' ');
+  const cut = long.slice(0, 100) + '\n' + long.slice(100);                     // between two names, quotes balanced
+  const cfg = v => 'config system interface\n' + Array.from({ length: 12 }, (x, i) => '    edit "vlan-' + (100 + i) + '"\n        set vlanid ' + (100 + i) + '\n    next').join('\n') +
+    '\nend\nconfig system replacemsg admin "pre_admin-disclaimer-text"\n    set buffer "line one\nset hostname oops\nend of it"\nend\n' +
+    'config switch-controller managed-switch\n    edit "S1"\n        config ports\n            edit "port1"\n' + v + '\n                set vlan "vlan-100"\n            next\n        end\n    next\nend\n';
+  [long, cut, long.slice(0, 95) + '\n' + long.slice(95)].forEach(function (v) {
+    const r = NP.ingest('FW1 # show\n' + cfg(v), { vendor: 'fortigate', devices: [] });
+    assert.equal(r.dev.hostname, 'FW1');
+    assert.deepEqual([port(r.extra[0].dev, 'port1').untagged, port(r.extra[0].dev, 'port1').tagged], ['100', '101-111']);
+  });
 });

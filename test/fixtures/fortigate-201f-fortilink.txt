@@ -1,0 +1,1708 @@
+LAB-FW-1(Primary) # config system console
+
+LAB-FW-1(Primary) (console) # set output standard
+
+LAB-FW-1(Primary) (console) # end
+
+LAB-FW-1(Primary) # get system status
+Version: FortiGate-201F v8.0.2,build0251,260928 (GA.F)
+First GA patch build date: 260421
+Current Security Level: Low
+Firmware Signature: certified
+Virus-DB: 93.08285(2026-11-14 17:24)
+Extended DB: 93.08285(2026-11-14 17:23)
+OCR DB: 1.00005(2026-04-16 12:36)
+AV AI/ML Model: 4.05301(2026-11-14 13:21)
+IPS-DB: 6.00741(2015-12-01 02:30)
+IPS-ETDB: 37.00336(2026-11-12 20:18)
+IPS-MLDB: 2609.00300(2026-09-16 00:55)
+APP-DB: 37.00334(2026-11-12 00:27)
+Telemetry-DB: 1.00012(2026-09-16 21:00)
+AIAP-DB: 37.00333(2026-11-11 03:28)
+Proxy-IPS-DB: 6.00741(2015-12-01 02:30)
+Proxy-IPS-ETDB: 37.00336(2026-11-12 20:18)
+Proxy-APP-DB: 37.00334(2026-11-12 00:27)
+Proxy-AIAP-DB: 37.00333(2026-11-11 03:28)
+FMWP-DB: 0.00000(2001-01-01 00:00)
+IMCL version: 0.00000(2001-01-01 00:00)
+IPS Malicious URL Database: 5.00851(2026-11-13 05:12)
+IoT-Detect: 37.00333(2026-11-10 15:11)
+OT-Detect-DB: 37.00331(2026-11-09 14:24)
+OT-Patch-DB: 37.00334(2026-11-11 14:34)
+OT-Threat-DB: 37.00334(2026-11-12 00:28)
+IPS-Engine: 8.00050(2026-09-02 16:02)
+Timezone DB Version: 1.016
+Timezone DB IANA Version: 2026f
+Serial-Number: SN00000000000000
+BIOS version: 05000013
+System Part-Number: P25132-05
+Log hard disk: Available
+Log hard disk encryption: Disable
+Hostname: LAB-FW-1
+Private Encryption: Disable
+Operation Mode: NAT
+Current virtual domain: root
+Max number of virtual domains: 10
+Virtual domains status: 1 in NAT mode, 0 in TP mode
+Virtual domain configuration: disable
+FIPS-CC mode: disable
+Current HA mode: a-p, primary
+Cluster uptime: 23 days, 7 hours, 30 minutes, 39 seconds
+Cluster state change time: 2026-10-22 15:14:12
+Branch point: 0251
+Release Version Information: GA
+FortiOS x86-64: Yes
+System time: Sat Nov 14 21:44:22 2026
+Last reboot reason: warm reboot
+
+LAB-FW-1(Primary) # show system interface
+config system interface
+    edit "mgmt"
+        set vdom "root"
+        set allowaccess ping https ssh
+        set type physical
+        set dedicated-to management
+        set role lan
+        set snmp-index 1
+    next
+    edit "ha"
+        set vdom "root"
+        set type physical
+        set snmp-index 2
+    next
+    edit "port1"
+        set vdom "root"
+        set status down
+        set type physical
+        set snmp-index 3
+    next
+    edit "port2"
+        set vdom "root"
+        set type physical
+        set snmp-index 4
+    next
+    edit "port3"
+        set vdom "root"
+        set type physical
+        set snmp-index 5
+    next
+    edit "port4"
+        set vdom "root"
+        set type physical
+        set snmp-index 6
+    next
+    edit "port5"
+        set vdom "root"
+        set type physical
+        set snmp-index 7
+    next
+    edit "port6"
+        set vdom "root"
+        set type physical
+        set snmp-index 8
+    next
+    edit "port7"
+        set vdom "root"
+        set type physical
+        set snmp-index 9
+    next
+    edit "port8"
+        set vdom "root"
+        set type physical
+        set snmp-index 10
+    next
+    edit "port9"
+        set vdom "root"
+        set type physical
+        set snmp-index 11
+    next
+    edit "port10"
+        set vdom "root"
+        set type physical
+        set snmp-index 12
+    next
+    edit "port11"
+        set vdom "root"
+        set type physical
+        set snmp-index 13
+    next
+    edit "port12"
+        set vdom "root"
+        set type physical
+        set snmp-index 14
+    next
+    edit "port13"
+        set vdom "root"
+        set type physical
+        set snmp-index 15
+    next
+    edit "port14"
+        set vdom "root"
+        set type physical
+        set snmp-index 16
+    next
+    edit "port15"
+        set vdom "root"
+        set type physical
+        set snmp-index 17
+    next
+    edit "port16"
+        set vdom "root"
+        set type physical
+        set snmp-index 18
+    next
+    edit "port17"
+        set vdom "root"
+        set type physical
+        set snmp-index 19
+    next
+    edit "port18"
+        set vdom "root"
+        set type physical
+        set snmp-index 20
+    next
+    edit "port19"
+        set vdom "root"
+        set type physical
+        set snmp-index 21
+    next
+    edit "port20"
+        set vdom "root"
+        set type physical
+        set snmp-index 22
+    next
+    edit "port21"
+        set vdom "root"
+        set type physical
+        set snmp-index 23
+    next
+    edit "port22"
+        set vdom "root"
+        set type physical
+        set snmp-index 24
+    next
+    edit "port23"
+        set vdom "root"
+        set type physical
+        set snmp-index 25
+    next
+    edit "port24"
+        set vdom "root"
+        set type physical
+        set snmp-index 26
+    next
+    edit "x1"
+        set vdom "root"
+        set type physical
+        set mediatype sr-lr
+        set snmp-index 27
+        set speed 10000full
+    next
+    edit "x2"
+        set vdom "root"
+        set type physical
+        set mediatype sr-lr
+        set snmp-index 28
+        set speed 10000full
+    next
+    edit "x3"
+        set vdom "root"
+        set type physical
+        set mediatype sr-lr
+        set snmp-index 29
+        set speed 10000full
+    next
+    edit "x4"
+        set vdom "root"
+        set type physical
+        set mediatype sr-lr
+        set snmp-index 30
+        set speed 10000full
+    next
+    edit "modem"
+        set vdom "root"
+        set mode pppoe
+        set status down
+        set type physical
+        set snmp-index 31
+    next
+    edit "naf.root"
+        set vdom "root"
+        set type tunnel
+        set src-check disable
+        set snmp-index 32
+    next
+    edit "l2t.root"
+        set vdom "root"
+        set type tunnel
+        set snmp-index 33
+    next
+    edit "ssl.root"
+        set vdom "root"
+        set type tunnel
+        set alias "D15 xxx xxxxxxxxx"
+        set snmp-index 34
+    next
+    edit "lan"
+        set vdom "root"
+        set ip 10.1.0.1 255.255.255.0
+        set allowaccess ping https ssh fabric
+        set type hard-switch
+        set stp enable
+        set role lan
+        set snmp-index 35
+        set ip-managed-by-fortiipam disable
+    next
+    edit "fortilink"
+        set vdom "root"
+        set fortilink enable
+        set ip 10.2.1.1 255.255.255.0
+        set allowaccess ping fabric
+        set type aggregate
+        set member "x3" "x4"
+        set lldp-reception enable
+        set lldp-transmission enable
+        set monitor-bandwidth enable
+        set snmp-index 36
+        set fortilink-split-interface disable
+        set switch-controller-nac "fortilink"
+        set switch-controller-dynamic "fortilink"
+    next
+    edit "_default"
+        set vdom "root"
+        set ip 10.3.249.1 255.255.255.0
+        set allowaccess ping
+        set alias "_D12xxxx.xxxxxxxxx"
+        set snmp-index 37
+        set switch-controller-feature default-vlan
+        set interface "fortilink"
+        set vlanid 1
+    next
+    edit "quarantine"
+        set vdom "root"
+        set ip 10.2.11.1 255.255.255.0
+        set description "Quarantine VLAN"
+        set alias "quarantine.fortilink"
+        set security-mode captive-portal
+        set replacemsg-override-group "auth-intf-quarantine"
+        set device-identification enable
+        set snmp-index 38
+        set switch-controller-access-vlan enable
+        set switch-controller-feature D3xxxxxxxx
+        set color 6
+        set interface "fortilink"
+        set vlanid 4093
+    next
+    edit "voice"
+        set vdom "root"
+        set description "Fortivoice VLAN"
+        set alias "voice.fortilink"
+        set device-identification enable
+        set snmp-index 39
+        set switch-controller-feature voice
+        set interface "fortilink"
+        set vlanid 4091
+    next
+    edit "video"
+        set vdom "root"
+        set description "Forticamera VLAN"
+        set alias "video.fortilink"
+        set device-identification enable
+        set snmp-index 40
+        set switch-controller-feature video
+        set interface "fortilink"
+        set vlanid 4090
+    next
+    edit "rspan"
+        set vdom "root"
+        set ip 10.2.12.1 255.255.255.0
+        set description "Sniffer VLAN"
+        set alias "rspan.fortilink"
+        set snmp-index 41
+        set switch-controller-traffic-policy "sniffer"
+        set switch-controller-feature rspan
+        set interface "fortilink"
+        set vlanid 4092
+    next
+    edit "onboarding"
+        set vdom "root"
+        set description "NAC Onboarding VLAN"
+        set alias "onboarding.fortilink"
+        set security-mode captive-portal
+        set device-identification enable
+        set snmp-index 42
+        set switch-controller-access-vlan enable
+        set switch-controller-feature nac
+        set interface "fortilink"
+        set vlanid 4089
+    next
+    edit "nac_segment"
+        set vdom "root"
+        set ip 10.2.13.1 255.255.255.0
+        set description "NAC Segment VLAN"
+        set alias "nac_segment.fortilink"
+        set device-identification enable
+        set snmp-index 43
+        set switch-controller-feature nac-segment
+        set interface "fortilink"
+        set vlanid 4088
+    next
+    edit "Loopback"
+        set vdom "root"
+        set ip 10.3.200.3 255.255.255.255
+        set allowaccess ping https ssh
+        set type loopback
+        set alias "Loopback"
+        set role lan
+        set snmp-index 57
+        set ip-managed-by-fortiipam disable
+    next
+    edit "LAB-COM-ROUTING"
+        set vdom "root"
+        set ip 10.3.255.20 255.255.255.0
+        set allowaccess ping
+        set alias "LAB-COM-ROUTING"
+        set device-identification enable
+        set role lan
+        set snmp-index 45
+        set ip-managed-by-fortiipam disable
+        set interface "fortilink"
+        set vlanid 3001
+    next
+    edit "WAN1-FIBER"
+        set vdom "root"
+        set ip 10.4.244.39 255.255.255.224
+        set alias "WAN1-FIBER"
+        set ike-saml-server "SAML-IdP-01"
+        set device-identification enable
+        set monitor-bandwidth enable
+        set role wan
+        set snmp-index 46
+        set ip-managed-by-fortiipam disable
+        config ipv6
+            set ip6-mode dhcp
+            set dhcp6-prefix-delegation enable
+            config dhcp6-iapd-list
+                edit 52
+                next
+                edit 1
+                    set prefix-hint ::/56
+                next
+            end
+        end
+        set interface "fortilink"
+        set vlanid 3098
+    next
+    edit "WAN2-CABLE"
+        set vdom "root"
+        set ip 10.5.70.234 255.255.255.240
+        set alias "WAN2-CABLE"
+        set device-identification enable
+        set monitor-bandwidth enable
+        set role lan
+        set snmp-index 47
+        set ip-managed-by-fortiipam disable
+        set interface "fortilink"
+        set vlanid 3099
+    next
+    edit "LAB-VLAN-3065"
+        set vdom "root"
+        set dhcp-relay-service enable
+        set ip 10.3.65.1 255.255.255.0
+        set allowaccess ping https fabric
+        set alias "D.27xx"
+        set device-identification enable
+        set role lan
+        set snmp-index 48
+        set ip-managed-by-fortiipam disable
+        set dhcp-relay-ip 10.3.11.11 10.3.11.16
+        set interface "fortilink"
+        set vlanid 3065
+    next
+    edit "LAB-VLAN-3068"
+        set vdom "root"
+        set dhcp-relay-service enable
+        set ip 10.3.68.1 255.255.255.0
+        set allowaccess ping
+        set alias "D.28xx"
+        set device-identification enable
+        set role lan
+        set snmp-index 49
+        set ip-managed-by-fortiipam disable
+        set dhcp-relay-ip 10.3.11.11 10.3.11.16
+        set interface "fortilink"
+        set vlanid 3068
+    next
+    edit "Implement Lab"
+        set vdom "root"
+        set dhcp-relay-service enable
+        set ip 10.3.64.1 255.255.255.0
+        set device-identification enable
+        set role lan
+        set snmp-index 50
+        set ip-managed-by-fortiipam disable
+        set dhcp-relay-ip 10.3.11.11
+        set interface "fortilink"
+        set vlanid 3064
+    next
+    edit "VPN-Home"
+        set vdom "root"
+        set status down
+        set type tunnel
+        set snmp-index 51
+        set interface "WAN1-FIBER"
+    next
+    edit "VPN-HQ Hub"
+        set vdom "root"
+        set ip 10.6.169.1 255.255.255.255
+        set allowaccess ping
+        set type tunnel
+        set remote-ip 10.6.169.1 255.255.255.0
+        set monitor-bandwidth enable
+        set snmp-index 52
+        set interface "WAN1-FIBER"
+    next
+    edit "VPN-HQ Hub-Back"
+        set vdom "root"
+        set status down
+        set type tunnel
+        set snmp-index 53
+        set interface "WAN2-CABLE"
+    next
+    edit "TENANT-LAB-3300"
+        set vdom "root"
+        set ip 10.7.0.1 255.255.255.0
+        set allowaccess ping https http
+        set device-identification enable
+        set role lan
+        set snmp-index 44
+        set ip-managed-by-fortiipam disable
+        set interface "fortilink"
+        set vlanid 3300
+    next
+    edit "LAB-VLAN-3066"
+        set vdom "root"
+        set dhcp-relay-service enable
+        set ip 10.3.66.1 255.255.255.0
+        set alias "D.29xx"
+        set device-identification enable
+        set role lan
+        set snmp-index 56
+        set ip-managed-by-fortiipam disable
+        set dhcp-relay-ip 10.3.11.11 10.3.11.16
+        set interface "fortilink"
+        set vlanid 3066
+    next
+    edit "LAB-VLAN-3067"
+        set vdom "root"
+        set dhcp-relay-service enable
+        set ip 10.3.67.1 255.255.255.0
+        set alias "D.30xx"
+        set device-identification enable
+        set role lan
+        set snmp-index 58
+        set ip-managed-by-fortiipam disable
+        set dhcp-relay-ip 10.3.11.11 10.3.11.16
+        set interface "fortilink"
+        set vlanid 3067
+    next
+    edit "v.3000"
+        set vdom "root"
+        set ip 10.3.0.1 255.255.255.0
+        set allowaccess ping https
+        set device-identification enable
+        set role lan
+        set snmp-index 59
+        set secondary-IP enable
+        set ip-managed-by-fortiipam disable
+        set interface "fortilink"
+        set vlanid 3000
+    next
+    edit "v.3010"
+        set vdom "root"
+        set ip 10.3.10.1 255.255.255.0
+        set allowaccess ping
+        set device-identification enable
+        set role lan
+        set snmp-index 60
+        set ip-managed-by-fortiipam disable
+        set interface "fortilink"
+        set vlanid 3010
+    next
+    edit "v.3205"
+        set vdom "root"
+        set dhcp-relay-service enable
+        set ip 10.8.5.1 255.255.255.0
+        set allowaccess ping
+        set alias "D18xx - xxx xxx"
+        set device-identification enable
+        set role lan
+        set snmp-index 61
+        set ip-managed-by-fortiipam disable
+        set dhcp-relay-ip 10.8.1.11 10.3.11.16
+        set interface "fortilink"
+        set vlanid 3205
+    next
+    edit "v.3220"
+        set vdom "root"
+        set ip 10.8.20.1 255.255.255.0
+        set allowaccess ping https
+        set explicit-web-proxy enable
+        set device-identification enable
+        set role lan
+        set snmp-index 62
+        set ip-managed-by-fortiipam disable
+        set interface "fortilink"
+        set vlanid 3220
+    next
+    edit "v.3201"
+        set vdom "root"
+        set ip 10.8.1.1 255.255.255.0
+        set allowaccess ping
+        set alias "D16xx - xxx xxxxx"
+        set device-identification enable
+        set role lan
+        set snmp-index 63
+        set ip-managed-by-fortiipam disable
+        set interface "fortilink"
+        set vlanid 3201
+    next
+    edit "v.3090"
+        set vdom "root"
+        set ip 10.3.90.1 255.255.255.0
+        set allowaccess ping https http
+        set ike-saml-server "SamlSrv02"
+        set device-identification enable
+        set role lan
+        set snmp-index 64
+        set ip-managed-by-fortiipam disable
+        set interface "fortilink"
+        set vlanid 3090
+    next
+    edit "v.3011"
+        set vdom "root"
+        set dhcp-relay-service enable
+        set ip 10.3.11.1 255.255.255.0
+        set allowaccess ping
+        set device-identification enable
+        set role lan
+        set snmp-index 65
+        set ip-managed-by-fortiipam disable
+        set dhcp-relay-ip 10.3.11.11
+        set interface "fortilink"
+        set vlanid 3011
+    next
+    edit "v.3200"
+        set vdom "root"
+        set ip 10.8.0.1 255.255.255.0
+        set allowaccess ping
+        set alias "D8xxx - xxx xxxxxxxx"
+        set device-identification enable
+        set role lan
+        set snmp-index 66
+        set ip-managed-by-fortiipam disable
+        set interface "fortilink"
+        set vlanid 3200
+    next
+    edit "v.3202"
+        set vdom "root"
+        set ip 10.8.2.1 255.255.255.0
+        set allowaccess ping
+        set alias "D13xx - xxx xxxxxx"
+        set device-identification enable
+        set role lan
+        set snmp-index 67
+        set ip-managed-by-fortiipam disable
+        set interface "fortilink"
+        set vlanid 3202
+    next
+    edit "v.3063"
+        set vdom "root"
+        set dhcp-relay-service enable
+        set ip 10.3.63.1 255.255.255.0
+        set allowaccess ping
+        set alias "v.3063"
+        set device-identification enable
+        set role lan
+        set snmp-index 68
+        set ip-managed-by-fortiipam disable
+        set dhcp-relay-ip 10.3.11.11
+        set interface "fortilink"
+        set vlanid 3063
+    next
+    edit "v.3005"
+        set vdom "root"
+        set dhcp-relay-service enable
+        set ip 10.3.5.1 255.255.255.0
+        set allowaccess ping
+        set device-identification enable
+        set role lan
+        set snmp-index 69
+        set secondary-IP enable
+        set ip-managed-by-fortiipam disable
+        set dhcp-relay-ip 10.3.11.11
+        set interface "fortilink"
+        set vlanid 3005
+        config secondaryip
+            edit 1
+                set ip 10.9.100.1 255.255.255.0
+                set allowaccess ping
+            next
+            edit 2
+                set ip 10.3.70.1 255.255.255.0
+                set allowaccess ping
+            next
+            edit 3
+                set ip 10.10.100.1 255.255.255.0
+            next
+        end
+    next
+    edit "v.3060"
+        set vdom "root"
+        set dhcp-relay-service enable
+        set ip 10.3.60.1 255.255.255.0
+        set allowaccess ping
+        set device-identification enable
+        set role lan
+        set snmp-index 70
+        set ip-managed-by-fortiipam disable
+        set dhcp-relay-ip 10.3.11.11
+        set interface "fortilink"
+        set vlanid 3060
+    next
+    edit "v.3254"
+        set vdom "root"
+        set ip 10.8.254.1 255.255.255.0
+        set allowaccess ping fabric
+        set device-identification enable
+        set role lan
+        set snmp-index 71
+        set ip-managed-by-fortiipam disable
+        set interface "fortilink"
+        set vlanid 3254
+    next
+    edit "LAB-VLAN-3069"
+        set vdom "root"
+        set dhcp-relay-service enable
+        set ip 10.3.69.1 255.255.255.0
+        set allowaccess ping
+        set alias "D.31xx"
+        set device-identification enable
+        set role lan
+        set snmp-index 73
+        set ip-managed-by-fortiipam disable
+        set dhcp-relay-ip 10.3.11.11 10.3.11.16
+        set interface "fortilink"
+        set vlanid 3069
+    next
+    edit "v.3051-Lab-DMZ"
+        set vdom "root"
+        set ip 10.3.51.1 255.255.255.0
+        set allowaccess ping
+        set alias "v.3051-Lab-DMZ"
+        set device-identification enable
+        set role lan
+        set snmp-index 74
+        set ip-managed-by-fortiipam disable
+        set interface "fortilink"
+        set vlanid 3051
+    next
+    edit "v.3250"
+        set vdom "root"
+        set ip 10.8.50.1 255.255.255.0
+        set allowaccess ping
+        set alias "v.3250"
+        set device-identification enable
+        set role lan
+        set snmp-index 75
+        set ip-managed-by-fortiipam disable
+        set interface "fortilink"
+        set vlanid 3250
+    next
+    edit "v.3225"
+        set vdom "root"
+        set ip 10.8.25.1 255.255.255.0
+        set allowaccess ping
+        set alias "D9xxx - xxx xxxxxxxx"
+        set device-identification enable
+        set role lan
+        set snmp-index 77
+        set ip-managed-by-fortiipam disable
+        set interface "fortilink"
+        set vlanid 3225
+    next
+    edit "IKEv2 LDAP"
+        set vdom "root"
+        set status down
+        set type tunnel
+        set snmp-index 76
+        set interface "WAN1-FIBER"
+    next
+    edit "v.291"
+        set vdom "root"
+        set mode dhcp
+        set allowaccess ping
+        set alias "D.24x-xxxx"
+        set device-identification enable
+        set role lan
+        set snmp-index 78
+        set defaultgw disable
+        set dns-server-override disable
+        set interface "fortilink"
+        set vlanid 291
+    next
+    edit "v.292"
+        set vdom "root"
+        set ip 10.1.2.2 255.255.255.0
+        set allowaccess ping
+        set status down
+        set alias "D.25x-xxxx"
+        set device-identification enable
+        set role lan
+        set snmp-index 79
+        set ip-managed-by-fortiipam disable
+        set interface "fortilink"
+        set vlanid 292
+    next
+    edit "Modem Test"
+        set vdom "root"
+        set status down
+        set type tunnel
+        set snmp-index 80
+        set interface "WAN1-FIBER"
+    next
+    edit "v.3206"
+        set vdom "root"
+        set ip 10.8.6.1 255.255.255.0
+        set allowaccess ping
+        set alias "D26xxxx"
+        set device-identification enable
+        set role lan
+        set snmp-index 81
+        set ip-managed-by-fortiipam disable
+        set interface "fortilink"
+        set vlanid 3206
+    next
+    edit "vxlan"
+        set vdom "root"
+        set type vxlan
+        set snmp-index 83
+        set interface "VPN-HQ Hub"
+    next
+    edit "v.1000-Test"
+        set vdom "root"
+        set alias "v.1000-Test"
+        set device-identification enable
+        set snmp-index 84
+        set interface "fortilink"
+        set vlanid 1000
+    next
+    edit "vxlan1000"
+        set vdom "root"
+        set snmp-index 85
+        set interface "vxlan"
+        set vlanid 1000
+    next
+    edit "Test"
+        set vdom "root"
+        set ip 10.10.2.254 255.255.255.255
+        set type loopback
+        set alias "Test"
+        set role lan
+        set snmp-index 86
+        set ip-managed-by-fortiipam disable
+    next
+    edit "RA_IPsec-SAML"
+        set vdom "root"
+        set type tunnel
+        set snmp-index 87
+        set interface "WAN1-FIBER"
+    next
+    edit "v.3129"
+        set vdom "root"
+        set ip 10.8.19.1 255.255.255.0
+        set allowaccess ping
+        set alias "D7xxx - xxx xxxxxxxxxxx"
+        set device-identification enable
+        set role lan
+        set snmp-index 54
+        set ip-managed-by-fortiipam disable
+        set interface "fortilink"
+        set vlanid 3219
+    next
+    edit "v.3207"
+        set vdom "root"
+        set ip 10.8.7.1 255.255.255.0
+        set allowaccess ping
+        set alias "D20xx - xxxxx"
+        set device-identification enable
+        set role lan
+        set snmp-index 55
+        set ip-managed-by-fortiipam disable
+        set interface "fortilink"
+        set vlanid 3207
+    next
+    edit "v3204"
+        set vdom "root"
+        set ip 10.8.4.1 255.255.255.0
+        set allowaccess ping
+        set alias "v3204"
+        set device-identification enable
+        set role lan
+        set snmp-index 72
+        set ip-managed-by-fortiipam disable
+        set interface "fortilink"
+        set vlanid 3204
+    next
+    edit "Remote-IR829"
+        set vdom "root"
+        set type tunnel
+        set snmp-index 88
+        set interface "WAN1-FIBER"
+    next
+    edit "pve-1-vxlan-1"
+        set vdom "root"
+        set ip 10.11.5.1 255.255.255.0
+        set allowaccess ping
+        set type vxlan
+        set snmp-index 89
+        set interface "v.3205"
+    next
+    edit "Cloud_Dal-IKEv2"
+        set vdom "root"
+        set ip 10.10.199.2 255.255.255.255
+        set allowaccess ping
+        set type tunnel
+        set remote-ip 10.10.199.1 255.255.255.252
+        set snmp-index 82
+        set interface "WAN1-FIBER"
+    next
+    edit "vxlan-evpn"
+        set vdom "root"
+        set ip 10.12.99.1 255.255.255.0
+        set allowaccess ping
+        set type vxlan
+        set snmp-index 90
+        set interface "v.3205"
+    next
+    edit "v3230-ABC-GenVM"
+        set vdom "root"
+        set ip 10.8.30.1 255.255.255.0
+        set allowaccess ping
+        set alias "D10xx-xxx-xxxxxxxxx"
+        set device-identification enable
+        set role lan
+        set snmp-index 91
+        set ip-managed-by-fortiipam disable
+        set interface "fortilink"
+        set vlanid 3230
+    next
+    edit "v2001-NPS-Prvsn"
+        set vdom "root"
+        set ip 10.10.49.1 255.255.255.0
+        set allowaccess ping
+        set alias "D11xx-xxx-xxxxxxxxx"
+        set device-identification enable
+        set role lan
+        set snmp-index 92
+        set ip-managed-by-fortiipam disable
+        set interface "fortilink"
+        set vlanid 2001
+    next
+    edit "v3270"
+        set vdom "root"
+        set ip 10.8.70.1 255.255.255.0
+        set allowaccess ping
+        set alias "D21xx-xxx-xxx"
+        set device-identification enable
+        set role lan
+        set snmp-index 93
+        set ip-managed-by-fortiipam disable
+        set interface "fortilink"
+        set vlanid 3270
+    next
+    edit "v3269-ABC-VoIP"
+        set vdom "root"
+        set ip 10.8.69.1 255.255.255.0
+        set allowaccess ping
+        set alias "v3269-ABC-VoIP"
+        set device-identification enable
+        set role lan
+        set snmp-index 94
+        set ip-managed-by-fortiipam disable
+        set switch-controller-igmp-snooping enable
+        set interface "fortilink"
+        set vlanid 3269
+    next
+    edit "v3240-ABC-VoIP"
+        set vdom "root"
+        set ip 10.8.40.1 255.255.255.0
+        set allowaccess ping
+        set alias "v3240-ABC-VoIP"
+        set device-identification enable
+        set role lan
+        set snmp-index 95
+        set ip-managed-by-fortiipam disable
+        set switch-controller-igmp-snooping enable
+        set interface "fortilink"
+        set vlanid 3240
+    next
+    edit "SiteSSID1"
+        set vdom "root"
+        set ip 10.10.0.254 255.255.255.0
+        set type vap-switch
+        set alias "SiteSSID1"
+        set role lan
+        set snmp-index 96
+    next
+    edit "ssid1"
+        set vdom "root"
+        set ip 10.10.1.254 255.255.255.0
+        set type vap-switch
+        set alias "ssid1"
+        set role lan
+        set snmp-index 97
+    next
+end
+
+LAB-FW-1(Primary) # show switch-controller managed-switch
+config switch-controller managed-switch
+    edit "MDF-SW-2"
+        set sn "FS1D24T000000001"
+        set description "LAB-SW-2"
+        set switch-profile "set-pass"
+        set fsw-wan1-peer "fortilink"
+        set fsw-wan1-admin enable
+        set poe-detection-type 3
+        set version 1
+        set max-allowed-trunk-members 24
+        set dynamic-capability 0x00000000000000011124ff7d3dfd9df7
+        set staged-image-version "FS1D24-v7.4-build914"
+        config ports
+            edit "port1"
+                set speed detect-by-module
+                set vlan "v.3000"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:01
+            next
+            edit "port2"
+                set speed detect-by-module
+                set vlan "LAB-VLAN-3065"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:02
+            next
+            edit "port3"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:03
+            next
+            edit "port4"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:04
+            next
+            edit "port5"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:05
+            next
+            edit "port6"
+                set speed detect-by-module
+                set vlan "v2001-NPS-Prvsn"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:06
+            next
+            edit "port7"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:07
+            next
+            edit "port8"
+                set speed detect-by-module
+                set vlan "LAB-VLAN-3065"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:08
+            next
+            edit "port9"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:09
+            next
+            edit "port10"
+                set speed detect-by-module
+                set vlan "v.3220"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:0a
+            next
+            edit "port11"
+                set port-owner "vrtx-lag"
+                set speed detect-by-module
+                set export-to "root"
+                set description "VRTX-LAG"
+            next
+            edit "port12"
+                set port-owner "vrtx-lag"
+                set speed detect-by-module
+                set export-to "root"
+                set description "VRTX-LAG"
+            next
+            edit "port13"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:0b
+            next
+            edit "port14"
+                set port-owner "pve-r730xd-1"
+                set export-to "root"
+                set description "ABC-HV-2"
+            next
+            edit "port15"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:0c
+            next
+            edit "port16"
+                set speed detect-by-module
+                set vlan "LAB-VLAN-3065"
+                set allowed-vlans "quarantine" "v.3220"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:0d
+            next
+            edit "port17"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:0e
+            next
+            edit "port18"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:0f
+            next
+            edit "port19"
+                set port-owner "3850-lag"
+                set speed detect-by-module
+                set export-to "root"
+                set description "3850-LAG"
+            next
+            edit "port20"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:10
+            next
+            edit "port21"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:11
+            next
+            edit "port22"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:12
+            next
+            edit "port23"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:13
+            next
+            edit "port24"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:14
+            next
+            edit "vrtx-lag"
+                set vlan "v.3010"
+                set allowed-vlans-all enable
+                set untagged-vlans "quarantine"
+                set type trunk
+                set dhcp-snooping trusted
+                set mac-addr 00:00:5e:00:53:15
+                set mode lacp-active
+                set mclag enable
+                set members "port11" "port12"
+            next
+            edit "3850-lag"
+                set vlan "v.3000"
+                set allowed-vlans-all enable
+                set untagged-vlans "quarantine"
+                set type trunk
+                set dhcp-snooping trusted
+                set mac-addr 00:00:5e:00:53:16
+                set mode lacp-active
+                set mclag enable
+                set members "port19"
+            next
+            edit "pve-r730xd-1"
+                set vlan "v.3205"
+                set allowed-vlans "v3270" "v3240-ABC-VoIP" "v3230-ABC-GenVM" "v.3225" "v.3129" "v.3207" "v.3205" "v3204" "v.3202" "v.3201" "v.3200" "v.3250" "v.3254" "v.3220" "v.3051-Lab-DMZ" "LAB-VLAN-3065" "v.3090" "LAB-VL
+AN-3069" "LAB-VLAN-3068" "LAB-VLAN-3067" "LAB-VLAN-3066" "v.3063" "v.3060" "v.3011" "v.3010" "v.3005" "v.3000" "v3269-ABC-VoIP"
+                set untagged-vlans "quarantine"
+                set type trunk
+                set dhcp-snooping trusted
+                set mac-addr 00:00:5e:00:53:17
+                set mode lacp-active
+                set mclag enable
+                set members "port14"
+                set lacp-speed fast
+            next
+        end
+        config stp-instance
+            edit "1"
+                set priority 0
+            next
+        end
+    next
+    edit "MDF-SW-1"
+        set sn "FS1D24T000000002"
+        set description "LAB-SW-1"
+        set switch-profile "set-pass"
+        set fsw-wan1-peer "fortilink"
+        set fsw-wan1-admin enable
+        set poe-detection-type 3
+        set version 1
+        set max-allowed-trunk-members 24
+        set dynamic-capability 0x00000000000000011124ff7d3dfd9df7
+        set staged-image-version "FS1D24-v7.4-build914"
+        config ports
+            edit "port1"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans-all enable
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:18
+                set description "LAB-PATCH-3850"
+            next
+            edit "port2"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:19
+            next
+            edit "port3"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:1a
+            next
+            edit "port4"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:1b
+            next
+            edit "port5"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:1c
+            next
+            edit "port6"
+                set speed detect-by-module
+                set vlan "v2001-NPS-Prvsn"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:1d
+            next
+            edit "port7"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:1e
+            next
+            edit "port8"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:1f
+            next
+            edit "port9"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:20
+            next
+            edit "port10"
+                set speed detect-by-module
+                set vlan "v.3220"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:21
+            next
+            edit "port11"
+                set port-owner "vrtx-lag"
+                set speed detect-by-module
+                set export-to "root"
+                set description "VRTX-LAG"
+            next
+            edit "port12"
+                set port-owner "vrtx-lag"
+                set speed detect-by-module
+                set export-to "root"
+                set description "VRTX-LAG"
+            next
+            edit "port13"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:22
+            next
+            edit "port14"
+                set port-owner "pve-r730xd-1"
+                set export-to "root"
+                set description "ABC-HV-1"
+            next
+            edit "port15"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:23
+            next
+            edit "port16"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:24
+            next
+            edit "port17"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:25
+            next
+            edit "port18"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:26
+            next
+            edit "port19"
+                set port-owner "3850-lag"
+                set speed detect-by-module
+                set export-to "root"
+                set description "3850-LAG"
+            next
+            edit "port20"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:27
+            next
+            edit "port21"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:28
+            next
+            edit "port22"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:29
+            next
+            edit "port23"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:2a
+            next
+            edit "port24"
+                set speed detect-by-module
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:2b
+            next
+            edit "vrtx-lag"
+                set vlan "v.3010"
+                set allowed-vlans-all enable
+                set untagged-vlans "quarantine"
+                set type trunk
+                set dhcp-snooping trusted
+                set mac-addr 00:00:5e:00:53:2c
+                set mode lacp-active
+                set mclag enable
+                set members "port11" "port12"
+            next
+            edit "3850-lag"
+                set vlan "v.3000"
+                set allowed-vlans-all enable
+                set untagged-vlans "quarantine"
+                set type trunk
+                set dhcp-snooping trusted
+                set mac-addr 00:00:5e:00:53:2d
+                set mode lacp-active
+                set mclag enable
+                set members "port19"
+            next
+            edit "pve-r730xd-1"
+                set vlan "v.3205"
+                set allowed-vlans "v3270" "v3240-ABC-VoIP" "v3230-ABC-GenVM" "v.3225" "v.3129" "v.3207" "v.3205" "v3204" "v.3202" "v.3201" "v.3200" "v.3250" "v.3254" "v.3220" "v.3051-Lab-DMZ" "LAB-VLAN-3065" "v.3090" "LAB-VL
+AN-3069" "LAB-VLAN-3068" "LAB-VLAN-3067" "LAB-VLAN-3066" "v.3063" "v.3060" "v.3011" "v.3010" "v.3005" "v.3000" "v3269-ABC-VoIP"
+                set untagged-vlans "quarantine"
+                set type trunk
+                set dhcp-snooping trusted
+                set mac-addr 00:00:5e:00:53:2e
+                set mode lacp-active
+                set mclag enable
+                set members "port14"
+                set lacp-speed fast
+            next
+        end
+        config stp-settings
+            set local-override enable
+        end
+        config stp-instance
+            edit "1"
+                set priority 0
+            next
+        end
+    next
+    edit "EDGE-SW-1"
+        set sn "S224EPTF00000001"
+        set fsw-wan1-peer "fortilink"
+        set fsw-wan1-admin enable
+        set poe-detection-type 2
+        set version 1
+        set max-allowed-trunk-members 8
+        set dynamic-capability 0x0000000000000033551027757dddfff7
+        set staged-image-version "S224EP-v8.0-build069"
+        config ports
+            edit "port1"
+                set ptp-status disable
+                set poe-capable 1
+                set vlan "_default"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:2f
+            next
+            edit "port2"
+                set ptp-status disable
+                set poe-capable 1
+                set vlan "LAB-VLAN-3065"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:30
+            next
+            edit "port3"
+                set ptp-status disable
+                set poe-capable 1
+                set vlan "LAB-VLAN-3065"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:31
+            next
+            edit "port4"
+                set ptp-status disable
+                set poe-capable 1
+                set vlan "LAB-VLAN-3065"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:32
+            next
+            edit "port5"
+                set ptp-status disable
+                set poe-capable 1
+                set vlan "LAB-VLAN-3065"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:33
+            next
+            edit "port6"
+                set ptp-status disable
+                set poe-capable 1
+                set vlan "LAB-VLAN-3065"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:34
+            next
+            edit "port7"
+                set ptp-status disable
+                set poe-capable 1
+                set vlan "LAB-VLAN-3065"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:35
+            next
+            edit "port8"
+                set ptp-status disable
+                set poe-capable 1
+                set vlan "LAB-VLAN-3065"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:36
+            next
+            edit "port9"
+                set ptp-status disable
+                set poe-capable 1
+                set vlan "LAB-VLAN-3065"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:37
+            next
+            edit "port10"
+                set ptp-status disable
+                set poe-capable 1
+                set vlan "LAB-VLAN-3065"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:38
+            next
+            edit "port11"
+                set ptp-status disable
+                set poe-capable 1
+                set vlan "LAB-VLAN-3065"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:39
+            next
+            edit "port12"
+                set ptp-status disable
+                set poe-capable 1
+                set vlan "LAB-VLAN-3065"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:3a
+            next
+            edit "port13"
+                set ptp-status disable
+                set vlan "LAB-VLAN-3065"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:3b
+            next
+            edit "port14"
+                set ptp-status disable
+                set vlan "LAB-VLAN-3065"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:3c
+            next
+            edit "port15"
+                set ptp-status disable
+                set vlan "LAB-VLAN-3065"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:3d
+            next
+            edit "port16"
+                set ptp-status disable
+                set vlan "LAB-VLAN-3065"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:3e
+            next
+            edit "port17"
+                set ptp-status disable
+                set vlan "LAB-VLAN-3065"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:3f
+            next
+            edit "port18"
+                set ptp-status disable
+                set vlan "LAB-VLAN-3065"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:40
+            next
+            edit "port19"
+                set ptp-status disable
+                set vlan "LAB-VLAN-3065"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:41
+            next
+            edit "port20"
+                set ptp-status disable
+                set vlan "LAB-VLAN-3065"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:42
+            next
+            edit "port21"
+                set ptp-status disable
+                set vlan "LAB-VLAN-3065"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:43
+            next
+            edit "port22"
+                set ptp-status disable
+                set vlan "LAB-VLAN-3065"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:44
+            next
+            edit "port23"
+                set ptp-status disable
+                set vlan "LAB-VLAN-3065"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:45
+            next
+            edit "port24"
+                set ptp-status disable
+                set vlan "LAB-VLAN-3065"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:46
+            next
+            edit "port25"
+                set speed 1000full
+                set ptp-status disable
+                set vlan "LAB-VLAN-3065"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:47
+            next
+            edit "port26"
+                set speed 1000full
+                set ptp-status disable
+                set vlan "LAB-VLAN-3065"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:48
+            next
+            edit "port27"
+                set speed 1000full
+                set ptp-status disable
+                set vlan "LAB-VLAN-3065"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:49
+            next
+            edit "port28"
+                set speed 1000full
+                set ptp-status disable
+                set vlan "LAB-VLAN-3065"
+                set allowed-vlans "quarantine"
+                set untagged-vlans "quarantine"
+                set export-to "root"
+                set mac-addr 00:00:5e:00:53:4a
+            next
+        end
+    next
+end
+
+LAB-FW-1(Primary) # show switch-controller stp-settings
+config switch-controller stp-settings
+    set name "LAB-MST"
+    set revision 1
+end
+
+LAB-FW-1(Primary) #

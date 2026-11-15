@@ -269,6 +269,7 @@
       ports: after ? after.ports.length : 0, vlans: after ? after.vlans.length : 0,
       leftovers: replaced.filter(function (s) {
         if (bare[s]) return text.indexOf('"' + s + '"') >= 0;      // also a keyword: only the quoted copies were names
+        if (!cands[s].ci) return new RegExp('(?<![A-Za-z0-9])' + esc(s) + '(?![A-Za-z0-9])').test(text);      // replaced with its case: "vrtx-lag" is another name
         return low.indexOf(s.toLowerCase()) >= 0 && new RegExp('(?<![A-Za-z0-9])' + esc(s) + '(?![A-Za-z0-9])', 'i').test(text);
       }).slice(0, 12)
     };
