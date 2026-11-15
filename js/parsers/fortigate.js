@@ -43,6 +43,97 @@
   const one = function (b, k) { return b && b.set[k] ? b.set[k][0] : ''; };
   NP.fortiTree = { tree: tree, find: find, one: one };      // shared with the FortiSwitch parser
 
+  // ---- FortiLink: switches whose port config lives on the FortiGate.
+  // Each one becomes its own device (see NP.ingest), so tables and labels work per switch.
+  function managedSwitches(t, dev) {
+    const vlanId = {};                    // FortiGate VLAN interface name -> VLAN id
+    find(t, 'system interface').forEach(function (b) {
+      b.entries.forEach(function (e) { if (one(e, 'vlanid')) vlanId[e.name] = +one(e, 'vlanid'); });
+    });
+    const resolve = function (names) {
+      const ids = [], other = [];
+      (names || []).forEach(function (n) { if (vlanId[n] !== undefined) ids.push(vlanId[n]); else other.push(n); });
+      return { ids: ids, other: other };
+    };
+    const show = function (r, skip) {
+      const ids = r.ids.filter(function (v) { return String(v) !== skip; });
+      return [NP.compressVlans(ids)].concat(r.other).filter(Boolean).join(',');
+    };
+    const stpGlobal = find(t, 'switch-controller stp-settings')[0];
+    const kids = [];
+
+    find(t, 'switch-controller managed-switch').forEach(function (b) {
+      b.entries.forEach(function (sw) {
+        const hostname = one(sw, 'name') || sw.name;
+        NP.addOther(dev, 'Managed switches', hostname);
+        kids.push({ hostname: hostname, vendor: 'fortiswitch', apply: function (c) {
+          const touch = function (n) { const p = NP.port(c, n); if (p.adminUp === null) p.adminUp = true; return p; };
+          c.serial = c.serial || one(sw, 'sn') || sw.name;
+          c.other['Managed by'] = (dev.hostname || 'FortiGate') + ' (FortiLink)';
+          if (one(sw, 'description')) c.other.Description = one(sw, 'description');
+          if (one(sw, 'switch-profile')) c.other['Switch profile'] = one(sw, 'switch-profile');
+          if (one(sw, 'fsw-wan1-peer')) c.other['FortiLink interface'] = one(sw, 'fsw-wan1-peer');
+          c.stp.mode = 'mstp'; c.stp.enabled = c.stp.enabled || 'yes';
+          if (stpGlobal) {
+            if (one(stpGlobal, 'name')) NP.addUnique(c.stp.notes, 'MST region ' + one(stpGlobal, 'name'));
+            if (one(stpGlobal, 'revision')) NP.addUnique(c.stp.notes, 'MST revision ' + one(stpGlobal, 'revision'));
+          }
+          find(sw, 'stp-instance').forEach(function (ib) {
+            ib.entries.forEach(function (e) { if (one(e, 'priority')) NP.addUnique(c.stp.priority, 'MST ' + e.name + ': ' + one(e, 'priority')); });
+          });
+          find(sw, 'igmp-snooping').forEach(function (ib) { if (one(ib, 'local-override') === 'enable') NP.addUnique(c.multicast.notes, 'IGMP snooping local override'); });
+
+          find(sw, 'ports').forEach(function (pb) {
+            pb.entries.forEach(function (e) {
+              const p = touch(e.name);
+              const isTrunk = one(e, 'type') === 'trunk';
+              if (isTrunk) {
+                p.kind = 'lag';
+                if (one(e, 'mode')) NP.addNote(p, one(e, 'mode'));
+                (e.set.members || []).forEach(function (mbr) { touch(mbr).lag = e.name; });
+              }
+              if (one(e, 'description')) p.description = one(e, 'description');
+              if (one(e, 'status') === 'down') p.adminUp = false;
+              if (one(e, 'poe-status')) p.poeAdmin = one(e, 'poe-status') === 'enable' ? 'enabled' : 'disabled';
+              else if (one(e, 'poe-capable') === '1' && !p.poeAdmin) p.poeAdmin = 'enabled (default)';
+              if (one(e, 'speed') && one(e, 'speed') !== 'auto') NP.addNote(p, 'speed ' + one(e, 'speed'));
+
+              const native = resolve(e.set.vlan);
+              const nat = native.ids.length ? String(native.ids[0]) : (native.other[0] || '1');
+              const allowed = resolve(e.set['allowed-vlans']);
+              const all = one(e, 'allowed-vlans-all') === 'enable';
+              p.untagged = nat;
+              p.tagged = all ? 'all' : show(allowed, nat);
+              p.mode = p.tagged ? 'trunk' : 'access';
+              allowed.ids.concat(native.ids).forEach(function (id) {
+                const name = Object.keys(vlanId).find(function (k) { return vlanId[k] === id; });
+                NP.addVlan(c, id, name);
+              });
+              if (e.set['untagged-vlans']) NP.addNote(p, 'also untagged: ' + show(resolve(e.set['untagged-vlans']), ''));
+
+              if (one(e, 'edge-port') === 'disable') NP.addFlag(p, 'stp', 'edge off');
+              if (/^enabled?$/.test(one(e, 'stp-bpdu-guard'))) NP.addFlag(p, 'stp', 'bpduguard');
+              if (/^enabled?$/.test(one(e, 'stp-root-guard'))) NP.addFlag(p, 'stp', 'rootguard');
+              if (/^disabled?$/.test(one(e, 'stp-state'))) NP.addFlag(p, 'stp', 'stp off');
+              if (/^enabled?$/.test(one(e, 'loop-guard'))) NP.addFlag(p, 'stp', 'loopguard');
+              if (one(e, 'port-security-policy')) NP.addNote(p, '802.1X ' + one(e, 'port-security-policy'));
+              if (one(e, 'lldp-profile')) NP.addNote(p, 'lldp ' + one(e, 'lldp-profile'));
+              if (one(e, 'fortilink-port') === '1') NP.addNote(p, 'FortiLink uplink');
+              if (one(e, 'isl-peer-device-name')) {
+                p.neighbor = one(e, 'isl-peer-device-name');
+                p.neighborPort = one(e, 'isl-peer-port-name') || p.neighborPort;
+                NP.addNote(p, 'inter-switch link');
+              }
+            });
+          });
+          // members of a trunk carry no VLAN settings of their own
+          c.ports.forEach(function (p) { if (p.lag && p.kind === 'physical') { p.mode = ''; p.untagged = ''; p.tagged = ''; } });
+        } });
+      });
+    });
+    if (kids.length) dev.pendingChildren = kids;
+  }
+
   NP.registerVendor('fortigate', 'Fortinet FortiGate', function (text, dev) {
     let m;
     if ((m = text.match(/^#config-version=([^-]+)-([\d.]+)-/m))) { dev.model = dev.model || m[1]; dev.version = dev.version || m[2]; }
@@ -117,6 +208,8 @@
         p.adminUp = one(e, 'status') !== 'down';
         if (e.set.ip && e.set.ip[0] && e.set.ip[0] !== '0.0.0.0') p.ip = NP.cidr(e.set.ip[0], e.set.ip[1]);
         else if (one(e, 'mode') && one(e, 'mode') !== 'static') p.ip = one(e, 'mode');
+        if (one(e, 'vlanid')) NP.addVlan(dev, one(e, 'vlanid'), e.name);
+        if (one(e, 'fortilink') === 'enable') NP.addNote(p, 'FortiLink');
         if (one(e, 'vlanid')) { p.mode = 'vlan'; p.tagged = one(e, 'vlanid'); if (one(e, 'interface')) NP.addNote(p, 'on ' + one(e, 'interface')); }
         else if (p.ip && p.kind !== 'loopback' && p.kind !== 'tunnel') p.mode = 'routed';
         (e.set.member || []).forEach(function (mbr) {
@@ -149,6 +242,7 @@
         });
       });
     });
+    managedSwitches(t, dev);
     if (!dev.stp.enabled) dev.stp.enabled = 'n/a (firewall)';
   });
 })(typeof globalThis !== 'undefined' ? globalThis : this);

@@ -73,6 +73,7 @@
       vendor: $('selVendor').value, target: $('selTarget').value,
       devices: state.devices, current: cur(), name: name });
     if (r.isNew) state.devices.push(r.dev);
+    (r.extra || []).forEach(function (x) { if (x.isNew) state.devices.push(x.dev); });
     state.current = r.dev.id;
     return r;
   }
@@ -81,7 +82,9 @@
     try {
       const r = ingest(text, name);
       msg((r.isNew ? 'Added ' : 'Merged into ') + (r.dev.hostname || 'unnamed device') + ' as ' +
-        NP.vendors[r.vendor].label + ': ' + r.dev.ports.length + ' ports.', 'ok');
+        NP.vendors[r.vendor].label + ': ' + r.dev.ports.length + ' ports.' +
+        (r.extra && r.extra.length ? ' Also ' + r.extra.length + ' FortiLink-managed switch(es): ' +
+          r.extra.map(function (x) { return x.dev.hostname; }).join(', ') + '.' : ''), 'ok');
       $('txtInput').value = '';
     } catch (e) { msg(e.message, 'err'); }
     save(); render();

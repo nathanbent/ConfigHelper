@@ -311,6 +311,7 @@
       throw new Error('Could not tell which vendor this is. Pick one from the list and try again.');
     }
     const probe = NP.parseInto(text, vendor, NP.newDevice());
+    delete probe.pendingChildren;
     const found = probe.ports.length || probe.vlans.length || probe.hostname || probe.dns.length ||
       probe.ntp.length || probe.version || probe.model;
     if (!found) {
@@ -328,9 +329,26 @@
     if (isNew) dev = NP.newDevice();
     if (!dev.vendor) dev.vendor = vendor;
     NP.parseInto(text, vendor, dev);
+    // A parser may describe further devices found in the same input (FortiLink-managed
+    // switches inside a FortiGate config): [{hostname, vendor, apply(dev)}]
+    const kids = dev.pendingChildren || [];
+    delete dev.pendingChildren;
     NP.finalize(dev);
     dev.sources.push({ name: opts.name || 'pasted text', vendor: vendor, lines: text.split('\n').length });
-    return { dev: dev, isNew: isNew, vendor: vendor };
+    const extra = [];
+    kids.forEach(function (k) {
+      const same = function (d) { return d !== dev && d.hostname.toLowerCase() === k.hostname.toLowerCase(); };
+      let child = devices.find(same);
+      const prior = extra.find(function (e) { return same(e.dev); });
+      if (!child && prior) child = prior.dev;
+      const childNew = !child;
+      if (childNew) { child = NP.newDevice(); child.vendor = k.vendor; child.hostname = k.hostname; }
+      k.apply(child);
+      NP.finalize(child);
+      child.sources.push({ name: 'managed-switch config from ' + (dev.hostname || 'FortiGate'), vendor: vendor, lines: 0 });
+      if (!prior) extra.push({ dev: child, isNew: childNew });
+    });
+    return { dev: dev, isNew: isNew, vendor: vendor, extra: extra };
   };
 
   // ------------------------------------------------------------- port columns

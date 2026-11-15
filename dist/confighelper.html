@@ -512,6 +512,7 @@ A whole terminal session works too, for example:
       throw new Error('Could not tell which vendor this is. Pick one from the list and try again.');
     }
     const probe = NP.parseInto(text, vendor, NP.newDevice());
+    delete probe.pendingChildren;
     const found = probe.ports.length || probe.vlans.length || probe.hostname || probe.dns.length ||
       probe.ntp.length || probe.version || probe.model;
     if (!found) {
@@ -529,9 +530,26 @@ A whole terminal session works too, for example:
     if (isNew) dev = NP.newDevice();
     if (!dev.vendor) dev.vendor = vendor;
     NP.parseInto(text, vendor, dev);
+    // A parser may describe further devices found in the same input (FortiLink-managed
+    // switches inside a FortiGate config): [{hostname, vendor, apply(dev)}]
+    const kids = dev.pendingChildren || [];
+    delete dev.pendingChildren;
     NP.finalize(dev);
     dev.sources.push({ name: opts.name || 'pasted text', vendor: vendor, lines: text.split('\n').length });
-    return { dev: dev, isNew: isNew, vendor: vendor };
+    const extra = [];
+    kids.forEach(function (k) {
+      const same = function (d) { return d !== dev && d.hostname.toLowerCase() === k.hostname.toLowerCase(); };
+      let child = devices.find(same);
+      const prior = extra.find(function (e) { return same(e.dev); });
+      if (!child && prior) child = prior.dev;
+      const childNew = !child;
+      if (childNew) { child = NP.newDevice(); child.vendor = k.vendor; child.hostname = k.hostname; }
+      k.apply(child);
+      NP.finalize(child);
+      child.sources.push({ name: 'managed-switch config from ' + (dev.hostname || 'FortiGate'), vendor: vendor, lines: 0 });
+      if (!prior) extra.push({ dev: child, isNew: childNew });
+    });
+    return { dev: dev, isNew: isNew, vendor: vendor, extra: extra };
   };
 
   // ------------------------------------------------------------- port columns
@@ -2042,6 +2060,97 @@ A whole terminal session works too, for example:
   const one = function (b, k) { return b && b.set[k] ? b.set[k][0] : ''; };
   NP.fortiTree = { tree: tree, find: find, one: one };      // shared with the FortiSwitch parser
 
+  // ---- FortiLink: switches whose port config lives on the FortiGate.
+  // Each one becomes its own device (see NP.ingest), so tables and labels work per switch.
+  function managedSwitches(t, dev) {
+    const vlanId = {};                    // FortiGate VLAN interface name -> VLAN id
+    find(t, 'system interface').forEach(function (b) {
+      b.entries.forEach(function (e) { if (one(e, 'vlanid')) vlanId[e.name] = +one(e, 'vlanid'); });
+    });
+    const resolve = function (names) {
+      const ids = [], other = [];
+      (names || []).forEach(function (n) { if (vlanId[n] !== undefined) ids.push(vlanId[n]); else other.push(n); });
+      return { ids: ids, other: other };
+    };
+    const show = function (r, skip) {
+      const ids = r.ids.filter(function (v) { return String(v) !== skip; });
+      return [NP.compressVlans(ids)].concat(r.other).filter(Boolean).join(',');
+    };
+    const stpGlobal = find(t, 'switch-controller stp-settings')[0];
+    const kids = [];
+
+    find(t, 'switch-controller managed-switch').forEach(function (b) {
+      b.entries.forEach(function (sw) {
+        const hostname = one(sw, 'name') || sw.name;
+        NP.addOther(dev, 'Managed switches', hostname);
+        kids.push({ hostname: hostname, vendor: 'fortiswitch', apply: function (c) {
+          const touch = function (n) { const p = NP.port(c, n); if (p.adminUp === null) p.adminUp = true; return p; };
+          c.serial = c.serial || one(sw, 'sn') || sw.name;
+          c.other['Managed by'] = (dev.hostname || 'FortiGate') + ' (FortiLink)';
+          if (one(sw, 'description')) c.other.Description = one(sw, 'description');
+          if (one(sw, 'switch-profile')) c.other['Switch profile'] = one(sw, 'switch-profile');
+          if (one(sw, 'fsw-wan1-peer')) c.other['FortiLink interface'] = one(sw, 'fsw-wan1-peer');
+          c.stp.mode = 'mstp'; c.stp.enabled = c.stp.enabled || 'yes';
+          if (stpGlobal) {
+            if (one(stpGlobal, 'name')) NP.addUnique(c.stp.notes, 'MST region ' + one(stpGlobal, 'name'));
+            if (one(stpGlobal, 'revision')) NP.addUnique(c.stp.notes, 'MST revision ' + one(stpGlobal, 'revision'));
+          }
+          find(sw, 'stp-instance').forEach(function (ib) {
+            ib.entries.forEach(function (e) { if (one(e, 'priority')) NP.addUnique(c.stp.priority, 'MST ' + e.name + ': ' + one(e, 'priority')); });
+          });
+          find(sw, 'igmp-snooping').forEach(function (ib) { if (one(ib, 'local-override') === 'enable') NP.addUnique(c.multicast.notes, 'IGMP snooping local override'); });
+
+          find(sw, 'ports').forEach(function (pb) {
+            pb.entries.forEach(function (e) {
+              const p = touch(e.name);
+              const isTrunk = one(e, 'type') === 'trunk';
+              if (isTrunk) {
+                p.kind = 'lag';
+                if (one(e, 'mode')) NP.addNote(p, one(e, 'mode'));
+                (e.set.members || []).forEach(function (mbr) { touch(mbr).lag = e.name; });
+              }
+              if (one(e, 'description')) p.description = one(e, 'description');
+              if (one(e, 'status') === 'down') p.adminUp = false;
+              if (one(e, 'poe-status')) p.poeAdmin = one(e, 'poe-status') === 'enable' ? 'enabled' : 'disabled';
+              else if (one(e, 'poe-capable') === '1' && !p.poeAdmin) p.poeAdmin = 'enabled (default)';
+              if (one(e, 'speed') && one(e, 'speed') !== 'auto') NP.addNote(p, 'speed ' + one(e, 'speed'));
+
+              const native = resolve(e.set.vlan);
+              const nat = native.ids.length ? String(native.ids[0]) : (native.other[0] || '1');
+              const allowed = resolve(e.set['allowed-vlans']);
+              const all = one(e, 'allowed-vlans-all') === 'enable';
+              p.untagged = nat;
+              p.tagged = all ? 'all' : show(allowed, nat);
+              p.mode = p.tagged ? 'trunk' : 'access';
+              allowed.ids.concat(native.ids).forEach(function (id) {
+                const name = Object.keys(vlanId).find(function (k) { return vlanId[k] === id; });
+                NP.addVlan(c, id, name);
+              });
+              if (e.set['untagged-vlans']) NP.addNote(p, 'also untagged: ' + show(resolve(e.set['untagged-vlans']), ''));
+
+              if (one(e, 'edge-port') === 'disable') NP.addFlag(p, 'stp', 'edge off');
+              if (/^enabled?$/.test(one(e, 'stp-bpdu-guard'))) NP.addFlag(p, 'stp', 'bpduguard');
+              if (/^enabled?$/.test(one(e, 'stp-root-guard'))) NP.addFlag(p, 'stp', 'rootguard');
+              if (/^disabled?$/.test(one(e, 'stp-state'))) NP.addFlag(p, 'stp', 'stp off');
+              if (/^enabled?$/.test(one(e, 'loop-guard'))) NP.addFlag(p, 'stp', 'loopguard');
+              if (one(e, 'port-security-policy')) NP.addNote(p, '802.1X ' + one(e, 'port-security-policy'));
+              if (one(e, 'lldp-profile')) NP.addNote(p, 'lldp ' + one(e, 'lldp-profile'));
+              if (one(e, 'fortilink-port') === '1') NP.addNote(p, 'FortiLink uplink');
+              if (one(e, 'isl-peer-device-name')) {
+                p.neighbor = one(e, 'isl-peer-device-name');
+                p.neighborPort = one(e, 'isl-peer-port-name') || p.neighborPort;
+                NP.addNote(p, 'inter-switch link');
+              }
+            });
+          });
+          // members of a trunk carry no VLAN settings of their own
+          c.ports.forEach(function (p) { if (p.lag && p.kind === 'physical') { p.mode = ''; p.untagged = ''; p.tagged = ''; } });
+        } });
+      });
+    });
+    if (kids.length) dev.pendingChildren = kids;
+  }
+
   NP.registerVendor('fortigate', 'Fortinet FortiGate', function (text, dev) {
     let m;
     if ((m = text.match(/^#config-version=([^-]+)-([\d.]+)-/m))) { dev.model = dev.model || m[1]; dev.version = dev.version || m[2]; }
@@ -2116,6 +2225,8 @@ A whole terminal session works too, for example:
         p.adminUp = one(e, 'status') !== 'down';
         if (e.set.ip && e.set.ip[0] && e.set.ip[0] !== '0.0.0.0') p.ip = NP.cidr(e.set.ip[0], e.set.ip[1]);
         else if (one(e, 'mode') && one(e, 'mode') !== 'static') p.ip = one(e, 'mode');
+        if (one(e, 'vlanid')) NP.addVlan(dev, one(e, 'vlanid'), e.name);
+        if (one(e, 'fortilink') === 'enable') NP.addNote(p, 'FortiLink');
         if (one(e, 'vlanid')) { p.mode = 'vlan'; p.tagged = one(e, 'vlanid'); if (one(e, 'interface')) NP.addNote(p, 'on ' + one(e, 'interface')); }
         else if (p.ip && p.kind !== 'loopback' && p.kind !== 'tunnel') p.mode = 'routed';
         (e.set.member || []).forEach(function (mbr) {
@@ -2148,6 +2259,7 @@ A whole terminal session works too, for example:
         });
       });
     });
+    managedSwitches(t, dev);
     if (!dev.stp.enabled) dev.stp.enabled = 'n/a (firewall)';
   });
 })(typeof globalThis !== 'undefined' ? globalThis : this);
@@ -3185,6 +3297,88 @@ config router static
         set device "wan1"
     next
 end
+config system interface
+    edit "fortilink"
+        set vdom "root"
+        set fortilink enable
+        set ip 10.255.1.1 255.255.255.0
+        set type aggregate
+        set member "a" "b"
+    next
+    edit "staff"
+        set vdom "root"
+        set ip 10.20.10.1 255.255.255.0
+        set interface "fortilink"
+        set vlanid 10
+    next
+    edit "voice"
+        set vdom "root"
+        set ip 10.20.20.1 255.255.255.0
+        set interface "fortilink"
+        set vlanid 20
+    next
+    edit "cameras"
+        set vdom "root"
+        set ip 10.20.40.1 255.255.255.0
+        set interface "fortilink"
+        set vlanid 40
+    next
+end
+config switch-controller managed-switch
+    edit "S124FPTF00000001"
+        set name "IDF1-SW1"
+        set sn "S124FPTF00000001"
+        set fsw-wan1-peer "fortilink"
+        set fsw-wan1-admin enable
+        set switch-profile "default"
+        config ports
+            edit "port1"
+                set description "Front desk phone+PC"
+                set poe-capable 1
+                set vlan "staff"
+                set allowed-vlans "voice"
+                set stp-bpdu-guard enabled
+            next
+            edit "port2"
+                set description "Camera car park"
+                set poe-capable 1
+                set vlan "cameras"
+            next
+            edit "port3"
+                set poe-capable 1
+                set vlan "staff"
+                set status down
+                set poe-status disable
+            next
+            edit "port4"
+                set description "AP hallway"
+                set poe-capable 1
+                set vlan "staff"
+                set allowed-vlans-all enable
+            next
+            edit "port23"
+                set fortilink-port 1
+            next
+            edit "port24"
+                set fortilink-port 1
+            next
+            edit "_FlInK1_MLAG0_"
+                set type trunk
+                set mode lacp-active
+                set members "port23" "port24"
+                set isl-peer-device-name "FW-BRANCH-01"
+            next
+        end
+    next
+    edit "S108EF0000000002"
+        set name "IDF1-SW2"
+        config ports
+            edit "port1"
+                set vlan "cameras"
+            next
+        end
+    next
+end
 `};
 
   S.fortiswitch = { label: 'Fortinet FortiSwitch', text: String.raw`FS-IDF-2 # show
@@ -3693,6 +3887,7 @@ set enabled=yes location="Workshop cabinet"
       vendor: $('selVendor').value, target: $('selTarget').value,
       devices: state.devices, current: cur(), name: name });
     if (r.isNew) state.devices.push(r.dev);
+    (r.extra || []).forEach(function (x) { if (x.isNew) state.devices.push(x.dev); });
     state.current = r.dev.id;
     return r;
   }
@@ -3701,7 +3896,9 @@ set enabled=yes location="Workshop cabinet"
     try {
       const r = ingest(text, name);
       msg((r.isNew ? 'Added ' : 'Merged into ') + (r.dev.hostname || 'unnamed device') + ' as ' +
-        NP.vendors[r.vendor].label + ': ' + r.dev.ports.length + ' ports.', 'ok');
+        NP.vendors[r.vendor].label + ': ' + r.dev.ports.length + ' ports.' +
+        (r.extra && r.extra.length ? ' Also ' + r.extra.length + ' FortiLink-managed switch(es): ' +
+          r.extra.map(function (x) { return x.dev.hostname; }).join(', ') + '.' : ''), 'ok');
       $('txtInput').value = '';
     } catch (e) { msg(e.message, 'err'); }
     save(); render();

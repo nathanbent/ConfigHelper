@@ -686,6 +686,88 @@ config router static
         set device "wan1"
     next
 end
+config system interface
+    edit "fortilink"
+        set vdom "root"
+        set fortilink enable
+        set ip 10.255.1.1 255.255.255.0
+        set type aggregate
+        set member "a" "b"
+    next
+    edit "staff"
+        set vdom "root"
+        set ip 10.20.10.1 255.255.255.0
+        set interface "fortilink"
+        set vlanid 10
+    next
+    edit "voice"
+        set vdom "root"
+        set ip 10.20.20.1 255.255.255.0
+        set interface "fortilink"
+        set vlanid 20
+    next
+    edit "cameras"
+        set vdom "root"
+        set ip 10.20.40.1 255.255.255.0
+        set interface "fortilink"
+        set vlanid 40
+    next
+end
+config switch-controller managed-switch
+    edit "S124FPTF00000001"
+        set name "IDF1-SW1"
+        set sn "S124FPTF00000001"
+        set fsw-wan1-peer "fortilink"
+        set fsw-wan1-admin enable
+        set switch-profile "default"
+        config ports
+            edit "port1"
+                set description "Front desk phone+PC"
+                set poe-capable 1
+                set vlan "staff"
+                set allowed-vlans "voice"
+                set stp-bpdu-guard enabled
+            next
+            edit "port2"
+                set description "Camera car park"
+                set poe-capable 1
+                set vlan "cameras"
+            next
+            edit "port3"
+                set poe-capable 1
+                set vlan "staff"
+                set status down
+                set poe-status disable
+            next
+            edit "port4"
+                set description "AP hallway"
+                set poe-capable 1
+                set vlan "staff"
+                set allowed-vlans-all enable
+            next
+            edit "port23"
+                set fortilink-port 1
+            next
+            edit "port24"
+                set fortilink-port 1
+            next
+            edit "_FlInK1_MLAG0_"
+                set type trunk
+                set mode lacp-active
+                set members "port23" "port24"
+                set isl-peer-device-name "FW-BRANCH-01"
+            next
+        end
+    next
+    edit "S108EF0000000002"
+        set name "IDF1-SW2"
+        config ports
+            edit "port1"
+                set vlan "cameras"
+            next
+        end
+    next
+end
 `};
 
   S.fortiswitch = { label: 'Fortinet FortiSwitch', text: String.raw`FS-IDF-2 # show

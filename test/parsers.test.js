@@ -267,6 +267,40 @@ test('Fortinet FortiGate', () => {
   assert.match(port(d, 'internal1').notes, /zone LAN/);
 });
 
+test('FortiGate: FortiLink-managed switches become their own devices', () => {
+  const devices = [];
+  const r = NP.ingest(NP.samples.fortigate.text, { devices });
+  devices.push(r.dev, ...r.extra.map(x => x.dev));
+  assert.equal(r.dev.other['Managed switches'], 'IDF1-SW1, IDF1-SW2');
+  assert.equal(r.dev.vlans.find(v => v.id === 40).name, 'cameras');
+  assert.equal(r.dev.pendingChildren, undefined);
+  assert.deepEqual(r.extra.map(x => [x.dev.hostname, x.isNew, x.dev.vendor]),
+    [['IDF1-SW1', true, 'fortiswitch'], ['IDF1-SW2', true, 'fortiswitch']]);
+  const sw = r.extra[0].dev;
+  assert.equal(sw.serial, 'S124FPTF00000001');
+  assert.equal(sw.other['Managed by'], 'FW-BRANCH-01 (FortiLink)');
+  const p1 = port(sw, 'port1');
+  assert.deepEqual([p1.description, p1.mode, p1.untagged, p1.tagged, p1.poeAdmin, p1.stp],
+    ['Front desk phone+PC', 'trunk', '10', '20', 'enabled (default)', 'bpduguard']);
+  assert.deepEqual([port(sw, 'port2').mode, port(sw, 'port2').untagged], ['access', '40']);
+  assert.deepEqual([port(sw, 'port3').adminUp, port(sw, 'port3').poeAdmin], [false, 'disabled']);
+  assert.equal(port(sw, 'port4').tagged, 'all');
+  const up = port(sw, 'port23');
+  assert.deepEqual([up.lag, up.mode, up.untagged], ['_FlInK1_MLAG0_', '', '']);
+  const tr = port(sw, '_FlInK1_MLAG0_');
+  assert.deepEqual([tr.kind, tr.neighbor], ['lag', 'FW-BRANCH-01']);
+  assert.deepEqual(sw.vlans.map(v => v.id + ':' + v.name), ['10:staff', '20:voice', '40:cameras']);
+  // pasting the FortiGate config again updates the same switch devices rather than duplicating them
+  const again = NP.ingest(NP.samples.fortigate.text, { devices });
+  assert.deepEqual([again.isNew, again.extra.map(x => x.isNew)], [false, [false, false]]);
+  assert.equal(again.extra[0].dev, sw);
+  // and standalone output from the switch itself merges into that device by hostname
+  const live = NP.ingest('IDF1-SW1 # diagnose switch physical-ports summary\n\n  Portname    Status  Tpid  Vlan  Duplex  Speed  Flags         Discard\n' +
+    '  port1       up      8100  10    full    1G      QS,  ,       none\n', { devices });
+  assert.equal(live.dev, sw);
+  assert.deepEqual([port(sw, 'port1').link, port(sw, 'port1').tagged], ['up', '20']);
+});
+
 test('Fortinet FortiSwitch', () => {
   const d = run('fortiswitch').dev;
   assert.equal(d.hostname, 'FS-IDF-2');
