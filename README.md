@@ -110,7 +110,7 @@ Not covered yet: EdgeOS/VyOS.
 ## Labels and P-touch Editor
 
 The Labels tab produces a file with only the `Line1`, `Line2`, `Line3` columns you fill in (empty lines are
-left out). Options: label type presets (port, patch panel, port + VLAN, port + native/tagged VLAN, cable, one-per-device asset label),
+left out). Options: label type presets (port, patch panel, port + VLAN, port + native/tagged VLAN, cable wrap, cable, one-per-device asset label),
 a port match filter, a per-line character limit, duplicate removal, comma/semicolon/tab output, and optional
 reference columns (`Device`, `Port`, `Description`, `VLAN`).
 
