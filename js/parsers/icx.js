@@ -205,6 +205,7 @@
       else if ((m = l.match(/^lldp med network-policy application voice tagged vlan (\d+) .*?ports (.+)$/))) {
         portList(m[2]).forEach(function (n) { medVoice[touch(dev, n).key] = +m[1]; });
       }
+      else if ((m = l.match(/^chassis name (\S+)/))) dev.other['Chassis name'] = m[1];
       else if (l === 'jumbo') dev.other['Jumbo frames'] = 'enabled';
       else if (l === 'global-stp') { /* allows spanning tree to be configured */ }
       else if ((m = l.match(/^ip (?:igmp|multicast) version (\d)/))) addUnique(dev.multicast.notes, 'IGMPv' + m[1]);

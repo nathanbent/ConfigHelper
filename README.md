@@ -82,7 +82,7 @@ Loaded devices are remembered in the browser's local storage; use **Export backu
 | Fortinet FortiSwitch, on the switch itself (standalone, or logged in to a managed one) | `show` | `get system status`, `diagnose switch physical-ports summary`, `get switch poe inline`, `get switch lldp neighbors-summary` |
 | MikroTik RouterOS | `/export` | |
 
-Tested against real output so far: Cisco Catalyst 3850 on IOS-XE 16.12 (`test/fixtures/`). Everything else
+Tested against real output so far (`test/fixtures/`): Cisco Catalyst 3850 on IOS-XE 16.12, Juniper EX2300-C on Junos 25.2, Ruckus ICX6610 on FastIron 08.0.30 (config only). Everything else
 was written against the vendors' documented formats and the made-up samples in `js/samples.js`, so expect
 gaps on real devices; when you find one, add the output (sanitised) to `test/fixtures/` with a test and fix
 the parser.

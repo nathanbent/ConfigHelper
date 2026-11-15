@@ -724,12 +724,12 @@ test('problem report bundles the sanitized input with what the parser made of it
   assert.match(r.text, /=== Sanitized input ===\n/);
   for (const s of ['SW-PATCH-01', 'labadmin', 'example.lab', 'lab-com-mgmt', '10.0.65.169']) assert.ok(!r.text.includes(s), s + ' not in report');
   // an experimental platform says so; unrecognised input is reported rather than hidden
-  assert.match(NP.problemReport(NP.samples.icx.text).text, /Platform: Ruckus ICX \(FastIron\) \(experimental parser\)/);
+  assert.match(NP.problemReport(NP.samples.comware.text).text, /Platform: HPE Comware \/ H3C \(experimental parser\)/);
   const bad = NP.problemReport('hello password hunter2');
   assert.match(bad.text, /Platform: not recognised/);
   assert.ok(!bad.text.includes('hunter2'));
   // only platforms checked on real hardware count as verified
-  assert.deepEqual(Object.keys(NP.verified), ['ios']);
+  assert.deepEqual(Object.keys(NP.verified), ['ios', 'junos', 'icx']);
 });
 
 const bigStack = require('./stack.js');
@@ -940,4 +940,55 @@ test('one paste with two devices is cut at the change of prompt', () => {
   assert.deepEqual(parts.map(t => NP.detect(t)), ['ios', 'junos']);
   assert.equal(NP.splitDevices(NP.samples.ios.text).length, 1);
   for (const id of Object.keys(NP.samples)) assert.equal(NP.splitDevices(NP.samples[id].text).length, 1, id);
+});
+
+const fixture = name => require('fs').readFileSync(require('path').join(__dirname, 'fixtures', name), 'utf8');
+
+test('real EX2300-C session (Junos 25.2, sanitized)', () => {
+  const r = NP.ingest(fixture('juniper-ex2300c.txt'), { devices: [] });
+  const d = r.dev;
+  assert.equal(r.vendor, 'junos');
+  assert.equal(d.version, '25.2R2.12');
+  assert.deepEqual(d.vlans.map(v => v.id), [1, 20, 40, 70, 100, 254, 1769]);
+  assert.equal(d.ports.filter(p => p.kind === 'physical').length, 16);
+  assert.deepEqual(d.ports.filter(p => p.link === 'up' && p.kind === 'physical').map(p => p.name),
+    ['ge-0/0/0', 'ge-0/0/1', 'ge-0/0/2', 'ge-0/0/8', 'ge-0/0/10', 'ge-0/0/11', 'xe-0/1/0', 'xe-0/1/1']);
+  const ap = port(d, 'ge-0/0/11');
+  assert.deepEqual([ap.mode, ap.untagged, ap.tagged, ap.poeStatus, ap.poeWatts, ap.poeClass], ['trunk', '254', '20,70,100,254,1769', 'on', '6.4', '4']);
+  assert.deepEqual([port(d, 'ge-0/0/3').untagged, port(d, 'ge-0/0/3').voiceVlan, port(d, 'ge-0/0/3').poeStatus], ['20', '40', 'off']);
+  const up = port(d, 'xe-0/1/1');
+  assert.deepEqual([up.tagged, up.neighborPort], ['all', '10GigabitEthernet1/3/2']);
+  assert.ok(up.neighbor && !/\s/.test(up.neighbor));
+  assert.ok(port(d, 'xe-0/1/0').neighbor);                    // PC with no system name
+  assert.deepEqual([port(d, 'ge-0/1/0').link, port(d, 'ge-0/1/1').link], ['not present', 'not present']);
+  assert.ok(d.ports.filter(p => p.poeStatus).length === 12);
+  assert.ok(!d.unparsed.some(u => u.ctx === 'command' && /poe|lldp|terse/.test(u.text)));
+});
+
+test('real ICX6610 config (FastIron 08.0.30, sanitized)', () => {
+  const r = NP.ingest(fixture('ruckus-icx6610.txt'), { devices: [] });
+  const d = r.dev;
+  assert.equal(r.vendor, 'icx');
+  assert.deepEqual([d.model, d.version], ['ICX6610-24P-POE', '08.0.30uT7f3']);
+  assert.equal(d.vlans.length, 31);
+  assert.equal(d.ports.filter(p => p.kind === 'physical').length, 42);
+  assert.equal(d.ports.filter(p => p.kind === 'lag').length, 5);
+  for (const n of ['1/1/20', '1/1/21', '1/1/24', 'lag 120']) {
+    const p = port(d, n);
+    assert.deepEqual([p.mode, p.untagged, p.tagged], ['trunk', '665', '2-3,5,17,40,100,111,230,240-242,667,1769'], n);
+  }
+  assert.ok(port(d, '1/1/21').description && port(d, '1/3/8').description);
+  assert.deepEqual([port(d, '1/1/1').untagged, port(d, '1/1/1').tagged, port(d, '1/1/1').voiceVlan], ['', '20,40', '40']);
+  assert.deepEqual([port(d, '1/1/5').mode, port(d, '1/1/5').untagged, port(d, '1/1/5').voiceVlan], ['access', '20', '40']);
+  assert.equal(port(d, '1/1/3').voiceVlan, '');
+  assert.equal(port(d, '1/3/2').stp, 'p2p');
+  assert.deepEqual([port(d, 've20').ip, port(d, 've1').adminUp], ['10.1.20.1/22', false]);
+  assert.ok(!d.unparsed.some(u => /\^C|banner|pt2pt|lldp med/.test(u.text)));
+});
+
+test('sanitize: FastIron banner lines and chassis name do not survive', () => {
+  const raw = 'hostname core-1\nchassis name CORE-SITE-A\nbanner motd ^C\n^C\n|  Property of Example Corp  |^C\n^C\n!\ninterface ethernet 1/1/1\n port-name x\n!\n';
+  const out = NP.sanitize(raw, { vendor: 'icx' }).text;
+  assert.doesNotMatch(out, /Example Corp|CORE-SITE-A|core-1/);
+  assert.match(out, /^banner motd \^C removed \^C\n!\ninterface ethernet 1\/1\/1$/m);
 });
