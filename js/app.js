@@ -947,7 +947,7 @@
               return h('tr', {}, r.map(function (c, i) { return h('td', { class: i < lineCount ? 'line' : '', text: c }); }));
             }))))
         : h('p', { class: 'empty', text: 'No ports match these options.' }),
-      h('p', { class: 'hint', text: 'In P-touch Editor: File > Database > Connect, choose this file, tick "Header row contains field names", then drag the Line fields onto the label and print all records. Or start from the P-touch template (a 3-line cable wrap for 24 mm tape, made for the Cable wrap label type): open it, connect this file the same way and the three lines fill in. Brother\'s phone app (Pro Label Tool) takes the zipped template instead.' })));
+      h('p', { class: 'hint', text: 'In P-touch Editor: File > Database > Connect, choose this file, tick "Header row contains field names", then drag the Line fields onto the label and print all records. Or start from the P-touch template (a 3-line cable wrap for 24 mm tape, made for the Cable wrap label type): open it, connect this file the same way and link its line1, line2 and line3 text to the matching Line fields. Brother\'s phone app (Pro Label Tool) takes the zipped template instead.' })));
   }
 
   // -------------------------------------------------------------------- wire
