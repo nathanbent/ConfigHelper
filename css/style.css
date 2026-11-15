@@ -163,6 +163,10 @@ td.editcell.edited input { border-color: var(--accent); }
 tr.excluded td { opacity: .45; }
 tr.excluded td:first-child { opacity: 1; }
 .edithint { margin: 0 0 10px; }
+td.editcell.narrow { min-width: 90px; }
+.normhead { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 12px 0 8px; }
+.normhead select { max-width: 100%; }
+.normtable td:last-child { text-align: right; }
 .undobar { margin: 0 0 8px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--warn-bg); color: var(--warn); font-size: 13px; }
 .undobar button { margin-left: 6px; min-height: 26px; padding: 2px 8px; }
 #bkHint button { min-height: 0; padding: 0; border: 0; background: none; color: var(--accent); text-decoration: underline; }

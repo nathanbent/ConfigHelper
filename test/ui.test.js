@@ -40,7 +40,7 @@ test('ui', { skip: chromium ? false : 'Playwright is not installed' }, async (t)
       await page.selectOption('#selSample', id);
       await page.click('#btnParse');
       assert.match(await page.textContent('#msg'), /^(Added|Merged into) /, id);
-      for (const name of ['Overview', 'Ports', 'Labels', 'Checks', 'Compare', 'Not parsed']) {
+      for (const name of ['Overview', 'Ports', 'Labels', 'Checks', 'Normalize', 'Compare', 'Not parsed']) {
         await tab(page, name);
         assert.ok(await page.locator('#view section').count() >= 2, id + ' / ' + name);
         assert.equal(await page.locator('#view .pagedesc').count(), 1, id + ' / ' + name + ' description');
@@ -261,11 +261,35 @@ test('ui', { skip: chromium ? false : 'Playwright is not installed' }, async (t)
     assert.deepEqual(errors, []);
   });
 
+  await t.test('normalize: flags odd spellings and VLANs, and the correction reaches the labels', async (t) => {
+    const { page, errors } = await open(t);
+    const intf = (n, desc, allowed) => 'interface GigabitEthernet1/0/' + n + '\n description ' + desc +
+      '\n switchport mode trunk\n switchport trunk native vlan 10\n switchport trunk allowed vlan ' + allowed + '\n!\n';
+    await paste(page, 'hostname SW-NORM\n!\n' + intf(1, 'AP-Lobby', '20,30,40') + intf(2, 'AP-Hall', '20,30,40') + intf(3, 'AP-Roof', '20,30,40') +
+      intf(4, 'Access Point Kitchen', '20,30') + 'end\n');
+    await page.click('#btnParse');
+    await page.click('.tabs button:has-text("Normalize (2)")');
+    assert.match(await page.textContent('#view .finding h3'), /AP \(4 ports\)/);
+    assert.match(await page.locator('.normtable').nth(0).textContent(), /Gi1\/0\/4Access Point KitchenAP Kitchen/);
+    assert.match(await page.locator('.normtable').nth(1).textContent(), /missing tagged 40/);
+    await page.click('button:has-text("Rename all 1")');
+    assert.match(await page.textContent('#msg'), /Changed the description of 1 port/);
+    await page.click('button:has-text("Set all 1 to match")');
+    assert.match(await page.textContent('#view .count'), /Nothing to normalize/);
+    await tab(page, 'Labels');
+    await page.fill('input[data-line="1"]', '{desc} [t{tagged}]');
+    await page.locator('input[data-line="1"]').blur();
+    assert.match(await page.locator('.labelprev tbody tr').nth(3).textContent(), /AP Kitchen t20,30,40/);
+    await tab(page, 'Ports');
+    assert.match(await page.textContent('.toolbar .count'), /2 edited/);
+    assert.deepEqual(errors, []);
+  });
+
   await t.test('phone width: no sideways scrolling', async (t) => {
     const { page, errors } = await open(t, { viewport: { width: 390, height: 800 } });
     await page.selectOption('#selSample', 'ios');
     await page.click('#btnParse');
-    for (const name of ['Overview', 'Ports', 'Labels', 'Checks', 'Compare', 'Not parsed']) {
+    for (const name of ['Overview', 'Ports', 'Labels', 'Checks', 'Normalize', 'Compare', 'Not parsed']) {
       await tab(page, name);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), 390, name);
     }

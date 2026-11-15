@@ -671,6 +671,45 @@ test('manual edits: laid over parsed data, used by exports and labels, kept acro
   assert.deepEqual(d.edits, {});
 });
 
+test('normalizer: spelling and VLAN outliers in a group, applied as edits that reach the labels', () => {
+  const intf = (n, desc, body) => 'interface GigabitEthernet1/0/' + n + '\n description ' + desc + '\n' + body.map(l => ' ' + l + '\n').join('') + '!\n';
+  const trunk = allowed => ['switchport mode trunk', 'switchport trunk native vlan 10', 'switchport trunk allowed vlan ' + allowed];
+  const cfg = 'hostname SW-NORM\n!\n' +
+    intf(1, 'AP-Lobby', trunk('20,30,40')) + intf(2, 'AP-Hall', trunk('20,30,40')) + intf(3, 'AP 3rd floor', trunk('20,30,40')) +
+    intf(4, 'Access Point Kitchen', trunk('20,30,40')) + intf(5, 'ap-roof', trunk('20,30')) + intf(6, 'WAP-Dock', trunk('20,30,40')) +
+    intf(7, 'Printer HR', ['switchport mode access', 'switchport access vlan 50']) +
+    intf(8, 'printer Sales', ['switchport mode access', 'switchport access vlan 60']) +
+    intf(9, 'Uplink to core', ['switchport mode trunk']) + 'end\n';
+  const d = NP.ingest(cfg, { devices: [] }).dev;
+  assert.deepEqual(['Wireless AP 2', 'Lobby access-point', 'AccessPoint1', 'MAP room', 'Laptop', 'Cam-3'].map(s => { const r = NP.portRole(s); return r.id + ':' + r.text; }),
+    ['ap:Wireless AP', 'ap:access-point', 'ap:AccessPoint', 'w:map:MAP', 'w:laptop:Laptop', 'camera:Cam']);
+  let g = NP.normalize([d]);
+  assert.deepEqual(g.map(x => [x.id, x.label, x.count]), [['ap', 'AP', 6], ['printer', 'Printer', 2]]);
+  const ap = g[0];
+  assert.deepEqual(ap.spelling.variants, [{ text: 'AP', count: 3 }, { text: 'Access Point', count: 1 }, { text: 'WAP', count: 1 }, { text: 'ap', count: 1 }]);
+  assert.deepEqual(ap.spelling.rows.map(r => [r.short, r.to]), [['Gi1/0/4', 'AP Kitchen'], ['Gi1/0/5', 'AP-roof'], ['Gi1/0/6', 'AP-Dock']]);
+  assert.deepEqual(ap.vlans.rows.map(r => [r.short, r.from, r.diff]), [['Gi1/0/5', 'trunk, native 10, tagged 20,30', 'missing tagged 40']]);
+  assert.equal(ap.vlans.targetLabel, 'trunk, native 10, tagged 20,30,40');
+  assert.equal(g[1].vlans, null);                                            // two printers in different VLANs: too few to call one of them wrong
+  assert.equal(NP.normalizeCount(g), 5);
+  assert.match(NP.normalizeText([d]), /AP \(6 ports\)\n {2}Written 4 ways: "AP" x3[^\n]*\n {4}Gi1\/0\/4: "Access Point Kitchen" -> "AP Kitchen"/);
+  // the other spelling can be chosen instead
+  assert.deepEqual(NP.normalize([d], { ap: { spelling: 'Access Point' } })[0].spelling.rows.map(r => r.to).slice(0, 2), ['Access Point-Lobby', 'Access Point-Hall']);
+  // applying is a manual edit: parsed data untouched, labels follow, and the finding goes away
+  NP.normalizeApply('spelling', ap.spelling.rows);
+  NP.normalizeApply('vlans', ap.vlans.rows);
+  assert.deepEqual([port(d, 'Gi1/0/5').description, port(d, 'Gi1/0/5').tagged], ['ap-roof', '20,30']);
+  assert.deepEqual(NP.editCount(d), { fields: 4, excluded: 0, total: 4 });
+  const lab = NP.labelRows([d], { lines: ['{port}', '{desc}', '[n{vlan}] [t{tagged}]'], physicalOnly: true });
+  assert.deepEqual(lab[5], ['Gi1/0/5', 'AP-roof', 'n10 t20,30,40']);
+  g = NP.normalize([d]);
+  assert.deepEqual(g.map(x => x.id), ['printer']);
+  assert.match(NP.normalizeText([d, d]), /SW-NORM Gi1\/0\/8: "printer Sales" -> "Printer Sales"/);
+  // a group with no clear usual setup is left alone
+  const split = NP.ingest('hostname SW-SPLIT\n!\n' + [10, 10, 20, 20, 30].map((v, i) => intf(i + 1, 'PC ' + i, ['switchport mode access', 'switchport access vlan ' + v])).join('') + 'end\n', { devices: [] }).dev;
+  assert.deepEqual(NP.normalize([split]), []);
+});
+
 test('config checks: real 3850 findings', () => {
   const text = require('fs').readFileSync(require('path').join(__dirname, 'fixtures', 'cisco-3850-lab.txt'), 'utf8');
   const d = NP.ingest(text, { devices: [] }).dev;
