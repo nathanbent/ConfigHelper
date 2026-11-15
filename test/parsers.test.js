@@ -105,6 +105,21 @@ test('real Catalyst 3850 (IOS-XE 16.12) session: status first, then config', () 
   assert.deepEqual([port(d, 'Gi1/0/10').poeStatus, port(d, 'Gi1/0/10').poeWatts], ['off', '']);
   assert.deepEqual([st.poePorts, st.poeWatts], [1, 30]);
   assert.ok(!JSON.stringify(d).includes('$9$'));
+  // show version
+  assert.deepEqual([d.version, d.serial], ['16.12.12', 'FCW0000X000']);
+  // CDP + LLDP detail
+  const nb = n => { const p = port(d, n); return [p.neighbor, p.neighborPort, p.neighborInfo]; };
+  assert.deepEqual(nb('Gi1/0/7'), ['LAB-ToR', 'Gi1/0/48', 'WS-C2960S-48TS-L, 10.0.0.66']);
+  assert.deepEqual(nb('Gi1/0/11'), ['WORKBENCH-3560X.example.lab', 'Gi0/24', 'WS-C3560X-24P, 10.0.0.4']);
+  assert.deepEqual(nb('Gi1/0/36'), ['FW-HQ-01', 'LAB-ROUTING', '']);
+  assert.deepEqual(nb('Te1/0/45'), ['LAB-AP01 (Office)', 'mgt0', '10.0.5.51']);
+  assert.deepEqual(nb('Te1/0/48'), ['Office-Sw1', '10GigabitEthernet1/3/4', '10.0.0.7']);   // port id was a MAC
+  assert.deepEqual(nb('Te1/1/4'), ['MDF-SW-1', 'port1', '10.255.1.2']);
+  assert.equal(d.ports.filter(p => p.neighbor).length, 6);
+  // neighbor output on its own must not be mistaken for this device's "show version"
+  const a = text.indexOf('SW-PATCH-01#show cdp'), b = text.indexOf('SW-PATCH-01# show version');
+  const only = NP.ingest(text.slice(a, b), { devices: [] }).dev;
+  assert.deepEqual([only.hostname, only.version, only.model], ['SW-PATCH-01', '', '']);
 });
 
 test('Cisco NX-OS', () => {

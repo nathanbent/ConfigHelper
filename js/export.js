@@ -146,6 +146,7 @@
     mode: function (d, p) { return p.mode; },
     neighbor: function (d, p) { return p.neighbor; },
     nport: function (d, p) { return p.neighborPort; },
+    ninfo: function (d, p) { return p.neighborInfo; },
     ip: function (d, p) { return p.ip; },
     lag: function (d, p) { return p.lag; },
     speed: function (d, p) { return p.speed; }

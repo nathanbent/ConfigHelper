@@ -47,7 +47,7 @@ Not covered yet: Palo Alto, pfSense/OPNsense, UniFi, EdgeOS/VyOS.
 The Labels tab produces a CSV with `Line1`, `Line2`, `Line3` columns built from templates, plus the raw
 `Device`, `Port`, `Description`, `VLAN` columns.
 
-- `{host} {port} {portfull} {num} {desc} {vlan} {tagged} {voice} {mode} {neighbor} {nport} {ip} {lag} {speed}`
+- `{host} {port} {portfull} {num} {desc} {vlan} {tagged} {voice} {mode} {neighbor} {nport} {ninfo} {ip} {lag} {speed}`
 - `{neighbor|desc}` uses the first field that has a value
 - `[VLAN {vlan}]` is dropped when the field inside is empty
 

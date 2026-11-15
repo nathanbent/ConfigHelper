@@ -356,20 +356,47 @@
       p.poeClass = /^\d/.test(cls) ? cls : '';
     });
 
-    // ---- CDP / LLDP detail
-    let cur = '', local = '', nport = '';
+    // ---- CDP detail: one block per "Device ID:"
+    let cdp = null;
     text.split(/\r?\n/).forEach(function (ln) {
       let x;
-      if ((x = ln.match(/^Device ID:\s*(\S+)/))) cur = x[1].replace(/\(.*\)$/, '');
-      else if ((x = ln.match(/^Interface: (\S+?),\s+Port ID \(outgoing port\): (.+)$/)) && cur) {
-        const p = NP.port(dev, x[1]); p.neighbor = cur; p.neighborPort = x[2].trim();
-      }
-      else if ((x = ln.match(/^Local (?:Intf|Port id): (\S+)/))) { local = x[1]; nport = ''; }
-      else if ((x = ln.match(/^Port id: (.+)$/))) nport = x[1].trim();
-      else if ((x = ln.match(/^System Name: (\S+)/)) && local) {
-        const p = NP.port(dev, local); p.neighbor = x[1]; p.neighborPort = nport; local = '';
+      if ((x = ln.match(/^Device ID:\s*(\S+)/))) cdp = { name: x[1].replace(/\(.*\)$/, ''), ip: '', platform: '' };
+      else if (!cdp) return;
+      else if ((x = ln.match(/^\s+IP(?:v4)? [Aa]ddress: (\S+)/))) cdp.ip = cdp.ip || x[1];
+      else if ((x = ln.match(/^Platform: (?:cisco )?([^,]+),/i))) cdp.platform = x[1].trim();
+      else if ((x = ln.match(/^Interface: (\S+?),\s+Port ID \(outgoing port\): (.+)$/))) {
+        const p = NP.port(dev, x[1]);
+        p.neighbor = cdp.name; p.neighborPort = x[2].trim();
+        p.neighborInfo = [cdp.platform, cdp.ip].filter(Boolean).join(', ');
       }
     });
+
+    // ---- LLDP detail: one block per "Local Intf:" (applied after CDP, so LLDP wins where both exist)
+    const MAC = /^([0-9a-f]{4}\.){2}[0-9a-f]{4}$|^([0-9a-f]{2}[:\-]){5}[0-9a-f]{2}$/i;
+    let lldp = null;
+    const flush = function () {
+      if (!lldp) return;
+      const b = lldp; lldp = null;
+      const p = NP.port(dev, b.local);
+      const info = [p.neighborInfo && p.neighbor && b.name && p.neighbor.split('.')[0] === b.name.split('.')[0]
+        ? p.neighborInfo.split(', ')[0] : '', b.ip].filter(Boolean);
+      p.neighbor = b.name || b.chassis || p.neighbor;
+      // some vendors send a MAC as the port id and the real port name in the description
+      p.neighborPort = MAC.test(b.port) && b.desc ? b.desc : b.port;
+      p.neighborInfo = Array.from(new Set(info)).join(', ');
+    };
+    text.split(/\r?\n/).forEach(function (ln) {
+      let x;
+      if ((x = ln.match(/^Local (?:Intf|Port id): (\S+)/))) { flush(); lldp = { local: x[1], name: '', port: '', desc: '', chassis: '', ip: '' }; }
+      else if (!lldp) return;
+      else if ((x = ln.match(/^Chassis id: (\S+)/))) lldp.chassis = x[1];
+      else if ((x = ln.match(/^Port id: (.+)$/))) lldp.port = x[1].trim();
+      else if ((x = ln.match(/^Port Description: (.+)$/))) lldp.desc = x[1].trim();
+      else if ((x = ln.match(/^System Name: (.+)$/))) lldp.name = x[1].trim();
+      else if ((x = ln.match(/^\s+IP(?:v4)?: (\S+)/))) lldp.ip = lldp.ip || x[1];
+      else if (/^Total entries displayed/.test(ln)) flush();
+    });
+    flush();
 
     // ---- show cdp neighbors (brief; long device names wrap onto their own line)
     let pending = '';
@@ -447,7 +474,8 @@
     if (/This bridge is the root/.test(text)) addUnique(dev.stp.notes, 'this switch is root for at least one instance');
 
     // ---- show version
-    if (/uptime is|Cisco IOS|NX-?OS|Arista|ArubaOS-CX/.test(text)) {
+    // (not in CDP/LLDP output: that quotes the neighbors' software versions)
+    if (/uptime is|Cisco IOS|NX-?OS|Arista|ArubaOS-CX/.test(text) && !/^(Device ID:|Local Intf:|Local Port id:)/m.test(text)) {
       if ((m = text.match(/Cisco IOS.*?Version ([^,\s]+)/)) || (m = text.match(/^\s*(?:NXOS|system):\s+version (\S+)/m)) ||
           (m = text.match(/^Software image version:\s*(\S+)/m)) || (m = text.match(/^Version\s+:\s*(\S+)/m))) dev.version = m[1];
       if ((m = text.match(/^Model [Nn]umber\s*:\s*(\S+)/m)) || (m = text.match(/^\s*cisco (\S+(?: \S+)?) .*(?:processor|Chassis)/mi)) ||

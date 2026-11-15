@@ -164,7 +164,7 @@
       description: '', adminUp: null, link: '', speed: '', duplex: '', media: '',
       mode: '', untagged: '', tagged: '', voiceVlan: '', lag: '', ip: '',
       poeAdmin: '', poeStatus: '', poeWatts: '', poeClass: '',
-      stp: '', stpState: '', neighbor: '', neighborPort: '', notes: ''
+      stp: '', stpState: '', neighbor: '', neighborPort: '', neighborInfo: '', notes: ''
     };
   };
 
@@ -358,6 +358,7 @@
     { id: 'stpState', label: 'STP state', get: function (p) { return p.stpState; } },
     { id: 'neighbor', label: 'Neighbor', get: function (p) { return p.neighbor; }, on: true },
     { id: 'neighborPort', label: 'Neighbor port', get: function (p) { return p.neighborPort; }, on: true },
+    { id: 'neighborInfo', label: 'Neighbor info', get: function (p) { return p.neighborInfo; } },
     { id: 'notes', label: 'Notes', get: function (p) { return p.notes; } },
     { id: 'kind', label: 'Kind', get: function (p) { return p.kind; } }
   ];
