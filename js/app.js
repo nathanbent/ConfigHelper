@@ -41,6 +41,42 @@
     return el;
   }
 
+  // --------------------------------------------------------------- page help
+  // Which "How this page works" panels were left open, by view id. Kept apart from STORE so a full
+  // device store cannot lose it, and storage may be unavailable (private window): the panel still works.
+  const HELP_STORE = 'confighelper.help';
+  function helpOpen(id, set) {
+    try {
+      const o = JSON.parse(localStorage.getItem(HELP_STORE) || '{}') || {};
+      if (set === undefined) return o[id] === true;
+      if (set) o[id] = true; else delete o[id];
+      localStorage.setItem(HELP_STORE, JSON.stringify(o));
+    } catch (e) { /* starts closed next time */ }
+    return !!set;
+  }
+  // The collapsed panel for one view, built from NP.help (js/help.js). Reading matter only: no controls in here.
+  function helpPanel(id) {
+    const e = NP.help[id];
+    const body = h('div', { class: 'pagehelp-body' });
+    NP.helpLabels.forEach(function (label) {
+      (e.sections[label] || []).forEach(function (para, i) {
+        body.appendChild(h('p', {}, i === 0 ? [h('b', { text: label }), ' '] : null, NP.helpInline(para).map(function (r) {
+          if (r.kind === 'code') return h('code', { text: r.text });
+          if (r.kind === 'link') return h('a', { href: r.href, target: '_blank', rel: 'noopener', text: r.text });
+          return r.text;
+        })));
+      });
+    });
+    const d = h('details', { class: 'pagehelp', 'data-help': id }, h('summary', { text: NP.helpSummary }), body);
+    d.open = helpOpen(id);
+    d.addEventListener('toggle', function () { helpOpen(id, d.open); });
+    return d;
+  }
+  // What goes under a view's heading: its one-line description, then its help panel.
+  function pageHead(id) {
+    return [h('p', { class: 'pagedesc', text: NP.help[id].desc }), helpPanel(id)];
+  }
+
   // ------------------------------------------------------------- persistence
   function save() {
     try {
@@ -264,7 +300,11 @@
       h('div', { class: 'tabs', role: 'tablist' }, tabs.map(function (t) {
         return h('button', { role: 'tab', 'aria-selected': String(state.tab === t[0]),
           onclick: function () { state.tab = t[0]; render(); } }, t[1]);
-      }))));
+      })),
+      // said in words as well as by the pill: a tooltip does not show on touch screens or for keyboard users
+      NP.verified[dev.vendor] ? null : h('p', { class: 'hint warnhint',
+        text: 'Experimental parser: written from documentation and made-up samples, not yet checked against real hardware. Check the tables against the device, and look at the Not parsed tab.' }),
+      pageHead(NP.help[state.tab] ? state.tab : 'ports')));
     if (state.tab === 'overview') overview(view, dev);
     else if (state.tab === 'labels') labels(view, dev);
     else if (state.tab === 'unparsed') unparsed(view, dev);
@@ -352,7 +392,8 @@
       h('div', { class: 'devhead' }, h('h1', { text: 'Cable list' }),
         h('span', { class: 'sub', text: all.length + ' link(s) across ' + state.devices.length + ' loaded device(s): ' + count('both ends') + ' seen from both ends, ' +
           count('one end only') + ' from one end, ' + count('far end not loaded') + ' to devices not loaded' + (count('mismatch') ? ', ' + count('mismatch') + ' mismatched' : '') })),
-      h('p', { class: 'hint', text: 'Built from the CDP/LLDP neighbors of every loaded device. A link reported by both switches is listed once. ' +
+      pageHead('cables'),
+      h('p', { class: 'hint', text: 'A link reported by both switches is listed once. ' +
         'Links only appear where neighbor output was loaded; ports you excluded and neighbors you edited on the Ports tab are respected. IDs are assigned in list order and change when devices are added.' })));
     if (!all.length) {
       view.appendChild(h('section', { class: 'card' }, h('p', { class: 'empty', text: 'No neighbor data is loaded yet. Paste CDP or LLDP neighbor output for your devices (the "Commands to run" list includes it).' })));
@@ -756,6 +797,7 @@
 
   // -------------------------------------------------------------------- wire
   function init() {
+    $('inputHelp').replaceChildren(helpPanel('input'));
     NP.brands().forEach(function (b) { $('selBrand').appendChild(h('option', { value: b, text: b })); });
     $('selBrand').addEventListener('change', function (e) {
       const sel = $('selVendor'), brand = e.target.value;
