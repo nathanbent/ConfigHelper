@@ -188,6 +188,40 @@ test('ui', { skip: chromium ? false : 'Playwright is not installed' }, async (t)
     assert.deepEqual(errors, []);
   });
 
+  await t.test('device search: a FortiGate with 60 managed switches', async (t) => {
+    const { page, errors } = await open(t);
+    await page.selectOption('#selSample', 'ios'); await page.click('#btnParse');
+    assert.equal(await page.locator('#devFind').isHidden(), true);              // no search box for a short list
+    const sw = Array.from({ length: 60 }, (x, i) => '    edit "IDF' + (i + 1) + '-SW"\n        set sn "S124FPTF' + String(1000 + i) + '"\n        set description "Floor ' + (i % 6) +
+      '"\n        config ports\n            edit "port1"\n                set vlan "staff"\n            next\n        end\n    next').join('\n');
+    await paste(page, 'BIG-FW # show\nconfig system interface\n    edit "staff"\n        set vlanid 10\n        set interface "fortilink"\n    next\nend\n' +
+      'config switch-controller managed-switch\n' + sw + '\nend\n');
+    await page.selectOption('#selBrand', 'Fortinet'); await page.selectOption('#selVendor', 'fortilink');
+    await page.click('#btnParse');
+    const picks = page.locator('.devices li .pick');
+    assert.equal(await picks.count(), 62);
+    assert.equal(await page.locator('#devFind').isVisible(), true);
+    assert.equal(await page.textContent('#devCount'), '62 devices');
+    await page.fill('#devSearch', 'idf4');
+    assert.deepEqual(await picks.locator('b').allTextContents(), ['IDF4-SW', ...Array.from({ length: 10 }, (x, i) => 'IDF4' + i + '-SW')]);
+    assert.match(await page.textContent('#devCount'), /^11 of 62 devices/);
+    await page.fill('#devSearch', 'floor 3 1039');                             // description and serial, every word must match
+    assert.deepEqual(await picks.locator('b').allTextContents(), ['IDF40-SW']);
+    assert.equal(await page.evaluate(() => document.activeElement.id), 'devSearch');   // typing keeps the focus
+    await page.press('#devSearch', 'Enter');
+    assert.equal(await page.textContent('.devhead h1'), 'IDF40-SW');
+    assert.equal(await page.inputValue('#devSearch'), 'floor 3 1039');
+    await page.fill('#devSearch', 'nothing-like-this');
+    assert.equal(await page.textContent('.devices li.empty'), 'No device matches.');
+    await page.fill('#devSearch', '');
+    assert.equal(await picks.count(), 62);
+    // the selected device is scrolled into sight inside the list, and the list itself is what scrolls
+    const box = await page.evaluate(() => { const ul = document.getElementById('deviceList'), li = ul.querySelector('li.sel').getBoundingClientRect(), r = ul.getBoundingClientRect();
+      return { scrolls: ul.scrollHeight > ul.clientHeight, inside: li.top >= r.top && li.bottom <= r.bottom }; });
+    assert.deepEqual(box, { scrolls: true, inside: true });
+    assert.deepEqual(errors, []);
+  });
+
   await t.test('remove and clear all can be undone; backup reminder', async (t) => {
     const { page, errors } = await open(t);
     for (const id of ['ios', 'junos']) { await page.selectOption('#selSample', id); await page.click('#btnParse'); }

@@ -81,7 +81,11 @@ textarea.drag { border-color: var(--accent); border-style: dashed; }
 .pagehelp-body a { color: var(--accent); }
 #inputHelp .pagehelp { margin: 0 0 8px; }
 
-.devices { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.devices { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 60vh; overflow-y: auto; position: relative; }
+.devfind { display: grid; gap: 4px; margin-bottom: 8px; }
+.devfind[hidden] { display: none; }
+.devfind input { width: 100%; box-sizing: border-box; }
+.devfind .hint { margin: 0; }
 .devices li { display: flex; align-items: center; gap: 6px; border: 1px solid transparent; border-radius: 6px; }
 .devices li.sel { background: var(--row); border-color: var(--line); }
 .devices .pick { flex: 1; min-width: 0; text-align: left; border: 0; background: none; padding: 6px 8px; }
