@@ -23,10 +23,18 @@
     return s.replace(/[A-Za-z0-9]/g, function () { const c = i < fill.length ? fill[i] : 'x'; i++; return c; });
   }
 
-  function structure(dev) {
+  // FortiGate interface names that ship with the unit or are created by FortiLink: they identify nobody.
+  // Everything else under "config system interface" was typed in by the admin.
+  const FORTI_BUILTIN = new RegExp('^(?:port\\d+|x\\d+|s\\d+|sfp\\d*|mgmt\\d*|ha\\d*|lan\\d*|wan\\d*|dmz\\d*|internal\\d*|[ab]|fortilink\\d*|modem|' +
+    'npu\\d+_vlink\\d+|vsw|any|virtual-wan-link|.+\\.root|' +
+    '(?:quarantine|qtn|voice|video|rspan|onboarding|nac_segment|_default|default|snf|vsw)(?:\\.[\\w\\-]+)?)$', 'i');
+
+  // ren: original interface name -> its placeholder, for a "before" device whose interfaces were renamed
+  function structure(dev, ren) {
+    const nm = function (s) { return ren && ren[s] ? ren[s] : s; };
     return JSON.stringify({
       ports: dev.ports.map(function (p) {
-        return [p.key, p.kind, p.adminUp, p.link, p.speed, p.mode, p.untagged, p.tagged, p.voiceVlan, p.lag, p.stp, p.poeStatus, p.poeWatts,
+        return [NP.portId(nm(p.name)).key, p.kind, p.adminUp, p.link, p.speed, p.mode, p.untagged, p.tagged, p.voiceVlan, nm(p.lag), p.stp, p.poeStatus, p.poeWatts,
           !!p.description, !!p.neighbor, !!p.ip];
       }),
       vlans: dev.vlans.map(function (v) { return v.id; }),
@@ -52,6 +60,23 @@
     const cands = {};                            // original -> {kind, tag, ci}
     const portNames = {};                        // interface names are syntax, never replaced (MikroTik and FortiGate name VLANs after them)
     if (before) before.ports.forEach(function (p) { portNames[p.name.toLowerCase()] = portNames[p.short.toLowerCase()] = true; });
+    // FortiGate is the exception: there the admin names the interfaces, often after ISPs, customers or people
+    const forti = vendor === 'fortigate' && before && NP.fortiTree ? NP.fortiTree.tree(text) : null;
+    const fortiIf = {};                          // admin-chosen interface names
+    const bare = {};                             // unquoted words of the config language: a name equal to one is only replaced inside quotes
+    if (forti && opts.names) {
+      NP.fortiTree.find(forti, 'system interface').forEach(function (b) {
+        b.entries.forEach(function (e) {
+          const s = e.name.trim();
+          if (s.length < 3 || alnum(s) < 3 || /^[\d\/.:\-\s]+$/.test(s) || FORTI_BUILTIN.test(s) || STOP[s.toLowerCase()]) return;
+          fortiIf[s] = true;
+          delete portNames[s.toLowerCase()];
+        });
+      });
+      (text.match(/^[ \t]*(?:set|unset|config|edit)[ \t].*$/gm) || []).forEach(function (ln) {
+        ln.replace(/"(?:[^"\\]|\\.)*"?/g, ' ').trim().split(/\s+/).forEach(function (w) { bare[w] = true; });
+      });
+    }
     const want = function (s, kind, tag, ci) {
       s = String(s || '').trim();
       if (portNames[s.toLowerCase()]) return;
@@ -59,6 +84,25 @@
       if (/^\d+\.\d+\.\d+\.\d+/.test(s)) return;                 // addresses are handled separately
       if (!cands[s]) cands[s] = { kind: kind, tag: tag, ci: !!ci };
     };
+    if (forti) {
+      const sw = NP.fortiTree.find(forti, 'switch-controller managed-switch');
+      if (opts.addresses) {
+        (text.match(/^[ \t]*set sn[ \t]+\S+/gm) || []).forEach(function (ln) { want(NP.unquote(ln.replace(/^[ \t]*set sn[ \t]+/, '')), 'serials', 'SN'); });
+        // an unnamed switch is listed under its serial number
+        sw.forEach(function (b) { b.entries.forEach(function (e) { if (/^[A-Z0-9]{12,}$/.test(e.name) && /\d/.test(e.name)) want(e.name, 'serials', 'SN'); }); });
+      }
+      if (opts.names) {
+        Object.keys(fortiIf).forEach(function (s) { cands[s] = cands[s] || { kind: 'names', tag: 'IF', ci: false, iface: true }; });
+        (text.match(/^[ \t]*set (?:ike-saml-server|switch-profile)[ \t]+"[^"\n]+"/gm) || []).forEach(function (ln) {
+          want(ln.replace(/^[^"]*"/, '').slice(0, -1), 'names', 'N');
+        });
+      }
+      // the port description is "alias - description": neither half appears in the text in that form
+      if (opts.descriptions) (function walk(nd) {
+        ['alias', 'description'].forEach(function (k) { if (nd.set[k] && nd.set[k][0]) want(nd.set[k][0], 'descriptions', 'D'); });
+        nd.entries.forEach(walk); nd.blocks.forEach(walk);
+      })(forti);
+    }
     const host = function (name) {                               // "sw1.corp.example.com (x)" -> short name + domain
       name = String(name || '').replace(/\s*\(.*\)$/, '').trim();
       const i = name.indexOf('.');
@@ -95,13 +139,45 @@
     }
     const WIDTHS = [30, 25, 24, 20, 19, 18, 17, 16, 15, 14, 12, 10];   // where "show" tables cut names off
     let n = 0;
+    const renamed = {};                          // interface name -> placeholder
+    const taken = {};
+    let ifn = 0;
+    // interface placeholders must stay distinct from each other and from every real port, or two ports would merge
+    const ifPlaceholder = function (s) {
+      const id = NP.portId(s);
+      // the parser reads a port's kind from how its name starts (lag, vlan, ipsec ...): keep that part
+      const lead = id.kind === 'physical' ? '' : (s.match(/^(?:ae|bond|trk|lag|bridge|vlan|irb|vl|loopback|lo|mgmt|management|me|fxp|em|vme|oobm|tunnel|gre|ipsec|wg|ssl\.)/i) || [''])[0];
+      const rest = s.slice(lead.length);
+      if (id.short !== s || !alnum(rest)) return '';
+      for (let tries = 0; tries < 2000; tries++) {
+        const k = ++ifn;
+        const ph = lead + (('IF' + k).length <= alnum(rest) ? placeholder(rest, 'IF', k) : placeholder(rest, '', k.toString(36)));
+        const low = ph.toLowerCase(), pid = NP.portId(ph);
+        if (taken[low] || portNames[low] || fortiIf[ph] || pid.kind !== id.kind || pid.short !== ph) continue;
+        taken[low] = true;
+        return ph;
+      }
+      return '';
+    };
     Object.keys(cands).sort(function (a, b) { return b.length - a.length; }).forEach(function (s) {
       const c = cands[s];
-      const ph = placeholder(s, c.tag, ++n);
+      const ph = c.iface ? ifPlaceholder(s) : placeholder(s, c.tag, ++n);
+      if (!ph) return;                                           // no safe replacement: leave the name alone
       let hit = false;
       const flags = c.ci ? 'gi' : 'g';
-      const full = new RegExp('(?<![A-Za-z0-9])' + esc(s) + '(?![A-Za-z0-9])', flags);
-      text = text.replace(full, function () { hit = true; return ph; });
+      const full = bare[s] ? new RegExp('"' + esc(s) + '"', flags) : new RegExp('(?<![A-Za-z0-9])' + esc(s) + '(?![A-Za-z0-9])', flags);
+      text = text.replace(full, function () { hit = true; return bare[s] ? '"' + ph + '"' : ph; });
+      if (forti && text.indexOf('"' + s[0]) >= 0) {
+        // a quoted name that the terminal wrapped onto the next line: `set allowed-vlans "a" "Cust` / `omer" "b"`
+        const split = new RegExp('"' + s.split('').map(esc).join('\n?') + '"', flags);
+        text = text.replace(split, function (all) {
+          if (all.indexOf('\n') < 0) return all;
+          hit = true;
+          let i = 0;
+          return all.replace(/[^"\n]/g, function () { return ph[i++]; });
+        });
+      }
+      if (c.iface && hit) renamed[s] = ph;
       WIDTHS.forEach(function (w) {                              // truncated copies in fixed-width tables
         if (w >= s.length) return;
         const pre = s.slice(0, w);
@@ -189,9 +265,10 @@
     return {
       text: text, vendor: vendor || '', counts: counts,
       checked: !!(before && after),
-      same: !!(before && after && structure(before) === structure(after)),
+      same: !!(before && after && structure(before, renamed) === structure(after)),
       ports: after ? after.ports.length : 0, vlans: after ? after.vlans.length : 0,
       leftovers: replaced.filter(function (s) {
+        if (bare[s]) return text.indexOf('"' + s + '"') >= 0;      // also a keyword: only the quoted copies were names
         return low.indexOf(s.toLowerCase()) >= 0 && new RegExp('(?<![A-Za-z0-9])' + esc(s) + '(?![A-Za-z0-9])', 'i').test(text);
       }).slice(0, 12)
     };
