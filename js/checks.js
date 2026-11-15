@@ -113,9 +113,11 @@
     }
 
     // ------------------------------------------------------------ services
+    // a FortiGate is often pasted section by section (only the FortiLink commands): say "none" only for a section that was there
+    const pasted = function (k) { return dev.vendor !== 'fortigate' || !!(dev.seen && dev.seen[k]); };
     if (configSeen && !managed) {
-      if (!dev.ntp.length) add('nontp', 'warn', 'No NTP server configured', 'Without time sync, log timestamps cannot be compared across devices and certificate checks can fail.', []);
-      if (!dev.syslog.length) add('nosyslog', 'info', 'No syslog server configured', 'Logs only live in the device buffer and are lost on reload.', []);
+      if (!dev.ntp.length && pasted('ntp')) add('nontp', 'warn', 'No NTP server configured', 'Without time sync, log timestamps cannot be compared across devices and certificate checks can fail.', []);
+      if (!dev.syslog.length && pasted('syslog')) add('nosyslog', 'info', 'No syslog server configured', 'Logs only live in the device buffer and are lost on reload.', []);
       if (dev.snmp.versions.includes('v2c') && !dev.snmp.versions.includes('v3')) {
         add('snmpv2', 'info', 'SNMP uses community strings only (no v3)', 'SNMP v1/v2c sends the community string and all data in clear text.', []);
       }
@@ -134,7 +136,8 @@
     const members = {};
     all.forEach(function (p) { if (p.lag) (members[p.lag.toLowerCase()] = members[p.lag.toLowerCase()] || []).push(p); });
     list = all.filter(function (p) {
-      return p.kind === 'lag' && [p.short, p.name].some(function (n) { const m = members[n.toLowerCase()]; return m && m.length === 1; });
+      // (one port per switch is the normal shape of an MCLAG: its other member is on the peer switch)
+      return p.kind === 'lag' && !/\bMCLAG\b/.test(p.notes) && [p.short, p.name].some(function (n) { const m = members[n.toLowerCase()]; return m && m.length === 1; });
     });
     if (list.length) add('lagsingle', 'info', 'Link aggregation groups with a single member',
       'A LAG with one port gives no redundancy or extra capacity. Fine if the second link is planned; otherwise it may be a leftover.', list);

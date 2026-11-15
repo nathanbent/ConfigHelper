@@ -1260,3 +1260,51 @@ test('sanitize: FastIron banner lines and chassis name do not survive', () => {
   assert.doesNotMatch(out, /Example Corp|CORE-SITE-A|core-1/);
   assert.match(out, /^banner motd \^C removed \^C\n!\ninterface ethernet 1\/1\/1$/m);
 });
+
+test('real FortiGate 201F (FortiOS 8.0) FortiLink session, sanitized', () => {
+  const text = require('fs').readFileSync(require('path').join(__dirname, 'fixtures', 'fortigate-201f-fortilink.txt'), 'utf8');
+  const r = NP.ingest(text, { devices: [] });
+  const fw = r.dev;
+  assert.deepEqual([fw.vendor, fw.hostname, fw.model, fw.version], ['fortigate', 'LAB-FW-1', 'FortiGate-201F', '8.0.2']);   // "(Primary)" is not part of the name
+  assert.equal(fw.other.HA, 'a-p, primary');
+  assert.equal(fw.other['Managed switches'], 'MDF-SW-2, MDF-SW-1, EDGE-SW-1');
+  assert.equal(fw.vlans.find(v => v.id === 1000).name, 'v.1000-Test');          // not the VXLAN sub-interface with the same id
+  assert.deepEqual(['lan', 'SiteSSID1', 'vxlan-evpn', 'mgmt'].map(n => port(fw, n).kind), ['svi', 'svi', 'tunnel', 'mgmt']);
+  assert.match(port(fw, 'v.3005').notes, /secondary 10\.\d+\.100\.1\/24; secondary .*dhcp relay /);
+  assert.match(port(fw, 'VPN-HQ Hub-Back').notes, /on WAN2-CABLE/);
+  // only the FortiLink commands were pasted: nothing is known about NTP or syslog, so nothing is claimed
+  assert.deepEqual(NP.checks(fw).map(f => f.id).filter(id => /^no(ntp|syslog)$/.test(id)), []);
+  assert.ok(!fw.unparsed.some(e => /snmp-index|device-identification|stp-settings/.test(e.text)));
+
+  const [sw2, sw1, edge] = r.extra.map(x => x.dev);
+  assert.deepEqual([sw2.hostname, sw2.serial, sw2.ports.length, edge.ports.length], ['MDF-SW-2', 'FS1D24T000000001', 27, 28]);
+  // the quarantine VLAN is on every port as an untagged extra: that does not make an access port a trunk
+  const p1 = port(sw2, 'port1');
+  assert.deepEqual([p1.mode, p1.untagged, p1.tagged, p1.notes], ['access', '3000', '', 'also untagged: 4093']);
+  assert.deepEqual([port(sw2, 'port16').mode, port(sw2, 'port16').tagged], ['trunk', '3220']);
+  assert.deepEqual([port(sw1, 'port1').mode, port(sw1, 'port1').tagged, port(sw1, 'port1').description], ['trunk', 'all', 'LAB-PATCH-3850']);
+  // the 28-name VLAN list was wrapped by the terminal at 224 columns, in the middle of a name
+  const lag = port(sw2, 'pve-r730xd-1');
+  assert.equal(lag.tagged, '3000,3005,3010-3011,3051,3060,3063,3065-3069,3090,3200-3202,3204,3207,3219-3220,3225,3230,3240,3250,3254,3269-3270');
+  assert.equal(lag.untagged, '3205');
+  assert.match(lag.notes, /lacp-active; lacp fast; MCLAG; .*dhcp-snooping trust/);
+  assert.equal(port(sw2, 'port14').lag, 'pve-r730xd-1');
+  assert.deepEqual(sw2.multicast.notes, ['snooping on VLAN 3269', 'snooping on VLAN 3240']);
+  assert.ok(sw1.stp.notes.includes('STP settings overridden on this switch'));
+  assert.deepEqual(port(edge, 'port1').poeAdmin, 'enabled (default)');
+  // one port per switch is how an MCLAG looks: not a "single member" finding
+  assert.deepEqual(NP.checks(sw2).map(f => f.id), ['trunkall', 'accessvlan1']);
+});
+
+test('FortiGate: a wrapped set line is put back together, a real multi-line value is not split into commands', () => {
+  const long = '        set allowed-vlans ' + Array.from({ length: 12 }, (x, i) => '"vlan-' + (100 + i) + '"').join(' ');
+  const cut = long.slice(0, 100) + '\n' + long.slice(100);                     // between two names, quotes balanced
+  const cfg = v => 'config system interface\n' + Array.from({ length: 12 }, (x, i) => '    edit "vlan-' + (100 + i) + '"\n        set vlanid ' + (100 + i) + '\n    next').join('\n') +
+    '\nend\nconfig system replacemsg admin "pre_admin-disclaimer-text"\n    set buffer "line one\nset hostname oops\nend of it"\nend\n' +
+    'config switch-controller managed-switch\n    edit "S1"\n        config ports\n            edit "port1"\n' + v + '\n                set vlan "vlan-100"\n            next\n        end\n    next\nend\n';
+  [long, cut, long.slice(0, 95) + '\n' + long.slice(95)].forEach(function (v) {
+    const r = NP.ingest('FW1 # show\n' + cfg(v), { vendor: 'fortigate', devices: [] });
+    assert.equal(r.dev.hostname, 'FW1');
+    assert.deepEqual([port(r.extra[0].dev, 'port1').untagged, port(r.extra[0].dev, 'port1').tagged], ['100', '101-111']);
+  });
+});
