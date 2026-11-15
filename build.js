@@ -11,6 +11,10 @@ html = html.replace(/<script src="([^"]+)"><\/script>/g, function (all, src) {
   const js = fs.readFileSync(path.join(root, src), 'utf8').replace(/<\/script/gi, '<\\/script');
   return '<script>\n' + js + '</script>';
 });
+// build stamp: the commit on the deployed site (GitHub Actions sets GITHUB_SHA), otherwise "local build"
+const stamp = process.env.GITHUB_SHA ? process.env.GITHUB_SHA.slice(0, 7) : 'local build';
+if (!html.includes("NP.build = 'source';")) throw new Error('build stamp placeholder not found');
+html = html.replace("NP.build = 'source';", "NP.build = '" + stamp + "';");
 fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
 fs.writeFileSync(path.join(root, 'dist', 'confighelper.html'), html);
 console.log('dist/confighelper.html', (html.length / 1024).toFixed(0) + ' kB');

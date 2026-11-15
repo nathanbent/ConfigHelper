@@ -62,6 +62,8 @@ textarea.drag { border-color: var(--accent); border-style: dashed; }
 .cmds li code { display: block; font: 12px/1.4 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
 .cmds li span { font-size: 12px; color: var(--muted); }
 .cmds p { margin: 0 0 8px; font-size: 12.5px; color: var(--muted); }
+.brand .ver { font-family: var(--mono); font-size: 11.5px; }
+.cmds.san input[type=text] { width: 100%; font-size: 13px; }
 .cmds.san { margin: 8px 0 0; }
 .cmds.san > div { padding: 0 10px 10px; display: grid; gap: 6px; }
 .cmds.san .check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink); }
@@ -169,7 +171,7 @@ details.cols summary.primary { background: var(--accent); border-color: var(--ac
 </head>
 <body>
 <header class="top">
-  <div class="brand"><span class="logo" aria-hidden="true"></span>ConfigHelper <small>switch, router and firewall config to tables and labels</small></div>
+  <div class="brand"><span class="logo" aria-hidden="true"></span>ConfigHelper <small>switch, router and firewall config to tables and labels</small> <small id="ver" class="ver"></small></div>
   <div class="top-actions">
     <button id="btnImport" title="Load a ConfigHelper backup (.json)">Import backup</button>
     <button id="btnBackup" title="Save every loaded device as one JSON file">Export backup</button>
@@ -227,6 +229,13 @@ A whole terminal session works too, for example:
             <button id="btnSanSave" hidden>Download</button>
           </div>
           <p id="sanMsg" class="msg" role="status"></p>
+          <p><b>Something parsed wrong?</b> Paste the original output above, say what looks wrong, and build a report: the sanitized text plus what the parser made of it, in one file.</p>
+          <input type="text" id="repNote" placeholder="What looks wrong? e.g. port 1/1/5 shows no VLAN" aria-label="What looks wrong">
+          <div class="btnrow">
+            <button id="btnReport">Build problem report</button>
+            <button id="btnRepCopy" hidden>Copy report</button>
+          </div>
+          <p id="repMsg" class="msg" role="status"></p>
         </div>
       </details>
       <p class="hint">Everything is processed in this browser tab. Nothing is uploaded.</p>
@@ -249,6 +258,14 @@ A whole terminal session works too, for example:
 (function (root) {
   'use strict';
   const NP = root.NP = root.NP || {};
+
+  // Version shown in the app and in problem reports. build.js replaces the build stamp.
+  NP.version = '0.1.0';
+  NP.build = 'local build';            // becomes the commit id on the deployed site, "local build" in a file you built yourself
+
+  // Platforms whose parser has been checked against output from real hardware, and on what.
+  // Everything else was written from documentation and made-up samples: shown as "experimental".
+  NP.verified = { ios: 'Catalyst 3850, IOS-XE 16.12' };
 
   // ---------------------------------------------------------------- vendors
   NP.vendors = {};
@@ -4853,6 +4870,39 @@ set enabled=yes location="Workshop cabinet"
       }).slice(0, 12)
     };
   };
+
+  // One text file with everything needed to look into a parsing problem: the sanitized input,
+  // plus what the parser made of it. opts: sanitize options + note (what looks wrong) + agent (browser).
+  NP.problemReport = function (text, opts) {
+    opts = opts || {};
+    const cleaned = NP.clean ? NP.clean(text) : { text: text, notes: [] };
+    const san = NP.sanitize(text, opts);
+    const out = ['ConfigHelper problem report', 'Version: ' + NP.version + ' (' + NP.build + ')'];
+    if (opts.agent) out.push('Browser: ' + opts.agent);
+    out.push('Platform: ' + (san.vendor ? NP.vendors[san.vendor].label + (NP.verified[san.vendor] ? '' : ' (experimental parser)') : 'not recognised') +
+      (opts.vendor && opts.vendor !== 'auto' ? ' (chosen by hand)' : ' (auto-detected)'));
+    out.push('What looks wrong: ' + (String(opts.note || '').trim() || '(not filled in)'));
+    out.push('Cleanup: ' + (cleaned.notes.join('; ') || 'none needed'));
+    const c = san.counts;
+    out.push('Sanitized: ' + c.secrets + ' secrets removed, ' + c.names + ' names, ' + c.descriptions + ' descriptions, ' + c.vlanNames + ' VLAN names, ' +
+      c.ips + ' IP networks, ' + c.macs + ' MACs, ' + c.serials + ' serials replaced');
+    out.push('Sanitized text parses the same as the original: ' + (san.checked ? (san.same ? 'yes' : 'NO') : 'could not check'));
+
+    let dev = null;
+    if (san.vendor) { try { dev = NP.ingest(san.text, { vendor: san.vendor, devices: [], target: 'new' }).dev; } catch (e) { out.push('Parse error: ' + e.message); } }
+    if (dev) {
+      const st = NP.portStats(dev);
+      out.push('', '=== What the parser made of it ===',
+        'Ports: ' + dev.ports.length + ' (' + st.physical + ' physical, ' + st.up + ' up, ' + st.disabled + ' disabled, ' + st.absent + ' not present)',
+        'VLANs: ' + dev.vlans.length + '   Neighbors: ' + dev.ports.filter(function (p) { return p.neighbor; }).length +
+        '   PoE ports: ' + st.poePorts + '   Model: ' + (dev.model || '-') + '   Software: ' + (dev.version || '-'));
+      out.push('', '=== Not parsed ===', NP.unparsedText(dev).split('\n').slice(1).join('\n').trim() || '(nothing)');
+      out.push('', '=== Checks ===', NP.checksText(dev).split('\n').slice(1).join('\n').trim());
+      out.push('', '=== Port table ===', NP.formatRows(NP.portRows([dev]), 'tsv').trim());
+    }
+    out.push('', '=== Sanitized input ===', san.text);
+    return { text: out.join('\n') + '\n', same: san.same, checked: san.checked, leftovers: san.leftovers, vendor: san.vendor };
+  };
 })(typeof globalThis !== 'undefined' ? globalThis : this);
 </script>
 <script>
@@ -5068,6 +5118,9 @@ set enabled=yes location="Workshop cabinet"
       h('div', { class: 'devhead' },
         h('h1', { text: dev.hostname || '(unnamed device)' }),
         h('span', { class: 'sub', text: [NP.vendorLabel(dev), dev.model, dev.version].filter(Boolean).join(' · ') }),
+        NP.verified[dev.vendor] ? null : h('span', { class: 'pill warn',
+          title: 'This parser was written from documentation and made-up samples and has not been checked against real hardware yet. Check the tables against the device, and look at the Not parsed tab.',
+          text: 'experimental parser' }),
         h('button', { onclick: function () {
           const n = prompt('Device name', dev.hostname);
           if (n !== null) { dev.hostname = n.trim(); save(); render(); }
@@ -5547,7 +5600,7 @@ set enabled=yes location="Workshop cabinet"
   // -------------------------------------------------------------------- wire
   function init() {
     NP.vendorOrder.forEach(function (id) {
-      $('selVendor').appendChild(h('option', { value: id, text: NP.vendors[id].label }));
+      $('selVendor').appendChild(h('option', { value: id, text: NP.vendors[id].label + (NP.verified[id] ? '' : ' (experimental)') }));
     });
     Object.keys(NP.samples).forEach(function (id) {
       $('selSample').appendChild(h('option', { value: id, text: NP.samples[id].label }));
@@ -5579,6 +5632,25 @@ set enabled=yes location="Workshop cabinet"
     });
     $('btnSanCopy').addEventListener('click', function (e) { copyText($('txtInput').value, e.target, 'Copy'); });
     $('btnSanSave').addEventListener('click', function () { download('sanitized-output.txt', $('txtInput').value, 'text/plain'); });
+    $('ver').textContent = 'v' + NP.version + ' · ' + NP.build;
+    let lastReport = '';
+    $('btnReport').addEventListener('click', function () {
+      const el = $('repMsg'), ta = $('txtInput');
+      if (!ta.value.trim()) { el.textContent = 'Paste the original device output into the box above first.'; el.className = 'msg err'; return; }
+      const r = NP.problemReport(ta.value, { vendor: $('selVendor').value, names: $('sanNames').checked, descriptions: $('sanDesc').checked,
+        vlanNames: $('sanVlan').checked, addresses: $('sanAddr').checked, note: $('repNote').value, agent: navigator.userAgent });
+      lastReport = r.text;
+      download('confighelper-report.txt', r.text, 'text/plain');
+      let text = 'Report downloaded (confighelper-report.txt). ';
+      let cls = 'msg ok';
+      if (!r.vendor) { text += 'The platform was not recognised, so names and descriptions were NOT replaced: choose the platform and build it again. '; cls = 'msg err'; }
+      else if (!r.same) text += 'Note: the sanitized text parses differently from the original; say so when you send it. ';
+      if (r.leftovers.length) { text += 'Still present in the text: ' + r.leftovers.join(', ') + '. '; cls = 'msg err'; }
+      text += 'Read it through before sending. The box above still holds your original text.';
+      el.textContent = text; el.className = cls;
+      $('btnRepCopy').hidden = false;
+    });
+    $('btnRepCopy').addEventListener('click', function (e) { copyText(lastReport, e.target, 'Copy report'); });
     $('btnCables').addEventListener('click', function () { state.view = 'cables'; render(); });
     $('btnParse').addEventListener('click', function () { parseText($('txtInput').value, 'pasted text'); });
     $('btnFiles').addEventListener('click', function () { $('fileInput').click(); });

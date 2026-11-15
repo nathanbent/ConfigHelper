@@ -172,4 +172,37 @@
       }).slice(0, 12)
     };
   };
+
+  // One text file with everything needed to look into a parsing problem: the sanitized input,
+  // plus what the parser made of it. opts: sanitize options + note (what looks wrong) + agent (browser).
+  NP.problemReport = function (text, opts) {
+    opts = opts || {};
+    const cleaned = NP.clean ? NP.clean(text) : { text: text, notes: [] };
+    const san = NP.sanitize(text, opts);
+    const out = ['ConfigHelper problem report', 'Version: ' + NP.version + ' (' + NP.build + ')'];
+    if (opts.agent) out.push('Browser: ' + opts.agent);
+    out.push('Platform: ' + (san.vendor ? NP.vendors[san.vendor].label + (NP.verified[san.vendor] ? '' : ' (experimental parser)') : 'not recognised') +
+      (opts.vendor && opts.vendor !== 'auto' ? ' (chosen by hand)' : ' (auto-detected)'));
+    out.push('What looks wrong: ' + (String(opts.note || '').trim() || '(not filled in)'));
+    out.push('Cleanup: ' + (cleaned.notes.join('; ') || 'none needed'));
+    const c = san.counts;
+    out.push('Sanitized: ' + c.secrets + ' secrets removed, ' + c.names + ' names, ' + c.descriptions + ' descriptions, ' + c.vlanNames + ' VLAN names, ' +
+      c.ips + ' IP networks, ' + c.macs + ' MACs, ' + c.serials + ' serials replaced');
+    out.push('Sanitized text parses the same as the original: ' + (san.checked ? (san.same ? 'yes' : 'NO') : 'could not check'));
+
+    let dev = null;
+    if (san.vendor) { try { dev = NP.ingest(san.text, { vendor: san.vendor, devices: [], target: 'new' }).dev; } catch (e) { out.push('Parse error: ' + e.message); } }
+    if (dev) {
+      const st = NP.portStats(dev);
+      out.push('', '=== What the parser made of it ===',
+        'Ports: ' + dev.ports.length + ' (' + st.physical + ' physical, ' + st.up + ' up, ' + st.disabled + ' disabled, ' + st.absent + ' not present)',
+        'VLANs: ' + dev.vlans.length + '   Neighbors: ' + dev.ports.filter(function (p) { return p.neighbor; }).length +
+        '   PoE ports: ' + st.poePorts + '   Model: ' + (dev.model || '-') + '   Software: ' + (dev.version || '-'));
+      out.push('', '=== Not parsed ===', NP.unparsedText(dev).split('\n').slice(1).join('\n').trim() || '(nothing)');
+      out.push('', '=== Checks ===', NP.checksText(dev).split('\n').slice(1).join('\n').trim());
+      out.push('', '=== Port table ===', NP.formatRows(NP.portRows([dev]), 'tsv').trim());
+    }
+    out.push('', '=== Sanitized input ===', san.text);
+    return { text: out.join('\n') + '\n', same: san.same, checked: san.checked, leftovers: san.leftovers, vendor: san.vendor };
+  };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

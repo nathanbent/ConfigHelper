@@ -8,7 +8,7 @@
 </head>
 <body>
 <header class="top">
-  <div class="brand"><span class="logo" aria-hidden="true"></span>ConfigHelper <small>switch, router and firewall config to tables and labels</small></div>
+  <div class="brand"><span class="logo" aria-hidden="true"></span>ConfigHelper <small>switch, router and firewall config to tables and labels</small> <small id="ver" class="ver"></small></div>
   <div class="top-actions">
     <button id="btnImport" title="Load a ConfigHelper backup (.json)">Import backup</button>
     <button id="btnBackup" title="Save every loaded device as one JSON file">Export backup</button>
@@ -66,6 +66,13 @@ A whole terminal session works too, for example:
             <button id="btnSanSave" hidden>Download</button>
           </div>
           <p id="sanMsg" class="msg" role="status"></p>
+          <p><b>Something parsed wrong?</b> Paste the original output above, say what looks wrong, and build a report: the sanitized text plus what the parser made of it, in one file.</p>
+          <input type="text" id="repNote" placeholder="What looks wrong? e.g. port 1/1/5 shows no VLAN" aria-label="What looks wrong">
+          <div class="btnrow">
+            <button id="btnReport">Build problem report</button>
+            <button id="btnRepCopy" hidden>Copy report</button>
+          </div>
+          <p id="repMsg" class="msg" role="status"></p>
         </div>
       </details>
       <p class="hint">Everything is processed in this browser tab. Nothing is uploaded.</p>

@@ -684,6 +684,28 @@ test('messy paste cleanup', () => {
   for (const id of Object.keys(NP.samples)) assert.deepEqual(NP.clean(NP.samples[id].text).notes, [], id);
 });
 
+test('problem report bundles the sanitized input with what the parser made of it', () => {
+  const text = require('fs').readFileSync(require('path').join(__dirname, 'fixtures', 'cisco-3850-lab.txt'), 'utf8');
+  const r = NP.problemReport(text, { note: 'Gi1/0/14 shows the wrong status', agent: 'TestBrowser/1.0' });
+  assert.deepEqual([r.vendor, r.checked, r.same, r.leftovers], ['ios', true, true, []]);
+  assert.match(r.text, /^ConfigHelper problem report\nVersion: \d+\.\d+\.\d+ \(/);
+  assert.match(r.text, /Platform: Cisco IOS \/ IOS-XE \(auto-detected\)/);
+  assert.match(r.text, /What looks wrong: Gi1\/0\/14 shows the wrong status/);
+  assert.match(r.text, /Ports: 65 \(62 physical, 6 up, 0 disabled, 10 not present\)/);
+  assert.match(r.text, /=== Not parsed ===[\s\S]*negotiation auto/);
+  assert.match(r.text, /=== Checks ===[\s\S]*err-disabled/);
+  assert.match(r.text, /=== Port table ===\nDevice\tPort\t/);
+  assert.match(r.text, /=== Sanitized input ===\n/);
+  for (const s of ['SW-PATCH-01', 'labadmin', 'example.lab', 'lab-com-mgmt', '10.0.65.169']) assert.ok(!r.text.includes(s), s + ' not in report');
+  // an experimental platform says so; unrecognised input is reported rather than hidden
+  assert.match(NP.problemReport(NP.samples.icx.text).text, /Platform: Ruckus ICX \(FastIron\) \(experimental parser\)/);
+  const bad = NP.problemReport('hello password hunter2');
+  assert.match(bad.text, /Platform: not recognised/);
+  assert.ok(!bad.text.includes('hunter2'));
+  // only platforms checked on real hardware count as verified
+  assert.deepEqual(Object.keys(NP.verified), ['ios']);
+});
+
 test('forcing a vendor and unknown input', () => {
   assert.throws(() => NP.ingest('hello world\nnothing here', { devices: [] }), /vendor/);
   assert.throws(() => NP.ingest('hello world', { vendor: 'ios', devices: [] }), /Nothing recognisable/);

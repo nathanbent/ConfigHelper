@@ -5,6 +5,14 @@
   'use strict';
   const NP = root.NP = root.NP || {};
 
+  // Version shown in the app and in problem reports. build.js replaces the build stamp.
+  NP.version = '0.1.0';
+  NP.build = 'source';            // becomes the commit id on the deployed site, "local build" in a file you built yourself
+
+  // Platforms whose parser has been checked against output from real hardware, and on what.
+  // Everything else was written from documentation and made-up samples: shown as "experimental".
+  NP.verified = { ios: 'Catalyst 3850, IOS-XE 16.12' };
+
   // ---------------------------------------------------------------- vendors
   NP.vendors = {};
   NP.vendorOrder = [];

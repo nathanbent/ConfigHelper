@@ -210,6 +210,9 @@
       h('div', { class: 'devhead' },
         h('h1', { text: dev.hostname || '(unnamed device)' }),
         h('span', { class: 'sub', text: [NP.vendorLabel(dev), dev.model, dev.version].filter(Boolean).join(' · ') }),
+        NP.verified[dev.vendor] ? null : h('span', { class: 'pill warn',
+          title: 'This parser was written from documentation and made-up samples and has not been checked against real hardware yet. Check the tables against the device, and look at the Not parsed tab.',
+          text: 'experimental parser' }),
         h('button', { onclick: function () {
           const n = prompt('Device name', dev.hostname);
           if (n !== null) { dev.hostname = n.trim(); save(); render(); }
@@ -689,7 +692,7 @@
   // -------------------------------------------------------------------- wire
   function init() {
     NP.vendorOrder.forEach(function (id) {
-      $('selVendor').appendChild(h('option', { value: id, text: NP.vendors[id].label }));
+      $('selVendor').appendChild(h('option', { value: id, text: NP.vendors[id].label + (NP.verified[id] ? '' : ' (experimental)') }));
     });
     Object.keys(NP.samples).forEach(function (id) {
       $('selSample').appendChild(h('option', { value: id, text: NP.samples[id].label }));
@@ -721,6 +724,25 @@
     });
     $('btnSanCopy').addEventListener('click', function (e) { copyText($('txtInput').value, e.target, 'Copy'); });
     $('btnSanSave').addEventListener('click', function () { download('sanitized-output.txt', $('txtInput').value, 'text/plain'); });
+    $('ver').textContent = 'v' + NP.version + ' · ' + NP.build;
+    let lastReport = '';
+    $('btnReport').addEventListener('click', function () {
+      const el = $('repMsg'), ta = $('txtInput');
+      if (!ta.value.trim()) { el.textContent = 'Paste the original device output into the box above first.'; el.className = 'msg err'; return; }
+      const r = NP.problemReport(ta.value, { vendor: $('selVendor').value, names: $('sanNames').checked, descriptions: $('sanDesc').checked,
+        vlanNames: $('sanVlan').checked, addresses: $('sanAddr').checked, note: $('repNote').value, agent: navigator.userAgent });
+      lastReport = r.text;
+      download('confighelper-report.txt', r.text, 'text/plain');
+      let text = 'Report downloaded (confighelper-report.txt). ';
+      let cls = 'msg ok';
+      if (!r.vendor) { text += 'The platform was not recognised, so names and descriptions were NOT replaced: choose the platform and build it again. '; cls = 'msg err'; }
+      else if (!r.same) text += 'Note: the sanitized text parses differently from the original; say so when you send it. ';
+      if (r.leftovers.length) { text += 'Still present in the text: ' + r.leftovers.join(', ') + '. '; cls = 'msg err'; }
+      text += 'Read it through before sending. The box above still holds your original text.';
+      el.textContent = text; el.className = cls;
+      $('btnRepCopy').hidden = false;
+    });
+    $('btnRepCopy').addEventListener('click', function (e) { copyText(lastReport, e.target, 'Copy report'); });
     $('btnCables').addEventListener('click', function () { state.view = 'cables'; render(); });
     $('btnParse').addEventListener('click', function () { parseText($('txtInput').value, 'pasted text'); });
     $('btnFiles').addEventListener('click', function () { $('fileInput').click(); });

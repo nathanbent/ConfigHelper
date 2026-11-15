@@ -48,6 +48,10 @@ Pasted text is cleaned up before parsing: `--More--` prompts, backspace and carr
 colour codes, logger timestamps, mail quote marks, curly quotes, hard line wraps and lost indentation. The
 status line says what was fixed.
 
+**Build problem report** (in the same panel) makes one text file for a bug report: app version, platform, what
+was cleaned and sanitized, what the parser made of it (port table, Not parsed list, checks) and the sanitized
+input. Platforms not yet checked on real hardware are marked "experimental" in the app.
+
 The **Not parsed** tab on each device lists the config lines and command output the parser saw but did not use
 (with known noise left out and passwords and keys replaced by `***`). Use it to spot gaps on a new device; the
 **Copy list** button gives you something to paste into a bug report.
