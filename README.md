@@ -35,6 +35,10 @@ device, as a new snapshot" under Add to and paste newer output: the old state is
 device starts fresh. The comparison lists changed device settings, VLANs added, removed or renamed, and
 per-port changes, with live state (link, PoE draw, neighbors) optional, and exports as Markdown.
 
+**Cable list** (under the device list) combines the CDP/LLDP neighbors of every loaded device into one list
+of links. A link reported by both switches appears once and is marked "both ends"; others are marked "one end
+only", "far end not loaded" or "mismatch". Export it in any format, or as cable labels with one label per end.
+
 The **Not parsed** tab on each device lists the config lines and command output the parser saw but did not use
 (with known noise left out and passwords and keys replaced by `***`). Use it to spot gaps on a new device; the
 **Copy list** button gives you something to paste into a bug report.

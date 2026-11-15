@@ -130,6 +130,8 @@ td.editcell.edited input { border-color: var(--accent); }
 tr.excluded td { opacity: .45; }
 tr.excluded td:first-child { opacity: 1; }
 .edithint { margin: 0 0 10px; }
+.cablebtn { width: 100%; margin-top: 10px; text-align: left; }
+.cablebtn.sel { border-color: var(--accent); background: var(--row); font-weight: 600; }
 .difftable td.before { color: var(--off); }
 .difftable td.after { color: var(--up); }
 .difftable .none { color: var(--muted); font-style: italic; }

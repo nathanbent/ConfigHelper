@@ -541,6 +541,43 @@ test('snapshots and compare', () => {
   assert.equal(NP.restore(NP.backup([d]))[0].snapshots.length, NP.MAX_SNAPSHOTS);
 });
 
+test('cable list across devices', () => {
+  const mk = (host, lines) => NP.ingest(host + '#show running-config\nhostname ' + host + '\n' +
+    lines.map(l => 'interface ' + l[0] + '\n description ' + l[1] + '\n').join('') + '!\n' + host + '#show cdp neighbors detail\n' +
+    lines.filter(l => l[2]).map(l => '-------------------------\nDevice ID: ' + l[2] + '\nEntry address(es):\n  IP address: 10.0.0.9\nPlatform: cisco X,  Capabilities: Switch\n' +
+      'Interface: ' + l[0] + ',  Port ID (outgoing port): ' + l[3] + '\n').join(''), { vendor: 'ios', devices: [] }).dev;
+  const core = mk('CORE-01', [['TenGigabitEthernet1/0/1', 'to access A', 'ACCESS-A.corp.example.com', 'TenGigabitEthernet1/1/1'],
+    ['TenGigabitEthernet1/0/2', 'to access B', 'ACCESS-B', 'Te1/1/1'], ['TenGigabitEthernet1/0/3', 'to firewall', 'FW-EDGE', 'port5']]);
+  const accA = mk('ACCESS-A', [['TenGigabitEthernet1/1/1', 'uplink', 'CORE-01.corp.example.com', 'TenGigabitEthernet1/0/1'],
+    ['GigabitEthernet1/0/5', 'AP', 'AP-LOBBY', 'eth0']]);
+  const accB = mk('ACCESS-B', [['TenGigabitEthernet1/1/1', 'uplink', '', ''], ['TenGigabitEthernet1/1/2', 'wrong', 'CORE-01', 'Te1/0/9']]);
+  const cables = NP.cables([core, accA, accB]);
+  const line = c => [c.id, c.a.host, c.a.port, c.b.host, c.b.port, c.status].join(' ');
+  assert.deepEqual(cables.map(line), [
+    'C001 CORE-01 Te1/0/1 ACCESS-A Te1/1/1 both ends',                 // listed once although both switches report it
+    'C002 CORE-01 Te1/0/2 ACCESS-B Te1/1/1 one end only',              // ACCESS-B has no neighbor on that port
+    'C003 CORE-01 Te1/0/3 FW-EDGE port5 far end not loaded',
+    'C004 ACCESS-A Gi1/0/5 AP-LOBBY eth0 far end not loaded',
+    'C005 ACCESS-B Te1/1/2 CORE-01 Te1/0/9 one end only'               // far port does not exist on CORE-01
+  ]);
+  assert.equal(cables[0].b.desc, 'uplink');
+  assert.match(cables[4].note, /not found on CORE-01/);
+  assert.deepEqual(NP.cableRows(cables)[1].slice(0, 7), ['C001', 'CORE-01', 'Te1/0/1', 'to access A', 'ACCESS-A', 'Te1/1/1', 'uplink']);
+
+  // a disagreement between the two ends is flagged, and both views are kept
+  NP.setEdit(accA, NP.portId('Te1/1/1').key, 'neighborPort', 'Te1/0/2');
+  assert.deepEqual(NP.cables([core, accA]).map(c => c.status).slice(0, 1), ['mismatch']);
+  NP.setEdit(accA, NP.portId('Te1/1/1').key, 'neighborPort', 'TenGigabitEthernet1/0/1');
+  // excluded ports drop out
+  NP.setEdit(accA, NP.portId('Gi1/0/5').key, 'excluded', true);
+  assert.ok(!NP.cables([core, accA, accB]).some(c => c.a.port === 'Gi1/0/5'));
+
+  const lab = NP.cableLabelRows(cables, { lines: ['{a} {aport}', '{b} {bport}', ''], bothEnds: true, loadedOnly: true });
+  assert.deepEqual(lab.slice(0, 3), [['Line1', 'Line2'], ['CORE-01 Te1/0/1', 'ACCESS-A Te1/1/1'], ['ACCESS-A Te1/1/1', 'CORE-01 Te1/0/1']]);
+  assert.equal(lab.length, 1 + 3 * 2);
+  assert.equal(NP.cableLabelRows(cables, { lines: ['{id} {a}>{b}'], maxLen: 12 })[1][0], 'C001 CORE-01');
+});
+
 test('forcing a vendor and unknown input', () => {
   assert.throws(() => NP.ingest('hello world\nnothing here', { devices: [] }), /vendor/);
   assert.throws(() => NP.ingest('hello world', { vendor: 'ios', devices: [] }), /Nothing recognisable/);

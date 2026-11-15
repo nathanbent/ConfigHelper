@@ -9,6 +9,8 @@
     devices: [], current: null, tab: 'ports',
     cols: NP.columns.filter(function (c) { return c.on; }).map(function (c) { return c.id; }),
     search: '', physOnly: false, hideDown: false, sort: null,
+    view: 'device',                      // 'device' or 'cables' (the cross-device cable list)
+    cab: { q: '', loadedOnly: false, fmt: 'csv', lines: ['{a} {aport}', '{b} {bport}', ''], bothEnds: true, maxLen: 0 },
     editing: false, only: null,          // only: {title, keys} = Ports tab limited to the ports of one check
     exp: { fmt: 'csv', cols: 'shown', rows: 'shown', devs: 'device' },
     label: { preset: 'port', per: 'port', lines: NP.labelPresets.port.lines.slice(), scope: 'device',
@@ -95,6 +97,7 @@
     if (r.isNew) state.devices.push(r.dev);
     (r.extra || []).forEach(function (x) { if (x.isNew) state.devices.push(x.dev); });
     state.current = r.dev.id;
+    state.view = 'device';
     return r;
   }
   function parseText(text, name) {
@@ -161,8 +164,8 @@
     ul.replaceChildren();
     if (!state.devices.length) { ul.appendChild(h('li', { class: 'empty', text: 'No devices yet.' })); return; }
     state.devices.forEach(function (d) {
-      ul.appendChild(h('li', { class: d.id === state.current ? 'sel' : '' },
-        h('button', { class: 'pick', onclick: function () { state.current = d.id; state.sort = null; state.only = null; save(); render(); } },
+      ul.appendChild(h('li', { class: d.id === state.current && state.view !== 'cables' ? 'sel' : '' },
+        h('button', { class: 'pick', onclick: function () { state.current = d.id; state.view = 'device'; state.sort = null; state.only = null; save(); render(); } },
           h('b', { text: d.hostname || '(unnamed)' }),
           h('span', { text: NP.vendorLabel(d) + ' · ' + d.ports.length + ' ports' })),
         h('button', { class: 'link', title: 'Remove this device', 'aria-label': 'Remove ' + (d.hostname || 'device'),
@@ -181,6 +184,11 @@
     renderCommands();
     const view = $('view');
     view.replaceChildren();
+    const cb = $('btnCables');
+    cb.hidden = !state.devices.length;
+    cb.textContent = 'Cable list (' + (state.devices.length ? NP.cables(state.devices).length : 0) + ')';
+    cb.className = 'cablebtn' + (state.view === 'cables' ? ' sel' : '');
+    if (state.view === 'cables' && state.devices.length) { cablesView(view); return; }
     const dev = cur();
     if (!dev) {
       view.appendChild(h('section', { class: 'card welcome' },
@@ -270,6 +278,76 @@
             state.tab = 'ports'; state.search = ''; state.physOnly = false; state.hideDown = false; render();
           } }, 'Show these ' + f.ports.length + ' in Ports')) : null));
     });
+  }
+
+  function cablesView(view) {
+    const K = state.cab;
+    const all = NP.cables(state.devices);
+    const q = K.q.trim().toLowerCase();
+    const list = all.filter(function (c) {
+      if (K.loadedOnly && !c.b.dev) return false;
+      return !q || [c.id, c.a.host, c.a.port, c.a.desc, c.b.host, c.b.port, c.b.desc, c.status].join(' ').toLowerCase().includes(q);
+    });
+    const count = function (s) { return all.filter(function (c) { return c.status === s; }).length; };
+    view.appendChild(h('section', { class: 'card' },
+      h('div', { class: 'devhead' }, h('h1', { text: 'Cable list' }),
+        h('span', { class: 'sub', text: all.length + ' link(s) across ' + state.devices.length + ' loaded device(s): ' + count('both ends') + ' seen from both ends, ' +
+          count('one end only') + ' from one end, ' + count('far end not loaded') + ' to devices not loaded' + (count('mismatch') ? ', ' + count('mismatch') + ' mismatched' : '') })),
+      h('p', { class: 'hint', text: 'Built from the CDP/LLDP neighbors of every loaded device. A link reported by both switches is listed once. ' +
+        'Links only appear where neighbor output was loaded; ports you excluded and neighbors you edited on the Ports tab are respected. IDs are assigned in list order and change when devices are added.' })));
+    if (!all.length) {
+      view.appendChild(h('section', { class: 'card' }, h('p', { class: 'empty', text: 'No neighbor data is loaded yet. Paste CDP or LLDP neighbor output for your devices (the "Commands to run" list includes it).' })));
+      return;
+    }
+    const search = h('input', { type: 'search', placeholder: 'Filter cables…', value: K.q, 'aria-label': 'Filter cables',
+      oninput: function (e) {
+        K.q = e.target.value; render();
+        const el = document.querySelector('.toolbar input[type=search]');
+        el.focus(); el.setSelectionRange(el.value.length, el.value.length);
+      } });
+    const rows = function () { return NP.cableRows(list); };
+    view.appendChild(h('section', { class: 'card' },
+      h('div', { class: 'toolbar' }, search,
+        h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: K.loadedOnly, onchange: function (e) { K.loadedOnly = e.target.checked; render(); } }), 'Only links between loaded devices'),
+        h('span', { class: 'count', text: list.length + ' of ' + all.length + ' shown' }), h('span', { class: 'spacer' }),
+        sel(K.fmt, Object.keys(NP.formats).map(function (k) { return [k, NP.formats[k].label]; }), function (v) { K.fmt = v; render(); }, 'Export format'),
+        h('button', { class: 'primary', onclick: function () {
+          const f = NP.formats[K.fmt];
+          download('cable-list.' + f.ext, NP.formatRows(rows(), K.fmt), f.mime);
+        } }, 'Download'),
+        h('button', { onclick: function (e) { copyText(NP.formatRows(rows(), K.fmt).replace(/^\ufeff/, ''), e.target, 'Copy'); } }, 'Copy'),
+        h('button', { onclick: function () { window.print(); } }, 'Print')),
+      list.length ? h('div', { class: 'tablewrap' }, h('table', {},
+        h('thead', {}, h('tr', {}, ['ID', 'Device A', 'Port A', 'Description A', 'Device B', 'Port B', 'Description B', 'Speed', 'Status'].map(function (t) {
+          return h('th', { class: 'nosort', scope: 'col', text: t }); }))),
+        h('tbody', {}, list.map(function (c) {
+          const cls = c.status === 'both ends' ? 'up' : c.status === 'mismatch' ? 'off' : c.status === 'one end only' ? 'warn' : 'down';
+          return h('tr', {}, h('td', { class: 'mono', text: c.id }), h('td', { text: c.a.host }), h('td', { class: 'mono', text: c.a.port }), h('td', { class: 'wrap', text: c.a.desc }),
+            h('td', { text: c.b.host }), h('td', { class: 'mono', text: c.b.port }), h('td', { class: 'wrap', text: c.b.desc }), h('td', { text: c.speed }),
+            h('td', { title: c.note || null }, h('span', { class: 'pill ' + cls, text: c.status }), c.note ? h('div', { class: 'hint', text: c.note }) : null));
+        })))) : h('p', { class: 'empty', text: 'No cables match.' })));
+
+    const lab = NP.cableLabelRows(list, K);
+    const line = function (i) {
+      return h('label', {}, 'Line ' + (i + 1) + (i ? ' (optional)' : ''),
+        h('input', { type: 'text', value: K.lines[i] || '', onchange: function (e) { K.lines[i] = e.target.value; render(); } }));
+    };
+    view.appendChild(h('section', { class: 'card' },
+      h('h2', { text: 'Cable labels' }),
+      h('div', { class: 'labelform' }, line(0), line(1), line(2),
+        h('label', {}, 'Max characters per line (0 = no limit)',
+          h('input', { type: 'text', inputmode: 'numeric', value: String(K.maxLen || 0), onchange: function (e) { K.maxLen = Math.max(0, parseInt(e.target.value, 10) || 0); render(); } }))),
+      h('div', { class: 'opts' },
+        h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: K.bothEnds, onchange: function (e) { K.bothEnds = e.target.checked; render(); } }),
+          'Two labels per cable, one for each end (the second swaps A and B, so each reads "this end, then far end")')),
+      h('p', { class: 'tokens' }, 'Fields: ', Object.keys(NP.cableTokens).map(function (t) { return [h('code', { text: '{' + t + '}' }), ' ']; }),
+        ' The labels follow the filter above.'),
+      h('div', { class: 'toolbar' }, h('span', { class: 'count', text: (lab.length - 1) + ' label(s)' }), h('span', { class: 'spacer' }),
+        h('button', { disabled: lab.length < 2, onclick: function (e) { copyText(NP.csv(lab, '\t'), e.target, 'Copy'); } }, 'Copy'),
+        h('button', { class: 'primary', disabled: lab.length < 2, onclick: function () { download('cable-labels.csv', NP.csv(lab), 'text/csv'); } }, 'Export label file')),
+      lab.length > 1 ? h('div', { class: 'tablewrap' }, h('table', { class: 'labelprev' },
+        h('thead', {}, h('tr', {}, lab[0].map(function (c) { return h('th', { class: 'nosort', scope: 'col', text: c }); }))),
+        h('tbody', {}, lab.slice(1).map(function (r) { return h('tr', {}, r.map(function (c) { return h('td', { class: 'line', text: c }); })); })))) : null));
   }
 
   function compare(view, dev) {
@@ -620,6 +698,7 @@
       renderCommands();
     });
     $('selTarget').addEventListener('change', renderCommands);
+    $('btnCables').addEventListener('click', function () { state.view = 'cables'; render(); });
     $('btnParse').addEventListener('click', function () { parseText($('txtInput').value, 'pasted text'); });
     $('btnFiles').addEventListener('click', function () { $('fileInput').click(); });
     $('fileInput').addEventListener('change', function (e) { readFiles(e.target.files); e.target.value = ''; });
