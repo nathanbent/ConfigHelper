@@ -115,7 +115,10 @@
       sections: {
         'Use it for': ['Spotting gaps on a platform or software version the parser has not met, and collecting them for a bug report.'],
         'Give it': ['Nothing here. The list grows with each paste for this device, and Clear empties it.'],
-        'You get': ['The unused config lines and command output, grouped, with a Copy list button. Passwords and keys are replaced with `***`.'],
+        'You get': [
+          'The unused config lines and command output, grouped, with a Copy list button. Passwords and keys are replaced with `***`.',
+          'Parse debug, at the bottom: how the last paste was split into commands, which rule picked the platform, timings, and which port columns it filled.'
+        ],
         'Limits': [
           'Most of the list is harmless. A line about a port, VLAN or service that matters to you is a gap: the tables do not reflect it.',
           'Known noise such as certificates, banners and console settings is left out, so an empty list does not mean every line was understood in full.',

@@ -36,6 +36,18 @@
       /^hostname \S+/m]
   ];
 
+  // Every platform with a rule that matches, in rule order, each with the pattern that hit. The first
+  // one is what NP.detect returns; more than one means the input was ambiguous (see the Parse debug panel).
+  NP.detectAll = function (text) {
+    const out = [];
+    for (const rule of RULES) {
+      for (let i = 1; i < rule.length; i++) {
+        if (rule[i].test(text)) { out.push({ vendor: rule[0], pattern: String(rule[i]) }); break; }
+      }
+    }
+    return out;
+  };
+
   NP.detect = function (text) {
     for (const rule of RULES) {
       for (let i = 1; i < rule.length; i++) if (rule[i].test(text)) return rule[0];

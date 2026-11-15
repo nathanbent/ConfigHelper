@@ -10,6 +10,7 @@
     delete data.snapshots;
     delete data.edits;                 // snapshots hold what the device said, not manual edits
     delete data.unparsed;
+    delete data.debug;
     dev.snapshots = dev.snapshots || [];
     const snap = { label: label || 'Snapshot ' + (dev.snapshots.length + 1), at: at || new Date().toISOString(), data: data };
     dev.snapshots.push(snap);

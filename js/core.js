@@ -325,31 +325,43 @@
   ].join('|') + ')', 'i');
   const NOISE_CMD = /^(terminal |term |skip-page|no page|screen-length|set cli |config system console|set output|show int$|exit|end$|enable$)/i;
 
+  // -> {seen, noise, added}: distinct lines missed, how many of those were known noise, how many are new on the list
   NP.storeMisses = function (dev, collector) {
+    const n = { seen: 0, noise: 0, added: 0 };
     Object.keys(collector).forEach(function (k) {
       const e = collector[k];
-      if (e.ctx !== 'command' && e.ctx !== 'block' && NOISE.test(e.text)) return;
+      n.seen++;
+      if (e.ctx !== 'command' && e.ctx !== 'block' && NOISE.test(e.text)) { n.noise++; return; }
       const text = NP.redact(e.text);
       const old = dev.unparsed.find(function (x) { return x.ctx === e.ctx && x.text === text; });
       if (old) { old.count = Math.max(old.count, e.count); old.inner = Math.max(old.inner, e.inner); }
-      else dev.unparsed.push({ ctx: e.ctx, text: text, count: e.count, inner: e.inner });
+      else { dev.unparsed.push({ ctx: e.ctx, text: text, count: e.count, inner: e.inner }); n.added++; }
     });
+    return n;
   };
-  // Commands whose whole output changed nothing: parse each prompted section on its own and compare.
-  function unusedCommands(text, vendor) {
-    const print = function (t) {
+  // What each prompted section gives when parsed on its own: [{cmd, lines, used, ports, vlans} | {cmd, lines, noise}].
+  // A section with no command is the text before the first prompt (a bare config, usually).
+  function sectionYield(text, vendor) {
+    const solo = function (t) {
       const d = NP.newDevice(); d.id = '';
       NP.vendors[vendor].parse(t, d);
       delete d.pendingChildren;
-      return JSON.stringify(d);
+      return d;
     };
-    const empty = print('');
+    const empty = JSON.stringify(solo(''));
+    return NP.sections(text).map(function (s) {
+      const lines = s.text.split('\n').filter(function (l) { return l.trim(); }).length;
+      if (s.cmd && NOISE_CMD.test(s.cmd)) return { cmd: s.cmd, lines: lines, noise: true };
+      const d = solo(s.text);
+      return { cmd: s.cmd, lines: lines, used: JSON.stringify(d) !== empty, ports: d.ports.length, vlans: d.vlans.length };
+    });
+  }
+  // Commands whose whole output changed nothing.
+  function unusedCommands(sections) {
     const out = {};
-    NP.sections(text).forEach(function (s) {
-      if (!s.cmd || NOISE_CMD.test(s.cmd)) return;
-      if (print(s.text) !== empty) return;
-      const key = 'command\u0001' + s.cmd;
-      out[key] = { ctx: 'command', text: s.cmd, count: 1, inner: s.text.split('\n').filter(function (l) { return l.trim(); }).length };
+    sections.forEach(function (s) {
+      if (!s.cmd || s.noise || s.used) return;
+      out['command\u0001' + s.cmd] = { ctx: 'command', text: s.cmd, count: 1, inner: s.lines };
     });
     return out;
   }
@@ -458,6 +470,9 @@
   };
 
   // ------------------------------------------------------------------ ingest
+  const now = function () { return typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now(); };
+  const DEBUG_FIELDS = ['description', 'admin', 'link', 'speed', 'duplex', 'media', 'mode', 'untagged', 'tagged', 'voiceVlan', 'lag',
+    'ip', 'poeAdmin', 'poeStatus', 'poeWatts', 'stp', 'stpState', 'neighbor', 'notes'];
   NP.parseInto = function (text, vendor, dev) {
     NP.vendors[vendor].parse(text, dev);
     if (!dev.hostname) {
@@ -470,38 +485,53 @@
   // opts: {vendor:'auto'|id, target:'auto'|'new'|'current', devices:[], current:dev|null, name:''}
   NP.ingest = function (text, opts) {
     opts = opts || {};
+    const ms = {}, t0 = now();
+    let t = t0;
+    const lap = function (k) { const n = now(); ms[k] = Math.round((n - t) * 10) / 10; t = n; };
+    const rawChars = String(text).length;
     const cleaned = NP.clean ? NP.clean(text) : { text: text, notes: [] };
     text = cleaned.text;
+    lap('clean');
     const devices = opts.devices || [];
-    let vendor = opts.vendor && opts.vendor !== 'auto' ? opts.vendor : NP.detect(text);
-    if (!vendor && opts.current) vendor = opts.current.vendor;
+    const byHand = !!(opts.vendor && opts.vendor !== 'auto');
+    let vendor = byHand ? opts.vendor : NP.detect(text);
+    let how = byHand ? 'chosen by hand' : 'auto-detected';
+    if (!vendor && opts.current) { vendor = opts.current.vendor; how = 'not detected; taken from the selected device'; }
+    lap('detect');
     if (!vendor || !NP.vendors[vendor]) {
       throw new Error('Could not tell which vendor this is. Pick one from the list and try again.');
     }
     const probe = NP.parseInto(text, vendor, NP.newDevice());
     delete probe.pendingChildren;
+    lap('probe');
     const found = probe.ports.length || probe.vlans.length || probe.hostname || probe.dns.length ||
       probe.ntp.length || probe.version || probe.model;
     if (!found) {
       throw new Error('Nothing recognisable was found in that input (parsed as ' + NP.vendors[vendor].label + ').');
     }
-    let dev = null;
+    let dev = null, why = '';
     const target = opts.target || 'auto';
-    if (target === 'current') dev = opts.current || null;
+    if (target === 'current') { dev = opts.current || null; why = dev ? 'the selected device, as asked' : 'no device selected'; }
     else if (target === 'auto') {
       if (probe.hostname) {
         dev = devices.find(function (d) { return d.hostname.toLowerCase() === probe.hostname.toLowerCase(); }) || null;
-      } else dev = opts.current || null;
-    }
+        why = dev ? 'hostname matches a loaded device' : 'hostname not loaded yet';
+      } else { dev = opts.current || null; why = dev ? 'no hostname in the input; the selected device' : 'no hostname in the input and no device selected'; }
+    } else why = 'a new device, as asked';
     const isNew = !dev;
     if (isNew) dev = NP.newDevice();
     if (!dev.vendor) dev.vendor = vendor;
+    const was = { vlans: dev.vlans.length, ports: {} };
+    dev.ports.forEach(function (p) { was.ports[p.key] = JSON.stringify(p); });
     NP._collector = {}; NP._lastMiss = null;
     let misses;
     try { NP.parseInto(text, vendor, dev); } finally { misses = NP._collector; NP._collector = null; }
+    lap('parse');
     if (!dev.unparsed) dev.unparsed = [];
-    NP.storeMisses(dev, misses);
-    NP.storeMisses(dev, unusedCommands(text, vendor));
+    const missed = NP.storeMisses(dev, misses);
+    const yields = sectionYield(text, vendor);
+    NP.storeMisses(dev, unusedCommands(yields));
+    lap('sections');
     // A parser may describe further devices found in the same input (FortiLink-managed
     // switches inside a FortiGate config): [{hostname, vendor, apply(dev)}]
     const kids = dev.pendingChildren || [];
@@ -521,7 +551,45 @@
       child.sources.push({ name: 'managed-switch config from ' + (dev.hostname || 'FortiGate'), vendor: vendor, lines: 0 });
       if (!prior) extra.push({ dev: child, isNew: childNew });
     });
-    return { dev: dev, isNew: isNew, vendor: vendor, extra: extra, cleaned: cleaned.notes };
+    lap('finish');
+    ms.total = Math.round((now() - t0) * 10) / 10;
+
+    // What went in, what was worked out and what came out, for this paste only (see NP.debugText).
+    // Holds counts, commands and pattern names; never config values or file names.
+    const added = dev.ports.filter(function (p) { return was.ports[p.key] === undefined; }).length;
+    const changed = dev.ports.filter(function (p) { return was.ports[p.key] !== undefined && was.ports[p.key] !== JSON.stringify(p); }).length;
+    const kinds = {}, filled = {};
+    const phys = dev.ports.filter(function (p) { return p.kind === 'physical'; });
+    dev.ports.forEach(function (p) { kinds[p.kind] = (kinds[p.kind] || 0) + 1; });
+    DEBUG_FIELDS.forEach(function (f) {
+      filled[f] = phys.filter(function (p) { return f === 'admin' ? p.adminUp !== null && p.adminUp !== undefined : p[f] !== '' && p[f] != null; }).length;
+    });
+    const have = {
+      hostname: dev.hostname, model: dev.model, version: dev.version, serial: dev.serial, mgmtIp: dev.mgmtIp, gateway: dev.gateway,
+      domain: dev.domain, dns: dev.dns.length, ntp: dev.ntp.length, syslog: dev.syslog.length, snmp: dev.snmp.versions.length,
+      stpMode: dev.stp.mode, igmpSnooping: dev.multicast.igmpSnooping, other: Object.keys(dev.other || {}).length
+    };
+    dev.debug = {
+      at: new Date().toISOString(), app: NP.version + ' (' + NP.build + ')', source: opts.name && opts.name !== 'pasted text' ? 'file' : 'pasted text', part: opts.part || '',
+      input: {
+        chars: rawChars, lines: text.split('\n').length, cleaned: cleaned.notes,
+        sectionCount: yields.length,
+        sections: yields.slice(0, 60).map(function (s) { return Object.assign({}, s, { cmd: NP.redact(s.cmd) }); })
+      },
+      detect: { vendor: vendor, how: how, matches: NP.detectAll ? NP.detectAll(text) : [] },
+      target: { asked: target, isNew: isNew, why: why },
+      misses: { seen: missed.seen, noise: missed.noise, added: missed.added,
+        unusedCommands: yields.filter(function (s) { return s.cmd && !s.noise && !s.used; }).length },
+      ms: ms,
+      output: {
+        ports: dev.ports.length, portsAdded: added, portsChanged: changed, kinds: kinds,
+        vlans: dev.vlans.length, vlansAdded: dev.vlans.length - was.vlans,
+        physical: phys.length, filled: filled,
+        set: Object.keys(have).filter(function (k) { return have[k]; }), empty: Object.keys(have).filter(function (k) { return !have[k]; }),
+        children: extra.length
+      }
+    };
+    return { dev: dev, isNew: isNew, vendor: vendor, extra: extra, cleaned: cleaned.notes, debug: dev.debug };
   };
 
   // ------------------------------------------------------------- port columns
