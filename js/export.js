@@ -134,7 +134,10 @@
       { cmd: 'show lldp neighbors', gives: 'what is plugged in' },
       { cmd: 'show version', gives: 'model, software version, serial' }] },
     os10: { pager: 'terminal length 0', cmds: [
-      { cmd: 'show running-configuration', gives: CFG }] },
+      { cmd: 'show running-configuration', gives: CFG },
+      { cmd: 'show interface status', gives: 'link state, speed, duplex' },
+      { cmd: 'show lldp neighbors', gives: 'what is plugged in' },
+      { cmd: 'show version', gives: 'model, software version' }] },
     os9: { pager: 'terminal length 0', cmds: [
       { cmd: 'show running-config', gives: CFG },
       { cmd: 'show interfaces status', gives: 'link state, speed, duplex' },

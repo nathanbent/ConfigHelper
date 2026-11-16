@@ -1023,7 +1023,7 @@ test('problem report bundles the sanitized input with what the parser made of it
   assert.match(bad.text, /Platform: not recognised/);
   assert.ok(!bad.text.includes('hunter2'));
   // only platforms checked on real hardware count as verified
-  assert.deepEqual(Object.keys(NP.verified), ['ios', 'junos', 'icx', 'os6']);
+  assert.deepEqual(Object.keys(NP.verified), ['ios', 'junos', 'icx', 'os6', 'os10']);
 });
 
 const bigStack = require('./stack.js');
@@ -1584,4 +1584,59 @@ test('parse debug records the input, what was worked out and the output of the l
   assert.match(NP.debugText(d2), /show clock \| 1 lines \| NOT USED/);
   assert.equal(NP.snapshot(d2, 'x').data.debug, undefined);
   assert.equal(NP.debugText(NP.newDevice()), '');
+});
+
+test('real Dell S4148 core config (OS10 10.5.0.4, sanitized), pasted through a firewall SSH session', () => {
+  const text = fixture('dell-os10-s4148.txt');
+  assert.equal(NP.splitDevices(text).length, 1);               // the jump host's "execute ssh" prompt is not a second device
+  const r = NP.ingest(text, { devices: [] });
+  const d = r.dev;
+  assert.equal(r.vendor, 'os10');
+  assert.deepEqual([d.version, d.gateway, d.dns.length, d.ntp.length, d.multicast.routing], ['10.5.0.4', '10.1.254.2', 1, 1, 'enabled']);
+  assert.ok(d.hostname && !/\s/.test(d.hostname));
+  // "interface breakout ..." lines are port-group settings, not ports
+  assert.equal(d.ports.filter(p => p.kind === 'physical').length, 52);
+  assert.ok(d.ports.every(p => !/breakout/.test(p.name)));
+  assert.equal(d.other['Port breakout'], '1/1/25 100g-1x, 1/1/26 100g-1x, 1/1/29 100g-1x, 1/1/30 100g-1x');
+  assert.deepEqual([port(d, 'ethernet1/1/25').speed, port(d, 'ethernet1/1/11').speed, port(d, 'ethernet1/1/31').speed], ['100G', '10G', '']);
+  // OS10 defines VLANs with "interface vlanN"; the name is vlan-name or the description
+  assert.deepEqual(d.vlans.map(v => v.id), [1, 5, 7, 200, 250, 253, 254, 255, 2255, 2500, 3000, 3008, 3010, 3032, 3240]);
+  assert.deepEqual(d.vlans.filter(v => !v.name).map(v => v.id), [1, 200]);
+  assert.equal(d.vlans.find(v => v.id === 5).name, port(d, 'vlan5').description);
+  assert.deepEqual([port(d, 'vlan5').adminUp, port(d, 'vlan5').ip, port(d, 'vlan3010').ip], [false, '10.3.0.1/12', '']);
+  // trunk: "switchport access vlan" is the untagged VLAN
+  const up = port(d, 'ethernet1/1/23');
+  assert.deepEqual([up.mode, up.untagged, up.tagged], ['trunk', '1', '7,200,250,253-255,2500,3000,3008,3010,3032,3240']);
+  assert.deepEqual([port(d, 'ethernet1/1/22').mode, port(d, 'ethernet1/1/22').untagged], ['access', '254']);
+  assert.equal(d.ports.filter(p => p.mode === 'trunk').length, 23);
+  assert.equal(d.other['Static routes'], '10.5.251.0/24 via 10.1.255.21');
+  assert.equal(d.other['Login authentication'], 'default: local, console: local');
+  assert.ok(!NP.checks(d).some(c => c.id === 'undefvlan' || /not defined/i.test(c.title)));
+  assert.deepEqual(d.unparsed, []);
+});
+
+test('OS10 show output: interface status, LLDP and version merge into the config ports', () => {
+  const text = 'core# show running-configuration\n! Version 10.5.0.4\nhostname core\ninterface ethernet1/1/1\n description "Rack A"\n switchport mode trunk\n!\ninterface ethernet1/1/2\n no shutdown\n!\ninterface ethernet1/1/3\n!\n' +
+    'core# show interface status\n\n' + '-'.repeat(98) + '\nPort            Description     Status   Speed    Duplex   Mode Vlan Tagged-Vlans\n' + '-'.repeat(98) + '\n' +
+    'Eth 1/1/1       Rack A          up       10G      full     T    1    7,200\nEth 1/1/2                       down     0        auto     A    1    -\n' +
+    'core# show lldp neighbors\nLoc PortID          Rem Host Name        Rem Port Id                    Rem Chassis Id\n' + '-'.repeat(88) + '\n' +
+    'ethernet1/1/1       idf-a                Te1/0/1                        00:00:5e:00:53:01\nethernet1/1/2       Not Advertised       00:00:5e:00:53:02              00:00:5e:00:53:02\n' +
+    'core# show version\nDell EMC Networking OS10 Enterprise\nOS Version: 10.5.0.4\nBuild Version: 10.5.0.4.638\nSystem Type: S4148F-ON\nArchitecture: x86_64\n';
+  assert.equal(NP.detect(text), 'os10');
+  const d = NP.ingest(text, { devices: [] }).dev;
+  assert.equal(d.ports.length, 3);
+  assert.deepEqual([d.model, d.version], ['S4148F-ON', '10.5.0.4']);
+  const a = port(d, 'ethernet1/1/1');
+  assert.deepEqual([a.link, a.speed, a.duplex, a.neighbor, a.neighborPort, a.description], ['up', '10G', 'full', 'idf-a', 'Te1/0/1', 'Rack A']);
+  assert.deepEqual([port(d, 'ethernet1/1/2').link, port(d, 'ethernet1/1/2').neighbor], ['down', '00:00:5e:00:53:02']);
+  assert.equal(port(d, 'ethernet1/1/3').link, 'not present');
+  assert.ok(!d.unparsed.some(u => u.ctx === 'command'));
+});
+
+test('sanitize: jump-host prompts are renamed, software versions and SSH targets are not mistaken for hosts and mail', () => {
+  const raw = 'Site-Firewall-9 # execute ssh admin@192.168.7.1\nadmin@192.168.7.1\'s password:\nCORE-A# show running-configuration\n! Version 10.5.0.4\nhostname CORE-A\ninterface ethernet1/1/1\n no shutdown\n!\nsnmp-server contact joe@corp.example\n';
+  const out = NP.sanitize(raw, {}).text;
+  assert.doesNotMatch(out, /Site-Firewall|CORE-A|192\.168|joe@/);
+  assert.match(out, /^! Version 10\.5\.0\.4$/m);
+  assert.match(out, /execute ssh admin@10\.\d+\.7\.1$/m);
 });
