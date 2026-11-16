@@ -20,7 +20,7 @@
     norm: { scope: 'device', pick: {} },  // Normalize tab: this device or all, and what each group is normalized to (not saved)
     label: { preset: 'port', per: 'port', lines: NP.labelPresets.port.lines.slice(), scope: 'device',
       physicalOnly: true, upOnly: false, describedOnly: false, skipDisabled: true,
-      match: '', maxLen: 0, refCols: false, dedupe: false, delim: ',', only: '', snap: '', rules: [], replace: [] }
+      match: '', maxLen: 0, refCols: false, dedupe: false, delim: ',', only: '', snap: '', rules: [], replace: [], overrides: [] }
   };
 
   function h(tag, attrs) {
@@ -885,8 +885,76 @@
         h('button', { type: 'button', onclick: function () { L.replace.push({ find: '', replace: '' }); save(); render(); } }, '+ Add replacement')));
   }
 
+  // Overrides: change what the labels of a range of ports say (Line 2 = "Spare" on Gi1/0/40-48, no label for
+  // Gi1/0/1-4 ...) without editing the ports. Kept with the label settings.
+  let labelPick = { sel: {}, last: -1, field: 'desc', value: '' };   // rows ticked in the label preview
+  const pickKey = function (dev, p) { return (dev.hostname || '') + '\u0001' + p.key; };
+  function overrideEditor(devs) {
+    const L = state.label;
+    const hosts = state.devices.map(function (d) { return d.hostname; }).filter(Boolean)
+      .filter(function (x, i, a) { return a.indexOf(x) === i; });
+    const ovRow = function (o, i) {
+      const upd = function (k) { return function (v) { o[k] = v; save(); render(); }; };
+      const n = String(o.ports || '').trim() ? devs.reduce(function (sum, d) {
+        if (o.host && o.host.toLowerCase() !== String(d.hostname || '').toLowerCase()) return sum;
+        return sum + NP.eports(d).filter(NP.portSpec(o.ports)).length;
+      }, 0) : 0;
+      return h('div', { class: 'rule' },
+        hosts.length > 1 || o.host ? sel(o.host || '', [['', 'Any device']].concat(hosts.map(function (x) { return [x, x]; })),
+          upd('host'), 'Override ' + (i + 1) + ' device') : null,
+        h('input', { type: 'text', value: o.ports || '', placeholder: 'Ports, e.g. Gi1/0/1-24, 48', 'aria-label': 'Override ' + (i + 1) + ' ports',
+          onchange: function (e) { upd('ports')(e.target.value); } }),
+        sel(o.field, NP.labelOverrideFields, upd('field'), 'Override ' + (i + 1) + ' field'),
+        o.field !== 'skip' ? h('span', { text: '=' }) : null,
+        o.field !== 'skip' ? h('input', { type: 'text', value: o.value || '', placeholder: '(empty)', 'aria-label': 'Override ' + (i + 1) + ' value',
+          onchange: function (e) { upd('value')(e.target.value); } }) : null,
+        h('span', { class: 'count', text: n + ' port' + (n === 1 ? '' : 's') }),
+        h('button', { type: 'button', class: 'link', 'aria-label': 'Remove override ' + (i + 1),
+          onclick: function () { L.overrides.splice(i, 1); save(); render(); } }, 'Remove'));
+    };
+    return h('div', { class: 'only' },
+      h('p', { class: 'hint', text: 'Overrides change what the labels say for some ports, without editing the ports: set a field such as {desc} (the lines then use it in its place), a whole line, or leave the ports out. Ports: Gi1/0/1-24, 1/0/1-24, 1-24 (port numbers), or * for all; a value can use fields too, e.g. {desc} (spare). Later overrides win. Tick rows in the preview below (shift-click for a range) to add one quickly.' }),
+      h('div', { class: 'rules' },
+        L.overrides.map(ovRow),
+        h('button', { type: 'button', onclick: function () {
+          L.overrides.push({ host: '', ports: '', field: 'desc', value: '' }); save(); render();
+        } }, '+ Add override')));
+  }
+
   const VLANISH = { untagged: true, tagged: true, voiceVlan: true };
   let labelCaret = { line: 0, pos: null };   // the label line the field buttons write into
+  // "N selected: set [field] to [value]" under the label preview; adds one override per device.
+  function pickBar(rows) {
+    const shown = {};
+    rows.ports.forEach(function (x) { shown[pickKey(x[0], x[1])] = true; });
+    Object.keys(labelPick.sel).forEach(function (k) { if (!shown[k]) delete labelPick.sel[k]; });   // keep only rows still listed
+    const picked = Object.keys(labelPick.sel).map(function (k) { return labelPick.sel[k]; });
+    if (!picked.length) return h('p', { class: 'hint', text: 'Tick labels below (shift-click for a range) to change what they say in one go.' });
+    const apply = function () {
+      const byDev = [];
+      picked.forEach(function (x) {
+        let g = byDev.find(function (b) { return b.dev === x[0]; });
+        if (!g) byDev.push(g = { dev: x[0], ports: [] });
+        g.ports.push(x[1]);
+      });
+      byDev.forEach(function (g) {
+        state.label.overrides.push({ host: g.dev.hostname || '', ports: NP.portSpecText(g.ports), field: labelPick.field,
+          value: labelPick.field === 'skip' ? '' : labelPick.value });
+      });
+      labelPick.sel = {}; labelPick.last = -1;
+      save(); render();
+      msg('Added ' + byDev.length + ' override(s) for ' + picked.length + ' port(s). They are listed under Overrides, where you can change or remove them.', 'ok');
+    };
+    return h('div', { class: 'toolbar pickbar' },
+      h('span', { class: 'count', text: picked.length + ' selected: set' }),
+      sel(labelPick.field, NP.labelOverrideFields, function (v) { labelPick.field = v; render(); }, 'Field to set on the selected labels'),
+      labelPick.field === 'skip' ? null : h('span', { text: 'to' }),
+      labelPick.field === 'skip' ? null : h('input', { type: 'text', value: labelPick.value, placeholder: '(empty)', 'aria-label': 'Value for the selected labels',
+        oninput: function (e) { labelPick.value = e.target.value; },
+        onkeydown: function (e) { if (e.key === 'Enter') { labelPick.value = e.target.value; apply(); } } }),
+      h('button', { class: 'primary', onclick: apply }, 'Apply to ' + picked.length),
+      h('button', { class: 'link', onclick: function () { labelPick.sel = {}; labelPick.last = -1; render(); } }, 'Clear selection'));
+  }
   function labels(view, dev) {
     const L = state.label;
     const tplKey = NP.labelTemplates[L.tpl] ? L.tpl : Object.keys(NP.labelTemplates)[0], tpl = NP.labelTemplates[tplKey];
@@ -1010,6 +1078,8 @@
           L.rules.push({ field: 'untagged', op: 'not', value: '' }); save(); render();
         } }, '+ Add condition')));
     const replaceBox = replaceEditor('The {portid} field also gives the port without its type.');
+    if (!Array.isArray(L.overrides)) L.overrides = [];
+    const overrideBox = perDevice ? null : overrideEditor(devs);
     const head = rows[0];
     const lineCount = (L.lines || []).filter(function (l) { return l && l.trim(); }).length;
     view.appendChild(h('section', { class: 'card' },
@@ -1020,6 +1090,7 @@
         check('Remove duplicate labels', 'dedupe'), check('Add reference columns (device, port, description, VLAN)', 'refCols')),
       perDevice ? null : onlyBox,
       replaceBox,
+      overrideBox,
       h('div', { class: 'tokens' },
         h('p', {}, 'Click a field to add it to ', h('b', { class: 'which', text: 'Line ' + (labelCaret.line + 1) }),
           ' at the cursor (click in a line first to choose it). Hover a field for what it holds.'),
@@ -1049,11 +1120,32 @@
           const name = (L.scope === 'all' ? 'all-devices' : fileSafe(dev.hostname)) + '-labels.' + (L.delim === '\t' ? 'txt' : 'csv');
           download(name, NP.csv(rows, L.delim), L.delim === '\t' ? 'text/plain' : 'text/csv');
         } }, 'Export label file')),
+      perDevice || rows.length < 2 ? null : pickBar(rows),
       rows.length > 1
         ? h('div', { class: 'tablewrap' }, h('table', { class: 'labelprev' },
-            h('thead', {}, h('tr', {}, head.map(function (c) { return h('th', { class: 'nosort', scope: 'col', text: c }); }))),
-            h('tbody', {}, rows.slice(1).map(function (r) {
-              return h('tr', {}, r.map(function (c, i) { return h('td', { class: i < lineCount ? 'line' : '', text: c }); }));
+            h('thead', {}, h('tr', {}, perDevice ? null : h('th', { class: 'nosort pick', scope: 'col' },
+              h('input', { type: 'checkbox', 'aria-label': 'Select all labels', checked: rows.ports.every(function (x) { return labelPick.sel[pickKey(x[0], x[1])]; }),
+                onchange: function (e) {
+                  rows.ports.forEach(function (x) { if (e.target.checked) labelPick.sel[pickKey(x[0], x[1])] = x; else delete labelPick.sel[pickKey(x[0], x[1])]; });
+                  labelPick.last = -1; render();
+                } })),
+              head.map(function (c) { return h('th', { class: 'nosort', scope: 'col', text: c }); }))),
+            h('tbody', {}, rows.slice(1).map(function (r, ri) {
+              const x = rows.ports[ri], k = pickKey(x[0], x[1]);
+              return h('tr', { class: [x[2] ? 'overridden' : '', labelPick.sel[k] ? 'picked' : ''].join(' ').trim() || null,
+                title: x[2] ? 'Changed by an override' : null },
+                perDevice ? null : h('td', { class: 'pick' }, h('input', { type: 'checkbox', checked: !!labelPick.sel[k],
+                  'aria-label': 'Select label for ' + x[1].short, onclick: function (e) {
+                    const on = e.target.checked;
+                    const from = e.shiftKey && labelPick.last >= 0 ? Math.min(labelPick.last, ri) : ri;
+                    const to = e.shiftKey && labelPick.last >= 0 ? Math.max(labelPick.last, ri) : ri;
+                    for (let j = from; j <= to; j++) {
+                      const y = rows.ports[j];
+                      if (on) labelPick.sel[pickKey(y[0], y[1])] = y; else delete labelPick.sel[pickKey(y[0], y[1])];
+                    }
+                    labelPick.last = ri; render();
+                  } })),
+                r.map(function (c, i) { return h('td', { class: i < lineCount ? 'line' : '', text: c }); }));
             }))))
         : h('p', { class: 'empty', text: 'No ports match these options.' }),
       h('p', { class: 'hint', text: 'In P-touch Editor: File > Database > Connect, choose this file, tick "Header row contains field names", then drag the Line fields onto the label and print all records. Or start from a P-touch template (pick one next to Export; each uses Line1 and Line2): open it, connect this file the same way and link its Line1 and Line2 text to the matching fields. Brother\'s phone app (Pro Label Tool) takes the zipped template instead.' })));

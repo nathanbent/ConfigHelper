@@ -309,14 +309,15 @@
   };
 
   // "{a|b}" = first non-empty of a, b.  "[text {a}]" = dropped entirely when a is empty.
-  NP.fillTemplate = function (tpl, dev, p) {
+  // over: optional {field: text} used in place of those fields (see NP.labelOverrider)
+  NP.fillTemplate = function (tpl, dev, p, over) {
     const sub = function (s) {
       let empty = false;
       const out = s.replace(/\{([^}]+)\}/g, function (all, names) {
         let val = '';
         names.split('|').some(function (n) {
-          const f = NP.labelTokens[n.trim().toLowerCase()];
-          val = f ? String(f(dev, p) || '') : '';
+          const k = n.trim().toLowerCase(), f = NP.labelTokens[k];
+          val = over && Object.prototype.hasOwnProperty.call(over, k) ? over[k] : f ? String(f(dev, p) || '') : '';
           return val;
         });
         if (!val) empty = true;
@@ -351,6 +352,93 @@
     };
     fn.errors = errors;
     return fn;
+  };
+
+  // ------------------------------------------------------------ label overrides
+  // Which ports a port list names: "Gi1/0/1-24, Gi1/0/48" (a range on the last number), "1/0/1-12" (without the
+  // type), "ge-0/0/1-ge-0/0/12", "1-24" or "5" (port numbers, physical ports on any unit), "*" (every port).
+  // Case and spaces do not matter. -> fn(port) -> true/false
+  const splitNum = function (s) {
+    const m = /^(.*?)(\d+)$/.exec(s);
+    return m ? { pre: m[1], n: +m[2] } : null;
+  };
+  NP.portSpec = function (spec) {
+    const items = String(spec || '').toLowerCase().replace(/\s+/g, '').split(',').filter(Boolean).map(function (t) {
+      if (t === '*' || t === 'all') return { all: true };
+      const r = /^(.*\D)?(\d+)-(.*\D)?(\d+)$/.exec(t);
+      const strip = function (x) { return String(x || '').replace(/^[^\d]*/, ''); };
+      if (r && (!r[3] || strip(r[3]) === strip(r[1]))) {
+        return { pre: r[1] || '', lo: Math.min(+r[2], +r[4]), hi: Math.max(+r[2], +r[4]) };
+      }
+      const one = splitNum(t);
+      return one ? { pre: one.pre, lo: one.n, hi: one.n } : { name: t };
+    });
+    return function (p) {
+      const names = [p.short, p.name, NP.labelTokens.portid(null, p)].map(function (x) {
+        return String(x || '').toLowerCase().replace(/\s+/g, '');
+      });
+      return items.some(function (it) {
+        if (it.all) return true;
+        if (it.name) return names.includes(it.name);
+        if (!it.pre) {                                       // bare numbers: the port number of a physical port
+          const n = +NP.portNum(p.name);
+          return p.kind === 'physical' && NP.portNum(p.name) !== '' && n >= it.lo && n <= it.hi;
+        }
+        return names.some(function (x) {
+          const s = splitNum(x);
+          return s && s.pre === it.pre && s.n >= it.lo && s.n <= it.hi;
+        });
+      });
+    };
+  };
+  // The other way round: the shortest port list naming exactly these ports, e.g. "Gi1/0/1-12, Gi1/0/14".
+  NP.portSpecText = function (ports) {
+    const groups = [], by = {};
+    ports.slice().sort(NP.comparePorts).forEach(function (p) {
+      const s = splitNum(p.short);
+      if (!s) { groups.push({ text: p.short }); return; }
+      const g = by[s.pre.toLowerCase()] || (by[s.pre.toLowerCase()] = groups[groups.push({ pre: s.pre, nums: [] }) - 1]);
+      g.nums.push(s.n);
+    });
+    return groups.map(function (g) {
+      if (g.text) return g.text;
+      const nums = g.nums.sort(function (a, b) { return a - b; }).filter(function (n, i, a) { return a.indexOf(n) === i; });
+      const out = [];
+      nums.forEach(function (n, i) {
+        if (i && n === nums[i - 1] + 1) out[out.length - 1][1] = n;
+        else out.push([n, n]);
+      });
+      return out.map(function (r) { return g.pre + r[0] + (r[1] > r[0] ? '-' + r[1] : ''); }).join(', ');
+    }).join(', ');
+  };
+
+  // Overrides change what the labels of some ports say, without touching the port data:
+  // [{host ('' = any device), ports (see NP.portSpec), field, value}], applied in order (a later one wins).
+  // field: a port field ('desc', 'vlan', ...; the label lines then use the value in its place), 'line1'..'line3'
+  // (the whole line), or 'skip' (no label for these ports). value may hold fields itself: "{desc} (spare)"
+  // uses the port's own description. -> fn(dev, port) -> null, or {fields: {desc: text}, lines: {0: text}, skip}
+  NP.labelOverrideFields = [['line1', 'Line 1 (whole line)'], ['line2', 'Line 2 (whole line)'], ['line3', 'Line 3 (whole line)'],
+    ['desc', '{desc} Description'], ['vlan', '{vlan} Access / native VLAN'], ['tagged', '{tagged} Tagged VLANs'],
+    ['voice', '{voice} Voice VLAN'], ['mode', '{mode} Mode'], ['neighbor', '{neighbor} Neighbor'], ['nport', '{nport} Neighbor port'],
+    ['port', '{port} Port name'], ['num', '{num} Port number'], ['skip', 'No label for these ports']];
+  NP.labelOverrider = function (list) {
+    const ovs = (list || []).filter(function (o) { return o && o.field && String(o.ports || '').trim(); }).map(function (o) {
+      return { host: String(o.host || '').toLowerCase(), match: NP.portSpec(o.ports), field: o.field, value: String(o.value || '') };
+    });
+    return function (dev, p) {
+      let res = null;
+      ovs.forEach(function (o) {
+        if (o.host && o.host !== String(dev.hostname || '').toLowerCase()) return;
+        if (!o.match(p)) return;
+        res = res || { fields: {}, lines: {}, skip: false };
+        if (o.field === 'skip') { res.skip = true; return; }
+        const text = NP.fillTemplate(o.value, dev, p);
+        const line = /^line(\d)$/.exec(o.field);
+        if (line) res.lines[+line[1] - 1] = text;
+        else res.fields[o.field] = text;
+      });
+      return res;
+    };
   };
 
   // opts: physicalOnly, upOnly, describedOnly, skipDisabled, match ("ap, 1/0/1" = any of these, anywhere in the row),
@@ -453,9 +541,11 @@
   // opts adds: lines:[..], per:'port'|'device', refCols (extra Device/Port/Description/VLAN columns),
   //            maxLen (trim each line to N characters, 0 = no limit), dedupe (drop repeated labels),
   //            only ('odd' | 'edited' | 'snap', see NP.labelOnly) and snap (snapshot index for 'snap'),
-  //            replace ([{find, replace}], see NP.labelReplacer; applied before the character limit)
+  //            replace ([{find, replace}], see NP.labelReplacer; applied before the character limit),
+  //            overrides ([{host, ports, field, value}], see NP.labelOverrider; port labels only. A whole-line
+  //            override is used as written: the replacements do not change it, the character limit does)
   NP.labelRows = function (devs, opts) {
-    const lines = (opts.lines || []).map(function (l, i) { return { tpl: l, name: 'Line' + (i + 1) }; })
+    const lines = (opts.lines || []).map(function (l, i) { return { tpl: l, name: 'Line' + (i + 1), idx: i }; })
       .filter(function (l) { return l.tpl && l.tpl.trim(); });
     const perDevice = opts.per === 'device';
     const ref = opts.refCols ? (perDevice ? ['Device'] : ['Device', 'Port', 'Description', 'VLAN']) : [];
@@ -463,10 +553,16 @@
     const keep = NP.labelFilter(opts);
     const max = +opts.maxLen || 0;
     const edit = NP.labelReplacer(opts.replace);
+    const override = perDevice ? function () { return null; } : NP.labelOverrider(opts.overrides);
     const seen = {};
+    // [dev, port, overridden] behind each label row (not enumerable, so the rows stay a plain table)
+    Object.defineProperty(rows, 'ports', { value: [] });
     const add = function (dev, p) {
+      const ov = override(dev, p);
+      if (ov && ov.skip) return;
       const filled = lines.map(function (l) {
-        const t = edit(NP.fillTemplate(l.tpl, dev, p));
+        const own = ov && Object.prototype.hasOwnProperty.call(ov.lines, l.idx);
+        const t = own ? ov.lines[l.idx] : edit(NP.fillTemplate(l.tpl, dev, p, ov && ov.fields));
         return max > 0 && t.length > max ? t.slice(0, max).trim() : t;
       });
       if (!filled.some(Boolean)) return;
@@ -476,6 +572,7 @@
         seen[k] = true;
       }
       rows.push(filled.concat(!opts.refCols ? [] : perDevice ? [dev.hostname] : [dev.hostname, p.short, p.description, p.untagged]));
+      rows.ports.push([dev, p, !!ov]);
     };
     devs.forEach(function (dev) {
       if (perDevice) add(dev, NP.newPort(''));

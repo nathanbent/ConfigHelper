@@ -201,6 +201,12 @@ details.cols summary.primary { background: var(--accent); border-color: var(--ac
 .only .rule { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .only .rule input[type=text] { min-width: 160px; font-family: var(--mono); font-size: 13px; color: var(--ink); }
 .only .rule input.bad { outline: 2px solid var(--warn); outline-offset: -1px; }
+.labelprev th.pick, .labelprev td.pick { width: 28px; padding-right: 0; }
+.labelprev tr.overridden td.pick + td { box-shadow: inset 3px 0 0 var(--warn); }
+.labelprev tr.picked td { background: var(--head); }
+.pickbar { flex-wrap: wrap; align-items: center; gap: 6px; }
+.pickbar input[type=text] { min-width: 180px; }
+.only .rule .count { color: var(--muted); font-size: 12.5px; }
 .only .rule.off input[type=text] { opacity: .55; }
 .only .rule .grip { cursor: grab; border: 0; background: none; padding: 0 4px; min-height: 0; color: var(--muted); font-size: 16px; line-height: 1; }
 .only .rule.dragging { opacity: .4; }
