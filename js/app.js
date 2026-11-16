@@ -20,7 +20,7 @@
     norm: { scope: 'device', pick: {} },  // Normalize tab: this device or all, and what each group is normalized to (not saved)
     label: { preset: 'port', per: 'port', lines: NP.labelPresets.port.lines.slice(), scope: 'device',
       physicalOnly: true, upOnly: false, describedOnly: false, skipDisabled: true,
-      match: '', maxLen: 0, refCols: false, dedupe: false, delim: ',' }
+      match: '', maxLen: 0, refCols: false, dedupe: false, delim: ',', only: '', snap: '', rules: [] }
   };
 
   function h(tag, attrs) {
@@ -831,6 +831,7 @@
         : h('p', { class: 'empty', text: 'No ports match.' })));
   }
 
+  const VLANISH = { untagged: true, tagged: true, voiceVlan: true };
   let labelCaret = { line: 0, pos: null };   // the label line the field buttons write into
   function labels(view, dev) {
     const L = state.label;
@@ -839,7 +840,7 @@
     const devs = L.scope === 'all' ? state.devices : [dev];
     const lunits = L.scope === 'all' ? [] : NP.units(dev);
     if (state.unit && !lunits.some(function (u) { return u.unit === state.unit; })) state.unit = '';
-    const rows = NP.labelRows(devs, Object.assign({}, L, { unit: L.scope === 'all' ? '' : state.unit }));
+    const rows = NP.labelRows(devs, Object.assign({}, L, { unit: L.scope === 'all' ? '' : state.unit, snap: L.scope === 'all' ? '' : L.snap }));
     const set = function (fn) { return function (e) { fn(e.target); save(); render(); }; };
     const check = function (label, key, disabled) {
       return h('label', { class: 'check' },
@@ -905,6 +906,55 @@
           onchange: set(function (t) { L.maxLen = Math.max(0, parseInt(t.value, 10) || 0); }) })),
       h('label', {}, 'File format',
         sel(L.delim, [[',', 'CSV, comma'], [';', 'CSV, semicolon'], ['\t', 'Tab-separated .txt']], function (v) { L.delim = v; save(); render(); })));
+    // "Print only": narrow the labels to the ports that stand out, and/or to custom conditions on any column.
+    if (!Array.isArray(L.rules)) L.rules = [];
+    const snaps = L.scope === 'all' ? [] : dev.snapshots || [];
+    const onlyOpts = [['', 'Every port that matches the options'], ['odd', 'Ports set up differently from most (mode / VLANs)'],
+      ['edited', 'Ports I edited (Edit or Normalize)']].concat(L.scope === 'all'
+      ? [['snap:', 'Labels changed since each device\'s latest snapshot']]
+      : snaps.length ? snaps.map(function (sn, i) { return ['snap:' + i, 'Labels changed since snapshot "' + sn.label + '"']; }).reverse()
+        : [['snap:', 'Labels changed since a snapshot (none saved yet)']]);
+    const onlyVal = L.only !== 'snap' ? L.only || ''
+      : 'snap:' + (L.scope === 'all' || !snaps.length ? '' : L.snap === '' || L.snap == null || !snaps[+L.snap] ? snaps.length - 1 : L.snap);
+    let onlyNote = '';
+    if (!perDevice && L.only === 'odd') {
+      const base = NP.labelFilter(Object.assign({}, L, { unit: L.scope === 'all' ? '' : state.unit }));
+      onlyNote = devs.map(function (d) {
+        const u = NP.labelUsual(NP.eports(d).filter(base));
+        return u ? (devs.length > 1 ? (d.hostname || 'device') + ': ' : '') + 'Most ports are ' + u.text + ' (' + u.count + ' of ' + u.of +
+          (u.tied ? ', tied with ' + u.tied + ' other setup(s), so this one was picked by name' : '') + ')' : '';
+      }).filter(Boolean).join('; ') + '. Labels are made for the others.';
+    } else if (!perDevice && L.only === 'snap') {
+      const none = devs.filter(function (d) { return !(d.snapshots || []).length; }).length;
+      if (none) onlyNote = (devs.length > 1 ? none + ' device(s) have' : 'This device has') + ' no snapshot, so give no labels. Save one on the Compare tab.';
+      else onlyNote = 'Only ports whose label text differs from the snapshot, or that are new since, get a label.';
+    }
+    const fieldOpts = NP.columns.map(function (c) { return [c.id, c.label]; });
+    const ruleRow = function (r, i) {
+      const upd = function (k) { return function (v) { r[k] = v; save(); render(); }; };
+      const needsValue = r.op !== 'empty' && r.op !== 'set';
+      return h('div', { class: 'rule' },
+        sel(r.field, fieldOpts, upd('field'), 'Condition ' + (i + 1) + ' column'),
+        sel(r.op, NP.labelRuleOps, upd('op'), 'Condition ' + (i + 1) + ' test'),
+        needsValue ? h('input', { type: 'text', value: r.value || '', 'aria-label': 'Condition ' + (i + 1) + ' value',
+          placeholder: VLANISH[r.field] ? 'e.g. 30 or 10,20-25' : 'text (comma = any of)',
+          onchange: function (e) { r.value = e.target.value; save(); render(); } }) : null,
+        h('button', { type: 'button', class: 'link', 'aria-label': 'Remove condition ' + (i + 1),
+          onclick: function () { L.rules.splice(i, 1); save(); render(); } }, 'Remove'));
+    };
+    const onlyBox = h('div', { class: 'only' },
+      h('label', {}, 'Print only',
+        sel(onlyVal, onlyOpts, function (v) {
+          if (v.slice(0, 5) === 'snap:') { L.only = 'snap'; L.snap = v.slice(5); } else { L.only = v; L.snap = ''; }
+          save(); render();
+        }, 'Print only')),
+      onlyNote ? h('p', { class: 'hint', text: onlyNote }) : null,
+      h('div', { class: 'rules' },
+        L.rules.length ? h('p', { class: 'hint', text: 'And only ports where all of these are true:' }) : null,
+        L.rules.map(ruleRow),
+        h('button', { type: 'button', disabled: perDevice, onclick: function () {
+          L.rules.push({ field: 'untagged', op: 'not', value: '' }); save(); render();
+        } }, '+ Add condition')));
     const head = rows[0];
     const lineCount = (L.lines || []).filter(function (l) { return l && l.trim(); }).length;
     view.appendChild(h('section', { class: 'card' },
@@ -913,6 +963,7 @@
         check('Physical ports only', 'physicalOnly', perDevice), check('Link up only', 'upOnly', perDevice),
         check('Only ports with a description or neighbor', 'describedOnly', perDevice), check('Skip disabled ports', 'skipDisabled', perDevice),
         check('Remove duplicate labels', 'dedupe'), check('Add reference columns (device, port, description, VLAN)', 'refCols')),
+      perDevice ? null : onlyBox,
       h('div', { class: 'tokens' },
         h('p', {}, 'Click a field to add it to ', h('b', { class: 'which', text: 'Line ' + (labelCaret.line + 1) }),
           ' at the cursor (click in a line first to choose it). Hover a field for what it holds.'),

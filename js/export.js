@@ -326,8 +326,10 @@
     return sub(withOpt).text.replace(/\s+/g, ' ').trim();
   };
 
-  // opts: physicalOnly, upOnly, describedOnly, skipDisabled, match ("ap, 1/0/1" = any of these, anywhere in the row)
+  // opts: physicalOnly, upOnly, describedOnly, skipDisabled, match ("ap, 1/0/1" = any of these, anywhere in the row),
+  //       rules ([{field, op, value}], all must match; see NP.labelRuleTest)
   NP.labelFilter = function (opts) {
+    const rules = (opts.rules || []).filter(function (r) { return r && r.field && r.op; });
     const terms = String(opts.match || '').toLowerCase().split(',').map(function (t) { return t.trim(); }).filter(Boolean);
     return function (p) {
       if (opts.unit && NP.portUnit(p) !== opts.unit) return false;
@@ -340,12 +342,90 @@
         const hay = [p.name, p.short, p.description, p.neighbor, p.untagged, p.mode, p.lag].join(' ').toLowerCase();
         if (!terms.some(function (t) { return hay.includes(t); })) return false;
       }
+      if (rules.length && !rules.every(function (r) { return NP.labelRuleTest(r, p); })) return false;
       return true;
     };
   };
 
+  // ------------------------------------------------------------ label conditions
+  // Custom conditions on any port column: {field, op, value}. All set conditions must match.
+  // VLAN columns compare as VLAN lists ("tagged contains 30" is true for 10,30-40 but not for 130);
+  // in other columns a comma means "any of" (description contains "ap, printer").
+  NP.labelRuleOps = [['is', 'is'], ['not', 'is not'], ['has', 'contains'], ['lacks', 'does not contain'],
+    ['empty', 'is empty'], ['set', 'is not empty']];
+  const VLAN_COLS = { untagged: true, tagged: true, voiceVlan: true };
+  const vlanList = function (s) { return /^[\d,\-\s]+$/.test(s) ? NP.parseVlanList(s.replace(/\s+/g, '')) : null; };
+  NP.labelRuleTest = function (rule, p) {
+    const c = NP.columns.find(function (x) { return x.id === rule.field; });
+    if (!c || !rule.op) return true;
+    const v = String(c.get(p) == null ? '' : c.get(p)).trim().toLowerCase();
+    if (rule.op === 'empty') return !v;
+    if (rule.op === 'set') return !!v;
+    const want = String(rule.value || '').trim().toLowerCase();
+    if (!want) return true;                                  // half-filled condition: ignored until it has a value
+    const negate = rule.op === 'not' || rule.op === 'lacks';
+    const exact = rule.op === 'is' || rule.op === 'not';
+    let hit;
+    const wl = VLAN_COLS[rule.field] ? vlanList(want) : null, vl = wl ? vlanList(v || '') : null;
+    if (wl && vl) {
+      hit = exact ? wl.length === vl.length && wl.every(function (x) { return vl.includes(x); })
+        : wl.every(function (x) { return vl.includes(x); });
+    } else {
+      const terms = want.split(',').map(function (t) { return t.trim(); }).filter(Boolean);
+      hit = terms.some(function (t) { return exact ? v === t : v.includes(t); });
+    }
+    return negate ? !hit : hit;
+  };
+
+  // ------------------------------------------------------------- print only ...
+  // opts.only narrows the ports further, using the device as a whole:
+  //   'odd'     ports whose VLAN setup (mode, native, tagged, voice) is not the one most ports have
+  //   'edited'  ports with a manual edit (Edit on the Ports tab, or a Normalize correction)
+  //   'snap'    ports whose label text differs from what it was in a snapshot (opts.snap = index, default the
+  //             latest), plus ports that are new since. Devices without a snapshot give no labels.
+  NP.labelOddFields = ['mode', 'untagged', 'tagged', 'voiceVlan'];
+  const setupSig = function (p) { return NP.labelOddFields.map(function (f) { return p[f] || ''; }).join('|'); };
+  // The setup most of these ports share: {sig, text, count, of, tied (other setups with as many ports)}, or null.
+  NP.labelUsual = function (ports) {
+    const n = {};
+    ports.forEach(function (p) { const s = setupSig(p); n[s] = (n[s] || 0) + 1; });
+    const best = Object.keys(n).sort(function (a, b) { return n[b] - n[a] || NP.naturalCompare(a, b); })[0];
+    if (best === undefined) return null;
+    const f = best.split('|');
+    const text = [f[0], f[1] && (f[0] === 'access' ? 'VLAN ' : 'native ') + f[1], f[2] && 'tagged ' + f[2], f[3] && 'voice ' + f[3]]
+      .filter(Boolean).join(', ') || 'no VLAN settings';
+    const tied = Object.keys(n).filter(function (k) { return k !== best && n[k] === n[best]; }).length;
+    return { sig: best, text: text, count: n[best], of: ports.length, tied: tied };
+  };
+  NP.labelSnapshot = function (dev, opts) {
+    const snaps = dev.snapshots || [];
+    const i = opts.snap == null || opts.snap === '' ? snaps.length - 1 : +opts.snap;
+    return snaps[i] || snaps[snaps.length - 1] || null;       // a deleted snapshot falls back to the latest
+  };
+  NP.labelOnly = function (dev, ports, opts, lines) {
+    if (opts.only === 'edited') {
+      return ports.filter(function (p) { return p.edited && Object.keys(p.edited).length; });
+    }
+    if (opts.only === 'odd') {
+      const u = NP.labelUsual(ports);
+      return u ? ports.filter(function (p) { return setupSig(p) !== u.sig; }) : ports;
+    }
+    if (opts.only === 'snap') {
+      const snap = NP.labelSnapshot(dev, opts);
+      if (!snap) return [];
+      const old = {};
+      (snap.data.ports || []).forEach(function (p) { old[p.key] = p; });
+      return ports.filter(function (p) {
+        const o = old[p.key];
+        return !o || lines.some(function (l) { return NP.fillTemplate(l.tpl, dev, p) !== NP.fillTemplate(l.tpl, snap.data, o); });
+      });
+    }
+    return ports;
+  };
+
   // opts adds: lines:[..], per:'port'|'device', refCols (extra Device/Port/Description/VLAN columns),
-  //            maxLen (trim each line to N characters, 0 = no limit), dedupe (drop repeated labels)
+  //            maxLen (trim each line to N characters, 0 = no limit), dedupe (drop repeated labels),
+  //            only ('odd' | 'edited' | 'snap', see NP.labelOnly) and snap (snapshot index for 'snap')
   NP.labelRows = function (devs, opts) {
     const lines = (opts.lines || []).map(function (l, i) { return { tpl: l, name: 'Line' + (i + 1) }; })
       .filter(function (l) { return l.tpl && l.tpl.trim(); });
@@ -370,7 +450,7 @@
     };
     devs.forEach(function (dev) {
       if (perDevice) add(dev, NP.newPort(''));
-      else NP.eports(dev).filter(keep).forEach(function (p) { add(dev, p); });
+      else NP.labelOnly(dev, NP.eports(dev).filter(keep), opts, lines).forEach(function (p) { add(dev, p); });
     });
     return rows;
   };

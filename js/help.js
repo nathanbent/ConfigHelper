@@ -73,7 +73,8 @@
         'Give it': [
           'A label type preset, then up to three lines made of text and fields such as `{host}`, `{port}`, `{desc}` and `{vlan}`.',
           '`{neighbor|desc}` uses the first field that has a value. `[VLAN {vlan}]` is dropped when the field inside is empty. Click a field button to add it to the line you last clicked in.',
-          'The options choose which ports get a label: physical only, up only, described only, a match filter, this device or all of them.'
+          'The options choose which ports get a label: physical only, up only, described only, a match filter, this device or all of them.',
+          'Print only: ports set up unlike most, ports you edited, or labels changed since a snapshot. Conditions filter on any column (`Tagged VLANs contains 30`).'
         ],
         'You get': ['A preview, and a file with the `Line1`, `Line2` and `Line3` columns you filled in. In P-touch Editor, connect it as a database and drag the Line fields onto the layout.'],
         'Limits': [

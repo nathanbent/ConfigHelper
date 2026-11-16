@@ -591,6 +591,33 @@ test('label options: per-device labels, match filter, max length, dedupe', () =>
   assert.deepEqual(dup.slice(1).map(r => r[0]), ['VLAN 10', 'VLAN 99']);
 });
 
+test('label print-only: odd setups, edited ports, changed since a snapshot, custom conditions', () => {
+  const d = run('ios').dev;
+  const L = ['{port}', '{desc}'];
+  const ports = rows => rows.slice(1).map(r => r[0]);
+  // most physical ports are access VLAN 10; the others get labels
+  assert.equal(NP.labelUsual(NP.eports(d).filter(NP.labelFilter({ physicalOnly: true }))).text, 'access, VLAN 10');
+  assert.deepEqual(ports(NP.labelRows([d], { lines: L, physicalOnly: true, only: 'odd' })), ['Gi1/0/1', 'Gi1/0/2', 'Te1/1/1', 'Te1/1/2']);
+  // VLAN columns compare as lists: 30 is in 10,20,30,99 and 30,99 but "3" is in neither
+  assert.deepEqual(ports(NP.labelRows([d], { lines: L, physicalOnly: true, rules: [{ field: 'tagged', op: 'has', value: '30' }] })),
+    ['Gi1/0/2', 'Te1/1/1', 'Te1/1/2']);
+  assert.deepEqual(ports(NP.labelRows([d], { lines: L, physicalOnly: true, rules: [{ field: 'tagged', op: 'has', value: '3' }] })), []);
+  assert.deepEqual(ports(NP.labelRows([d], { lines: L, physicalOnly: true, rules: [{ field: 'tagged', op: 'is', value: '99,30' }] })), ['Gi1/0/2']);
+  // conditions all apply; text columns take "any of"; a condition without a value is ignored
+  assert.deepEqual(ports(NP.labelRows([d], { lines: L, physicalOnly: true, rules: [
+    { field: 'mode', op: 'is', value: 'access' }, { field: 'description', op: 'lacks', value: 'spare, printer' }, { field: 'notes', op: 'is', value: '' }] })),
+    ['Gi1/0/1']);
+  assert.deepEqual(ports(NP.labelRows([d], { lines: L, physicalOnly: true, rules: [{ field: 'voiceVlan', op: 'set' }] })), ['Gi1/0/1']);
+  // since a snapshot: only labels whose text changed
+  assert.deepEqual(ports(NP.labelRows([d], { lines: L, physicalOnly: true, only: 'snap' })), [], 'no snapshot, no labels');
+  NP.snapshot(d, 'before');
+  NP.setEdit(d, NP.findPort(d, 'Gi1/0/2').key, 'description', 'AP-Changed');
+  NP.setEdit(d, NP.findPort(d, 'Gi1/0/3').key, 'untagged', '77');
+  assert.deepEqual(NP.labelRows([d], { lines: L, physicalOnly: true, only: 'snap' }).slice(1), [['Gi1/0/2', 'AP-Changed']]);
+  assert.deepEqual(ports(NP.labelRows([d], { lines: ['{port}', '[VLAN {vlan}]'], physicalOnly: true, only: 'snap' })), ['Gi1/0/3']);
+  assert.deepEqual(ports(NP.labelRows([d], { lines: L, physicalOnly: true, only: 'edited' })), ['Gi1/0/2', 'Gi1/0/3']);
+});
+
 test('export formats and device report', () => {
   const rows = [['Port', 'Description'], ['Gi1/0/1', 'a|b, "c"'], ['Gi1/0/2', '']];
   assert.equal(NP.formatRows(rows, 'csv'), '\ufeffPort,Description\r\nGi1/0/1,"a|b, ""c"""\r\nGi1/0/2,\r\n');

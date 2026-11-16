@@ -149,6 +149,32 @@ test('ui', { skip: chromium ? false : 'Playwright is not installed' }, async (t)
     assert.deepEqual(errors, []);
   });
 
+  await t.test('labels: print only odd setups, custom conditions, changes since a snapshot', async (t) => {
+    const { page, errors } = await open(t);
+    await page.selectOption('#selSample', 'ios');
+    await page.click('#btnParse');
+    await tab(page, 'Labels');
+    const count = async () => (await page.textContent('.toolbar .count')).match(/^(\d+) label/)[1];
+    await page.locator('.opts label', { hasText: 'Skip disabled ports' }).locator('input').uncheck();
+    const all = +(await count());
+    await page.selectOption('select[aria-label="Print only"]', 'odd');
+    assert.match(await page.textContent('.only .hint'), /Most ports are access, VLAN 10/);
+    assert.equal(await count(), '4');
+    await page.selectOption('select[aria-label="Print only"]', '');
+    await page.click('button:has-text("+ Add condition")');
+    await page.selectOption('select[aria-label="Condition 1 column"]', 'tagged');
+    await page.selectOption('select[aria-label="Condition 1 test"]', 'has');
+    await page.fill('input[aria-label="Condition 1 value"]', '30');
+    await page.press('input[aria-label="Condition 1 value"]', 'Tab');
+    assert.equal(await count(), '3');
+    await page.click('button[aria-label="Remove condition 1"]');
+    assert.equal(+(await count()), all);
+    await page.selectOption('select[aria-label="Print only"]', 'snap:');
+    assert.match(await page.textContent('.only .hint'), /no snapshot/);
+    assert.equal(await count(), '0');
+    assert.deepEqual(errors, []);
+  });
+
   await t.test('sanitize and problem report', async (t) => {
     const { page, errors } = await open(t);
     await page.click('#sanBox summary');
