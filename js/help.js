@@ -153,7 +153,7 @@
         'You get': [
           'One row per link. A link reported by both devices appears once, marked "both ends"; the others are marked "one end only", "far end not loaded" or "mismatch".',
           'IP A and IP B are the management addresses the devices advertise in CDP or LLDP detail output. IP B comes from device A\'s neighbor data; IP A is filled in when device B is loaded and reports the link back. Labels can use them as {aip} and {bip}.',
-          'Export the list in any format, or as a label file.'
+          'Export the list in any format, or as a label file. The text replacements and the overrides set on the Labels tab apply to the cable labels too.'
         ],
         'Limits': [
           'Links appear only where neighbor output was loaded, so a link between two devices that do not run CDP or LLDP is missing.',

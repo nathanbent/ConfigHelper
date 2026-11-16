@@ -942,6 +942,23 @@ test('cable list across devices', () => {
   // the text replacements from the Labels tab apply here too, before the character limit
   assert.deepEqual(NP.cableLabelRows(cables, { lines: ['{a} {aport}'], loadedOnly: true, replace: [{ find: 'Te', replace: '' }, { find: '/-0(\\d)/', replace: '$1' }] })[1],
     ['CORE1 1/0/1']);
+  // the Labels tab's overrides reach the cable ends: own description and port, the far end's name and port, no label
+  const devices = [core, accA, accB];
+  const L = ['{a} {aport} {adesc}', '{b} {bport} {bdesc}'];
+  const ov = NP.cableLabelRows(cables, { lines: L, bothEnds: true, devices, overrides: [
+    { host: 'CORE-01', ports: 'Te1/0/1', field: 'desc', value: 'Uplink {num}' },
+    { host: 'ACCESS-A', ports: 'Te1/1/1', field: 'port', value: 'P1' },
+    { host: 'CORE-01', ports: 'Te1/0/3', field: 'neighbor', value: 'FW-NEW' },
+    { host: 'CORE-01', ports: 'Te1/0/3', field: 'nport', value: 'wan1' },
+    { host: 'CORE-01', ports: 'Te1/0/2', field: 'skip' },
+    { host: 'CORE-01', ports: 'Te1/0/1', field: 'line1', value: 'ignored here' },
+    { host: 'CORE-01', ports: 'Te1/0/1', field: 'vlan', value: 'ignored too' }] });
+  assert.deepEqual(ov.slice(1, 6), [
+    ['CORE-01 Te1/0/1 Uplink 1', 'ACCESS-A P1 uplink'], ['ACCESS-A P1 uplink', 'CORE-01 Te1/0/1 Uplink 1'],
+    ['ACCESS-B Te1/1/1 uplink', 'CORE-01 Te1/0/2 to access B'],            // the CORE-01 end of C002 has no label
+    ['CORE-01 Te1/0/3 to firewall', 'FW-NEW wan1'], ['FW-NEW wan1', 'CORE-01 Te1/0/3 to firewall']]);
+  assert.deepEqual(ov.overridden.slice(0, 5), [true, true, false, true, true]);
+  assert.deepEqual(NP.cableLabelRows(cables, { lines: L, devices, overrides: [] }).slice(1), NP.cableLabelRows(cables, { lines: L }).slice(1));
 });
 
 test('sanitize: every sample still parses to the same structure, with nothing identifying left', () => {
@@ -1148,6 +1165,17 @@ test('label templates, CSV and backup round-trip', () => {
   assert.equal(back[0].hostname, d.hostname);
   assert.equal(back[0].ports.length, d.ports.length);
   assert.throws(() => NP.restore('{"x":1}'), /not a ConfigHelper backup/);
+  // label text-replacement presets ride along, and merge by name without overwriting anything
+  const pre = [{ name: 'Dell', list: [{ find: 'Eth', replace: '' }, { find: '/^1/', replace: 'P', off: true }] }];
+  const file = NP.backup([d], { replacePresets: pre.concat([{ name: '', list: [] }, { junk: 1 }]) });
+  assert.deepEqual(NP.restorePresets(file), pre, 'malformed entries are dropped');
+  assert.equal(NP.restore(file).length, 1);
+  assert.ok(!('replacePresets' in JSON.parse(NP.backup([d], { replacePresets: [] }))), 'no presets, no key');
+  assert.deepEqual(NP.restorePresets(NP.backup([d])), []);
+  const mine = [{ name: 'Dell', list: [{ find: 'Gi', replace: '' }] }];
+  assert.deepEqual(NP.mergePresets(mine, NP.restorePresets(file)), { added: 1, renamed: 1, same: 0 });
+  assert.deepEqual(mine.map(p => p.name), ['Dell', 'Dell (imported)']);
+  assert.deepEqual(NP.mergePresets(mine, NP.restorePresets(file)), { added: 0, renamed: 0, same: 1 }, 'importing twice adds nothing');
 });
 
 const icxLab = () => require('fs').readFileSync(require('path').join(__dirname, 'fixtures', 'ruckus-icx7150-lab.txt'), 'utf8');

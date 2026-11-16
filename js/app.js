@@ -20,7 +20,7 @@
     norm: { scope: 'device', pick: {} },  // Normalize tab: this device or all, and what each group is normalized to (not saved)
     label: { preset: 'port', per: 'port', lines: NP.labelPresets.port.lines.slice(), scope: 'device',
       physicalOnly: true, upOnly: false, describedOnly: false, skipDisabled: true,
-      match: '', maxLen: 0, refCols: false, dedupe: false, delim: ',', only: '', snap: '', rules: [], replace: [], overrides: [] }
+      match: '', maxLen: 0, refCols: false, dedupe: false, delim: ',', only: '', snap: '', rules: [], replace: [], replacePresets: [], overrides: [] }
   };
 
   function h(tag, attrs) {
@@ -84,9 +84,11 @@
     try {
       state.saveFailed = false;
       const devJson = JSON.stringify(state.devices);
+      const pre = NP.cleanPresets(state.label.replacePresets);  // presets are in the backup too (none: same fingerprint as before)
+      const fp = devJson + (pre.length ? JSON.stringify(pre) : '');
       let hsh = 2166136261;                              // FNV-1a: a cheap fingerprint to tell "changed since the last backup"
-      for (let i = 0; i < devJson.length; i++) { hsh ^= devJson.charCodeAt(i); hsh = Math.imul(hsh, 16777619); }
-      state.sig = devJson.length + ':' + (hsh >>> 0);
+      for (let i = 0; i < fp.length; i++) { hsh ^= fp.charCodeAt(i); hsh = Math.imul(hsh, 16777619); }
+      state.sig = fp.length + ':' + (hsh >>> 0);
       localStorage.setItem(STORE, '{"devices":' + devJson + ',' + JSON.stringify({ current: state.current, cols: state.cols, label: state.label,
         backupSig: state.backupSig, lastBackup: state.lastBackup }).slice(1));
     } catch (e) {
@@ -541,7 +543,9 @@
             h('td', { title: c.note || null }, h('span', { class: 'pill ' + cls, text: c.status }), c.note ? h('div', { class: 'hint', text: c.note }) : null));
         })))) : h('p', { class: 'empty', text: 'No cables match.' })));
 
-    const lab = NP.cableLabelRows(list, Object.assign({}, K, { replace: state.label.replace }));
+    if (!Array.isArray(state.label.overrides)) state.label.overrides = [];
+    const lab = NP.cableLabelRows(list, Object.assign({}, K, { replace: state.label.replace, overrides: state.label.overrides, devices: state.devices }));
+    const nOver = state.label.overrides.filter(function (o) { return o && o.field && String(o.ports || '').trim(); }).length;
     const line = function (i) {
       return h('label', {}, 'Line ' + (i + 1) + (i ? ' (optional)' : ''),
         h('input', { type: 'text', value: K.lines[i] || '', onchange: function (e) { K.lines[i] = e.target.value; render(); } }));
@@ -557,12 +561,19 @@
       replaceEditor(''),
       h('p', { class: 'tokens' }, 'Fields: ', Object.keys(NP.cableTokens).map(function (t) { return [h('code', { text: '{' + t + '}' }), ' ']; }),
         ' The labels follow the filter above.'),
+      h('p', { class: 'hint' }, nOver
+        ? nOver + ' override(s) from the Labels tab apply here: {desc} and {port} change that end, {neighbor} and {nport} the far end, and "No label" leaves out the labels that start at those ports. Whole-line and VLAN overrides only affect port labels. Changed labels are marked. '
+        : 'Overrides set on the Labels tab ({desc}, {port}, {neighbor}, {nport}, No label) apply here too. ',
+        h('button', { type: 'button', class: 'link', onclick: function () { state.view = 'device'; state.tab = 'labels'; render(); } }, 'Edit overrides')),
       h('div', { class: 'toolbar' }, h('span', { class: 'count', text: (lab.length - 1) + ' label(s)' }), h('span', { class: 'spacer' }),
         h('button', { disabled: lab.length < 2, onclick: function (e) { copyText(NP.csv(lab, '\t'), e.target, 'Copy'); } }, 'Copy'),
         h('button', { class: 'primary', disabled: lab.length < 2, onclick: function () { download('cable-labels.csv', NP.csv(lab), 'text/csv'); } }, 'Export label file')),
       lab.length > 1 ? h('div', { class: 'tablewrap' }, h('table', { class: 'labelprev' },
         h('thead', {}, h('tr', {}, lab[0].map(function (c) { return h('th', { class: 'nosort', scope: 'col', text: c }); }))),
-        h('tbody', {}, lab.slice(1).map(function (r) { return h('tr', {}, r.map(function (c) { return h('td', { class: 'line', text: c }); })); })))) : null));
+        h('tbody', {}, lab.slice(1).map(function (r, i) {
+          return h('tr', { class: lab.overridden[i] ? 'overridden' : null, title: lab.overridden[i] ? 'Changed by an override' : null },
+            r.map(function (c) { return h('td', { class: 'line', text: c }); }));
+        })))) : null));
   }
 
   function compare(view, dev) {
@@ -899,11 +910,47 @@
       return row;
     };
     return h('div', { class: 'only' },
-      h('p', { class: 'hint', text: 'Replace text in every label line, in order: plain text in any case (Eth → nothing turns Eth1/1/1 into 1/1/1), or /pattern/ for a regular expression with $1 for its groups. Untick one to switch it off without losing it; drag ⠿ to change the order. Port labels and cable labels share this list. ' + (extra || '') }),
+      h('p', { class: 'hint', text: 'Replace text in every label line, in order: plain text in any case (Eth → nothing turns Eth1/1/1 into 1/1/1), or /pattern/ for a regular expression with $1 for its groups. Untick one to switch it off without losing it; drag ⠿ to change the order. Save a list as a preset to switch between sets. Port labels and cable labels share this list. ' + (extra || '') }),
       h('div', { class: 'rules' },
         L.replace.map(replaceRow),
         bad.length ? h('p', { class: 'hint warnhint', text: 'Not a valid regular expression, so skipped: ' + bad.join(', ') }) : null,
-        h('button', { type: 'button', onclick: function () { L.replace.push({ find: '', replace: '' }); save(); render(); } }, '+ Add replacement')));
+        h('button', { type: 'button', onclick: function () { L.replace.push({ find: '', replace: '' }); save(); render(); } }, '+ Add replacement')),
+      presetBar());
+  }
+  // Named copies of the replacement list, kept in this browser with the label settings.
+  let replacePick = '';
+  function presetBar() {
+    const L = state.label;
+    if (!Array.isArray(L.replacePresets)) L.replacePresets = [];
+    const P = L.replacePresets;
+    const copy = function (list) { return list.filter(function (r) { return r.find; }).map(function (r) { return Object.assign({}, r); }); };
+    const same = function (a, b) { return JSON.stringify(copy(a)) === JSON.stringify(copy(b)); };
+    if (!P.some(function (p) { return p.name === replacePick; })) replacePick = P.length ? P[0].name : '';
+    const picked = P.find(function (p) { return p.name === replacePick; });
+    return h('div', { class: 'rule presets' },
+      h('span', { class: 'hint', text: 'Presets:' }),
+      P.length ? sel(replacePick, P.map(function (p) { return [p.name, p.name + ' (' + p.list.length + ')']; }),
+        function (v) { replacePick = v; render(); }, 'Replacement preset') : h('span', { class: 'hint', text: 'none saved yet' }),
+      h('button', { type: 'button', disabled: !picked, title: 'Replace the list above with this preset', onclick: function () {
+        if (L.replace.some(function (r) { return r.find; }) && !same(L.replace, picked.list) &&
+          !P.some(function (p) { return same(p.list, L.replace); }) &&
+          !confirm('Replace the current list with "' + picked.name + '"? The current list is not saved as a preset.')) return;
+        L.replace = copy(picked.list); save(); render();
+      } }, 'Load'),
+      h('button', { type: 'button', disabled: !L.replace.some(function (r) { return r.find; }), title: 'Save the list above under a name', onclick: function () {
+        const suggest = picked && same(picked.list, L.replace) ? picked.name : 'Preset ' + (P.length + 1);
+        let name = prompt('Name for this preset', suggest);
+        if (name === null) return;
+        name = name.trim() || suggest;
+        const old = P.find(function (p) { return p.name === name; });
+        if (old && !same(old.list, L.replace) && !confirm('Overwrite the preset "' + name + '"?')) return;
+        if (old) old.list = copy(L.replace); else P.push({ name: name, list: copy(L.replace) });
+        replacePick = name; save(); render();
+      } }, 'Save as preset…'),
+      h('button', { type: 'button', class: 'link', disabled: !picked, onclick: function () {
+        if (!confirm('Delete the preset "' + picked.name + '"?')) return;
+        P.splice(P.indexOf(picked), 1); save(); render();
+      } }, 'Delete preset'));
   }
 
   // Overrides: change what the labels of a range of ports say (Line 2 = "Spare" on Gi1/0/40-48, no label for
@@ -1267,8 +1314,9 @@
       if (e.dataTransfer.files && e.dataTransfer.files.length) { e.preventDefault(); readFiles(e.dataTransfer.files); }
     });
     $('btnBackup').addEventListener('click', function () {
-      if (!state.devices.length) { msg('Nothing to back up yet.', 'err'); return; }
-      download('confighelper-backup-' + new Date().toISOString().slice(0, 10) + '.json', NP.backup(state.devices), 'application/json');
+      if (!state.devices.length && !NP.cleanPresets(state.label.replacePresets).length) { msg('Nothing to back up yet.', 'err'); return; }
+      download('confighelper-backup-' + new Date().toISOString().slice(0, 10) + '.json',
+        NP.backup(state.devices, { replacePresets: state.label.replacePresets }), 'application/json');
       save();                                             // refresh the fingerprint, then record it as backed up
       state.backupSig = state.sig; state.lastBackup = new Date().toISOString();
       save(); render();
@@ -1286,7 +1334,10 @@
             if (i >= 0) state.devices[i] = d; else state.devices.push(d);
           });
           if (devs.length) state.current = devs[0].id;
-          msg('Imported ' + devs.length + ' device(s).', 'ok');
+          if (!Array.isArray(state.label.replacePresets)) state.label.replacePresets = [];
+          const pm = NP.mergePresets(state.label.replacePresets, NP.restorePresets(String(fr.result)));
+          msg('Imported ' + devs.length + ' device(s)' + (pm.added ? ' and ' + pm.added + ' replacement preset(s)' +
+            (pm.renamed ? ' (' + pm.renamed + ' renamed with "(imported)" because a different preset here has that name)' : '') : '') + '.', 'ok');
         } catch (err) { msg(err.message, 'err'); }
         save(); render();
       };

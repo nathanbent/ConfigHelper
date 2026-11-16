@@ -98,22 +98,63 @@
     const opt = String(tpl || '').replace(/\[([^\]]*)\]/g, function (all, inner) { const r = one(inner); return r.empty ? '' : r.text; });
     return one(opt).text.replace(/\s+/g, ' ').trim();
   }
+  // The Labels tab's overrides (see NP.labelOverrider), applied to the cable ends on loaded devices:
+  // {desc} and {port} on a port change that end's description and port, {neighbor} and {nport} change the far
+  // end's device and port (the far end's own overrides win), and "no label" drops the labels that start at that
+  // port. Whole-line overrides and fields cable labels do not have are left to the port labels.
+  // -> fn(cable) -> {cable (a copy with the overrides in), skip: {a, b}, changed} or null when none apply
+  NP.cableOverrider = function (list, devices) {
+    const override = NP.labelOverrider(list);
+    const devs = {}, ports = {};
+    (devices || []).forEach(function (d) { devs[d.id] = d; });
+    const portOf = function (end) {
+      const d = devs[end.dev];
+      if (!d || !end.key) return null;
+      if (!ports[d.id]) { ports[d.id] = {}; NP.eports(d).forEach(function (p) { ports[d.id][p.key] = p; }); }
+      return ports[d.id][end.key] ? [d, ports[d.id][end.key]] : null;
+    };
+    const has = function (o, k) { return Object.prototype.hasOwnProperty.call(o.fields, k); };
+    return function (c) {
+      const pa = portOf(c.a), pb = portOf(c.b);
+      const oa = pa && override(pa[0], pa[1]), ob = pb && override(pb[0], pb[1]);
+      if (!oa && !ob) return null;
+      const a = Object.assign({}, c.a), b = Object.assign({}, c.b);
+      // what each end says about the other first, then each end's own fields over it
+      [[oa, b], [ob, a]].forEach(function (x) {
+        if (!x[0]) return;
+        if (has(x[0], 'neighbor')) x[1].host = x[0].fields.neighbor;
+        if (has(x[0], 'nport')) x[1].port = x[0].fields.nport;
+      });
+      [[oa, a], [ob, b]].forEach(function (x) {
+        if (!x[0]) return;
+        if (has(x[0], 'desc')) x[1].desc = x[0].fields.desc;
+        if (has(x[0], 'port')) x[1].port = x[0].fields.port;
+      });
+      const changed = ['host', 'port', 'desc'].some(function (k) { return a[k] !== c.a[k] || b[k] !== c.b[k]; });
+      return { cable: Object.assign({}, c, { a: a, b: b }), skip: { a: !!(oa && oa.skip), b: !!(ob && ob.skip) }, changed: changed };
+    };
+  };
+
   // opts: lines:[..], bothEnds (a second label per cable with the ends swapped, so each end reads "here -> there"),
-  //       maxLen, loadedOnly, replace ([{find, replace}], see NP.labelReplacer; before the character limit)
+  //       maxLen, loadedOnly, replace ([{find, replace}], see NP.labelReplacer; before the character limit),
+  //       overrides + devices (the Labels tab's overrides and the loaded devices, see NP.cableOverrider)
   NP.cableLabelRows = function (cables, opts) {
     const lines = (opts.lines || []).map(function (l, i) { return { tpl: l, name: 'Line' + (i + 1) }; })
       .filter(function (l) { return l.tpl && l.tpl.trim(); });
     const max = +opts.maxLen || 0;
     const edit = NP.labelReplacer(opts.replace);
+    const over = NP.cableOverrider(opts.overrides, opts.devices);
     const rows = [lines.map(function (l) { return l.name; })];
-    const add = function (c) {
+    Object.defineProperty(rows, 'overridden', { value: [] });   // per label row: changed by an override
+    const add = function (c, changed) {
       const r = lines.map(function (l) { const t = edit(fill(l.tpl, c)); return max > 0 && t.length > max ? t.slice(0, max).trim() : t; });
-      if (r.some(Boolean)) rows.push(r);
+      if (r.some(Boolean)) { rows.push(r); rows.overridden.push(changed); }
     };
     cables.forEach(function (c) {
       if (opts.loadedOnly && !c.b.dev) return;
-      add(c);
-      if (opts.bothEnds) add({ id: c.id, a: c.b, b: c.a, speed: c.speed });
+      const o = over(c), x = o ? o.cable : c, changed = !!(o && o.changed);
+      if (!(o && o.skip.a)) add(x, changed);
+      if (opts.bothEnds && !(o && o.skip.b)) add({ id: x.id, a: x.b, b: x.a, speed: x.speed }, changed);
     });
     return rows;
   };

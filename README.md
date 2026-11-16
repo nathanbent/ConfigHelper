@@ -138,7 +138,10 @@ and link the `Line1`/`Line2` text to the matching fields (the fiber flag already
   matched in any case (`Eth` replaced with nothing turns `Eth1/1/1` into `1/1/1`), or `/pattern/` for a regular
   expression, with `$1` for its groups (`/^Eth(\d+)\/\d+\/(\d+)$/` to `U$1-$2` gives `U1-1`)
   Each replacement has a tick box to switch it off without deleting it, and a ⠿ handle to drag it up or down
-  (or focus the handle and use the arrow keys); order matters. The cable labels (under Cable list) use
+  (or focus the handle and use the arrow keys); order matters. **Save as preset…** keeps the list under a name
+  (in this browser, with the other label settings) so you can **Load** it again or switch between sets. Presets are
+  included in **Export backup**; importing a backup adds them, and one whose name is already taken by a different
+  preset comes in as `name (imported)`, so nothing here is overwritten. The cable labels (under Cable list) use
   the same list and can edit it too.
 - **+ Add override** changes what the labels say for some ports without editing the ports themselves: pick the
   ports, a field and a value. Ports are a list with ranges on the last number: `Gi1/0/1-24, Gi1/0/48`,
@@ -148,7 +151,10 @@ and link the `Line1`/`Line2` text to the matching fields (the fiber flag already
   *No label for these ports*. A value can hold fields itself: `Office {num}` or `{desc} (old)`. Later overrides
   win. To add one quickly, tick rows in the label preview (shift-click ticks a range), choose the field and value
   above the table and press **Apply**; the ports are written as ranges in a new override you can change later.
-  Overridden rows are marked in the preview. Overrides apply to port labels, not device or cable labels.
+  Overridden rows are marked in the preview. Device labels ignore overrides. The cable labels (under Cable list)
+  use them too, on the cable ends that are on loaded devices: `{desc}` and `{port}` change that end's description
+  and port, `{neighbor}` and `{nport}` change the far end's device and port (the far end's own overrides win), and
+  *No label* leaves out the labels that start at those ports. Whole-line and VLAN overrides only affect port labels.
 
 **Print only** narrows the labels to the ports you actually need to (re)print:
 

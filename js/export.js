@@ -706,8 +706,47 @@
   };
 
   // ------------------------------------------------------------------ backup
-  NP.backup = function (devices) {
-    return JSON.stringify({ format: 'confighelper-backup', version: 1, exported: new Date().toISOString(), devices: devices }, null, 1);
+  // extras.replacePresets: the named label text-replacement lists ([{name, list}]), carried when there are any
+  NP.backup = function (devices, extras) {
+    const out = { format: 'confighelper-backup', version: 1, exported: new Date().toISOString(), devices: devices };
+    const pre = NP.cleanPresets(extras && extras.replacePresets);
+    if (pre.length) out.replacePresets = pre;
+    return JSON.stringify(out, null, 1);
+  };
+  // Only well-formed presets: a name and a list of {find, replace, off}. Anything else in the file is dropped.
+  NP.cleanPresets = function (list) {
+    return (Array.isArray(list) ? list : []).filter(function (p) {
+      return p && typeof p.name === 'string' && p.name.trim() && Array.isArray(p.list);
+    }).map(function (p) {
+      return { name: p.name.trim(), list: p.list.filter(function (r) { return r && typeof r.find === 'string' && r.find; }).map(function (r) {
+        const o = { find: r.find, replace: typeof r.replace === 'string' ? r.replace : '' };
+        if (r.off) o.off = true;
+        return o;
+      }) };
+    });
+  };
+  // The presets in a backup file (none for older backups).
+  NP.restorePresets = function (json) {
+    const data = typeof json === 'string' ? JSON.parse(json) : json;
+    return NP.cleanPresets(data && data.replacePresets);
+  };
+  // Add incoming presets to existing ones, by name: an identical one is skipped, a different one with a name
+  // already in use is added as "name (imported)" so nothing saved here is overwritten. -> {added, renamed, same}
+  NP.mergePresets = function (existing, incoming) {
+    const res = { added: 0, renamed: 0, same: 0 };
+    const key = function (p) { return JSON.stringify(p.list); };
+    NP.cleanPresets(incoming).forEach(function (p) {
+      if (existing.some(function (e) { return key(e) === key(p) && (e.name === p.name || e.name.indexOf(p.name + ' (imported') === 0); })) { res.same++; return; }
+      let name = p.name;
+      if (existing.some(function (e) { return e.name === name; })) {
+        name = p.name + ' (imported)';
+        for (let n = 2; existing.some(function (e) { return e.name === name; }); n++) name = p.name + ' (imported ' + n + ')';
+        res.renamed++;
+      }
+      existing.push({ name: name, list: p.list });
+      res.added++;
+    });
+    return res;
   };
   NP.restore = function (json) {
     const data = typeof json === 'string' ? JSON.parse(json) : json;
