@@ -201,3 +201,4 @@ details.cols summary.primary { background: var(--accent); border-color: var(--ac
 .only .rule { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .only .rule input[type=text] { min-width: 160px; font-family: var(--mono); font-size: 13px; color: var(--ink); }
 .only .rule input.bad { outline: 2px solid var(--warn); outline-offset: -1px; }
+.only .rule.off input[type=text] { opacity: .55; }

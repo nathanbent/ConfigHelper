@@ -329,12 +329,12 @@
   };
 
   // ------------------------------------------------------- text replacements
-  // [{find, replace}] applied in order to each filled label line. find is plain text matched in any case, or
+  // [{find, replace, off}] applied in order to each filled label line (off: switched off, skipped). find is plain text matched in any case, or
   // /pattern/flags for a regular expression ($1 in replace for its groups). -> fn(text), with fn.errors listing
   // the finds that are not valid regular expressions (those are skipped).
   NP.labelReplacer = function (list) {
     const errors = [];
-    const steps = (list || []).filter(function (r) { return r && r.find; }).map(function (r) {
+    const steps = (list || []).filter(function (r) { return r && r.find && !r.off; }).map(function (r) {
       const m = /^\/(.+)\/([a-z]*)$/.exec(r.find);
       try {
         const re = m ? new RegExp(m[1], m[2].includes('g') ? m[2] : m[2] + 'g')
