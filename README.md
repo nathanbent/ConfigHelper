@@ -150,7 +150,10 @@ and link the `Line1`/`Line2` text to the matching fields (the fiber flag already
   *No label for these ports*. A value can hold fields itself: `Office {num}` or `{desc} (old)`. Later overrides
   win. To add one quickly, tick rows in the label preview (shift-click ticks a range), choose the field and value
   above the table and press **Apply**; the ports are written as ranges in a new override you can change later.
-  Overridden rows are marked in the preview. Overrides apply to port labels, not device or cable labels.
+  Overridden rows are marked in the preview. Device labels ignore overrides. The cable labels (under Cable list)
+  use them too, on the cable ends that are on loaded devices: `{desc}` and `{port}` change that end's description
+  and port, `{neighbor}` and `{nport}` change the far end's device and port (the far end's own overrides win), and
+  *No label* leaves out the labels that start at those ports. Whole-line and VLAN overrides only affect port labels.
 
 **Print only** narrows the labels to the ports you actually need to (re)print:
 

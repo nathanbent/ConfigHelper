@@ -922,6 +922,23 @@ test('cable list across devices', () => {
   // the text replacements from the Labels tab apply here too, before the character limit
   assert.deepEqual(NP.cableLabelRows(cables, { lines: ['{a} {aport}'], loadedOnly: true, replace: [{ find: 'Te', replace: '' }, { find: '/-0(\\d)/', replace: '$1' }] })[1],
     ['CORE1 1/0/1']);
+  // the Labels tab's overrides reach the cable ends: own description and port, the far end's name and port, no label
+  const devices = [core, accA, accB];
+  const L = ['{a} {aport} {adesc}', '{b} {bport} {bdesc}'];
+  const ov = NP.cableLabelRows(cables, { lines: L, bothEnds: true, devices, overrides: [
+    { host: 'CORE-01', ports: 'Te1/0/1', field: 'desc', value: 'Uplink {num}' },
+    { host: 'ACCESS-A', ports: 'Te1/1/1', field: 'port', value: 'P1' },
+    { host: 'CORE-01', ports: 'Te1/0/3', field: 'neighbor', value: 'FW-NEW' },
+    { host: 'CORE-01', ports: 'Te1/0/3', field: 'nport', value: 'wan1' },
+    { host: 'CORE-01', ports: 'Te1/0/2', field: 'skip' },
+    { host: 'CORE-01', ports: 'Te1/0/1', field: 'line1', value: 'ignored here' },
+    { host: 'CORE-01', ports: 'Te1/0/1', field: 'vlan', value: 'ignored too' }] });
+  assert.deepEqual(ov.slice(1, 6), [
+    ['CORE-01 Te1/0/1 Uplink 1', 'ACCESS-A P1 uplink'], ['ACCESS-A P1 uplink', 'CORE-01 Te1/0/1 Uplink 1'],
+    ['ACCESS-B Te1/1/1 uplink', 'CORE-01 Te1/0/2 to access B'],            // the CORE-01 end of C002 has no label
+    ['CORE-01 Te1/0/3 to firewall', 'FW-NEW wan1'], ['FW-NEW wan1', 'CORE-01 Te1/0/3 to firewall']]);
+  assert.deepEqual(ov.overridden.slice(0, 5), [true, true, false, true, true]);
+  assert.deepEqual(NP.cableLabelRows(cables, { lines: L, devices, overrides: [] }).slice(1), NP.cableLabelRows(cables, { lines: L }).slice(1));
 });
 
 test('sanitize: every sample still parses to the same structure, with nothing identifying left', () => {
