@@ -195,6 +195,22 @@ test('ui', { skip: chromium ? false : 'Playwright is not installed' }, async (t)
     await page.press('input[aria-label="Replacement 1 find"]', 'Tab');
     assert.match(await page.textContent('.only .warnhint'), /Not a valid regular expression/);
     assert.equal(await first(), 'Eth1/1');
+    // order: drag the second row above the first, then move it back with the keyboard
+    await page.fill('input[aria-label="Replacement 1 find"]', 'Eth');
+    await page.press('input[aria-label="Replacement 1 find"]', 'Tab');
+    await page.click('button:has-text("+ Add replacement")');
+    await page.fill('input[aria-label="Replacement 2 find"]', '/^1/');
+    await page.press('input[aria-label="Replacement 2 find"]', 'Tab');
+    await page.fill('input[aria-label="Replacement 2 replace with"]', 'P');
+    await page.press('input[aria-label="Replacement 2 replace with"]', 'Tab');
+    assert.equal(await first(), 'P/1', 'Eth is removed first, then the line starts with 1');
+    await page.dragAndDrop('button[aria-label="Move replacement 2"]', '.only .rule[data-i="0"]');
+    assert.equal(await page.inputValue('input[aria-label="Replacement 1 find"]'), '/^1/');
+    assert.equal(await first(), '1/1', 'now /^1/ runs while the line still starts with Eth');
+    await page.focus('button[aria-label="Move replacement 1"]');
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await page.inputValue('input[aria-label="Replacement 1 find"]'), 'Eth');
+    await page.click('button[aria-label="Remove replacement 2"]');
     await page.click('button[aria-label="Remove replacement 1"]');
     assert.equal(await page.locator('input[aria-label="Replacement 1 find"]').count(), 0);
     // the cable labels use the same list, and can edit it

@@ -136,7 +136,8 @@ and link the `Line1`/`Line2` text to the matching fields (the fiber flag already
 - **+ Add replacement** edits the finished text of every line, in order, before the character limit: plain text
   matched in any case (`Eth` replaced with nothing turns `Eth1/1/1` into `1/1/1`), or `/pattern/` for a regular
   expression, with `$1` for its groups (`/^Eth(\d+)\/\d+\/(\d+)$/` to `U$1-$2` gives `U1-1`)
-  Each replacement has a tick box to switch it off without deleting it. The cable labels (under Cable list) use
+  Each replacement has a tick box to switch it off without deleting it, and a ⠿ handle to drag it up or down
+  (or focus the handle and use the arrow keys); order matters. The cable labels (under Cable list) use
   the same list and can edit it too.
 - **+ Add override** changes what the labels say for some ports without editing the ports themselves: pick the
   ports, a field and a value. Ports are a list with ranges on the last number: `Gi1/0/1-24, Gi1/0/48`,
