@@ -92,6 +92,7 @@
         }
         else if (/^switchport general /.test(l)) NP.addNote(p, l.replace(/^switchport general /, ''));
         else if ((m = l.match(/^(?:switchport )?voice vlan (\d+)/))) c.voice = m[1];
+        else if (/^switchport voice vlan (override-authentication|dscp|priority|auth )/.test(l) || /^(no )?green-mode /.test(l)) { /* voice VLAN tuning, energy saving */ }
         else if ((m = l.match(/^channel-group (\d+)/))) c.lag = 'Po' + m[1];
         else if ((m = l.match(/^ip address (\S+)(?: (\d+\.\d+\.\d+\.\d+))?/))) { if (!c.ip) c.ip = /^\d/.test(m[1]) ? NP.cidr(m[1], m[2]) : m[1]; }
         else if (/^spanning-tree portfast/.test(l)) NP.addFlag(p, 'stp', 'edge');
@@ -145,7 +146,12 @@
       else if (l === 'ip dhcp snooping') NP.addOther(dev, 'DHCP snooping', 'enabled');
       else if ((m = l.match(/^ip dhcp snooping vlan (\S+)/))) NP.addOther(dev, 'DHCP snooping', 'VLAN ' + m[1]);
       else if ((m = l.match(/^clock timezone (.+)/))) dev.other['Time zone'] = m[1];
-      else if (/^voice vlan$/.test(l)) dev.other['Voice VLAN'] = 'enabled';
+      else if (/^(switchport )?voice vlan$/.test(l)) dev.other['Voice VLAN'] = 'enabled';
+      else if ((m = l.match(/^clock summer-time (.+)/))) dev.other['Summer time'] = m[1];
+      else if ((m = l.match(/^classofservice trust (\S+)/))) NP.addOther(dev, 'QoS', 'trust ' + m[1]);
+      else if ((m = l.match(/^classofservice ip-dscp-mapping (\d+) (\d+)/))) NP.addOther(dev, 'QoS', 'DSCP ' + m[1] + ' -> class ' + m[2]);
+      else if ((m = l.match(/^cos-queue strict (.+)/))) NP.addOther(dev, 'QoS', 'strict queue ' + m[1]);
+      else if (/^(logging (buffered|monitor|console|file|persistent|cli-command|web-session)\b|snmp-server engineid )/.test(l)) { /* local log levels, SNMP engine ID */ }
       else if ((m = l.match(/^slot (\S+) \d+\s*(?:!\s*(.+))?$/))) { if (m[2] && !dev.model) dev.model = m[2].replace(/^Dell (EMC )?Networking /, '').trim(); }
       else if (/^(sntp |lldp |line |enable |aaa |application |crypto |banner |no |ip access-list|mac access-list|class-map|policy-map|iscsi |router )/.test(l)) {
         if (/^(line |ip access-list|mac access-list|class-map|policy-map|router |aaa |crypto )/.test(l)) ctx = { type: 'skip' };
@@ -163,7 +169,13 @@
     const PORT = /^(Gi|Te|Tw|Fo|Hu)\d+\/\d+\/\d+$/;
     // show interfaces status (physical rows, then a port-channel section)
     if (/^Port\s+Description\s+Duplex\s+Speed\s+Neg/m.test(text)) {
+      // a long VLAN list wraps onto the next line, under the VLAN column: "(253),1-252," then "254-4093"
+      const rows = [];
       lines.forEach(function (ln) {
+        if (rows.length && /,\s*$/.test(rows[rows.length - 1]) && /^\s{20,}[\d,\-]+\s*$/.test(ln)) rows[rows.length - 1] = rows[rows.length - 1].replace(/\s+$/, '') + ln.trim();
+        else rows.push(ln);
+      });
+      rows.forEach(function (ln) {
         let x = ln.match(/^(\S+)\s+(.*?)\s*\b(Full|Half|N\/A)\s+(\S+)\s+(\S+)\s+(Up|Down)\b(?:\s+\S+(?:\s+\S+)?)?(?:\s+([ATG])\s+(\S.*))?$/);
         if (x && PORT.test(x[1])) {
           const p = NP.port(dev, x[1]);
@@ -176,7 +188,13 @@
             p.mode = { A: 'access', T: 'trunk', G: 'general' }[x[7]];
             const nat = x[8].match(/\((\d+)\)/);
             if (x[7] === 'A' && /^\d+$/.test(x[8].trim())) p.untagged = x[8].trim();
-            else if (nat) { p.untagged = nat[1]; p.tagged = NP.normVlans(x[8].replace(/\(\d+\),?/, '')); }
+            else if (nat) {
+              const list = x[8].replace(/\(\d+\),?/, '');
+              // a trunk shows every VLAN but its native one ("(1),2-4093"): the same as "all" from the config
+              const ids = NP.parseVlanList(list).filter(function (v) { return String(v) !== nat[1]; });
+              p.untagged = nat[1];
+              p.tagged = x[7] === 'T' && ids.length >= 4092 ? 'all' : NP.normVlans(list);
+            }
           }
           return;
         }
@@ -192,7 +210,7 @@
     // show power inline
     if (/^Port\s+Powered Device\s+State/m.test(text) || /^Port\s+.*Power\s*\[?m?W/m.test(text)) {
       lines.forEach(function (ln) {
-        const x = ln.match(/^(\S+)\s+(.*?)\s*\b(Auto|Never|Off|Static)\s+(\S+)\s+(On|Off|Searching|Delivering\S*|Fault\S*|Disabled|Overload|Short|Test|Requesting\S*)\b\s*(?:Class\s?(\d)|Unknown|N\/A)?\s*(\d+)?/i);
+        const x = ln.match(/^(\S+)\s+(.*?)\s*\b(Auto|Never|Off|Static)\s+(\S+)\s+(On|Off|Searching|Delivering\S*|Fault\S*|Disabled|Overload|Short|Test-Fail|Test|Requesting\S*)\b\s*(?:Class\s?(\d)|Unknown|N\/A)?\s*(\d+)?/i);
         if (!x || !PORT.test(x[1])) return;
         const p = NP.port(dev, x[1]);
         p.poeAdmin = /^(never|off)$/i.test(x[3]) ? 'disabled' : x[3].toLowerCase();

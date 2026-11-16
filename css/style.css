@@ -207,3 +207,4 @@ details.cols summary.primary { background: var(--accent); border-color: var(--ac
 .pickbar { flex-wrap: wrap; align-items: center; gap: 6px; }
 .pickbar input[type=text] { min-width: 180px; }
 .only .rule .count { color: var(--muted); font-size: 12.5px; }
+.only .rule.off input[type=text] { opacity: .55; }

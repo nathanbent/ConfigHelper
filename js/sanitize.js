@@ -126,6 +126,8 @@
       if (opts.names) {
         host(before.hostname);
         NP.sections(text).forEach(function (s) { if (s.host) host(s.host); });
+        // prompts of other boxes in the session (a firewall used as the jump host: "fw1 # execute ssh ...")
+        (text.match(/^[A-Za-z][\w.\-]{2,}(?:\([\w\-]+\))? ?[#>](?= ?[a-z]|$)/gm) || []).forEach(function (pr) { host(pr.replace(/(\(.*\))? ?[#>]$/, '')); });
         want(before.domain, 'names', 'dom', true);
         before.ports.forEach(function (p) {
           host(p.neighbor);
@@ -234,7 +236,8 @@
     // LLDP system descriptions are free text written by whoever set up the neighbor
     text = text.replace(/^(System Description:[ \t]*\n)(?!Time remaining)[^\n]+$/gm, '$1removed');
     text = text.replace(/^(\s*\+ System description\s*:\s*).+$/gm, '$1"removed"');
-    text = text.replace(/[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(\.[A-Za-z0-9\-]+)+/g, 'user@example.net');
+    // (user@10.1.1.1 is an SSH target, not a mail address: its address is handled below)
+    text = text.replace(/[A-Za-z0-9._%+\-]+@(?!\d+\.\d+\.\d+\.\d+(?![\w.\-]))[A-Za-z0-9\-]+(\.[A-Za-z0-9\-]+)+/g, 'user@example.net');
 
     // ---------------------------------------------- 3. addresses and serials
     if (opts.addresses) {
@@ -251,8 +254,9 @@
         return h.match(/.{2}/g).join(sep);
       };
       text = text.replace(/\b(?:[0-9A-Fa-f]{4}\.){2}[0-9A-Fa-f]{4}\b|\b(?:[0-9A-Fa-f]{2}[:\-]){5}[0-9A-Fa-f]{2}\b|\b(?:[0-9A-Fa-f]{4}-){2}[0-9A-Fa-f]{4}\b/g, mac);
-      text = text.replace(/(?<![\d.])(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})(?![\d.])/g, function (all, a, b, c, d) {
+      text = text.replace(/(?<![\d.])(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})(?![\d.])/g, function (all, a, b, c, d, at, whole) {
         if ([a, b, c, d].some(function (o) { return +o > 255; })) return all;
+        if (/\bversion\s*:?\s*$/i.test(whole.slice(Math.max(0, at - 24), at))) return all;      // "! Version 10.5.0.4" is software, not a host
         if (+a === 0 || +a === 255 || +a === 127 || +a >= 224) return all;         // masks, wildcards, loopback, multicast
         const k = a + '.' + b;
         if (!nets[k]) { nets[k] = '10.' + (++ni % 256); counts.ips++; }

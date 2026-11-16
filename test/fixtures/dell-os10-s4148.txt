@@ -1,0 +1,496 @@
+H1xxx-xxxxxxxx-xxxx # execute ssh admin@10.1.255.11
+admin@10.1.255.11's password:
+
+H1xxx-xxxxxxxx-xxxx # execute ssh admin@10.1.255.1
+Warning: Permanently added '10.1.255.1' (ECDSA) to the list of known hosts.
+Debian GNU/Linux 9
+
+Dell EMC Networking Operating System (OS10)
+admin@10.1.255.1's password:
+Linux H12-xxxx-xxxxx 4.9.189 #1 SMP Debian 4.9.189-3+deb9u1 x86_64
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+
+
+-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-
+-*         Dell EMC  Network Operating System (OS10)           *-
+-*                                                             *-
+-* Copyright (c) 1999-2019 by Dell Inc. All Rights Reserved.   *-
+-*                                                             *-
+-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-
+
+This product is protected by U.S. and international copyright and
+intellectual property laws. Dell EMC and the Dell EMC logo are
+trademarks of Dell Inc. in the United States and/or other
+jurisdictions. All other marks and names mentioned herein may be
+trademarks of their respective companies.
+
+
+
+
+H12-xxxx-xxxxx#
+H12-xxxx-xxxxx#
+H12-xxxx-xxxxx#
+H12-xxxx-xxxxx# terminal length 0
+H12-xxxx-xxxxx# show running-configuration
+
+! Version 10.5.0.4
+! Last configuration change at Aug  31 16:07:30 2026
+!
+ip vrf default
+!
+logging audit enable
+ip domain-name dom22.xxxxx
+ip name-server 10.2.2.5
+ip multicast-routing
+interface breakout 1/1/25 map 100g-1x
+interface breakout 1/1/26 map 100g-1x
+interface breakout 1/1/29 map 100g-1x
+interface breakout 1/1/30 map 100g-1x
+clock timezone CST -6 0
+hostname H12-xxxx-xxxxx
+iscsi enable
+iscsi target port 860
+iscsi target port 3260
+password-attributes character-restriction min-length 6
+<usernames + passwords removed>
+aaa authentication login default local
+aaa authentication login console local
+!
+class-map type application class-iscsi
+!
+policy-map type application policy-iscsi
+!
+interface vlan1
+ no shutdown
+ ip address 10.2.1.1/12
+!
+interface vlan5
+ vlan-name "D16xxxxx xxxx"
+ shutdown
+ ip address 10.3.0.1/12
+ ip helper-address 10.2.2.5
+!
+interface vlan7
+ description D28-xxxxx
+ no shutdown
+!
+interface vlan200
+ no shutdown
+ ip address 10.1.200.1/24
+ ip helper-address 10.2.2.5
+!
+interface vlan250
+ description D19xxxx-xxxx
+ no shutdown
+ ip address 10.1.250.1/24
+ ip helper-address 10.2.2.5
+!
+interface vlan253
+ description D29x-xxxx
+ no shutdown
+ ip address 10.1.253.1/23
+ ip helper-address 10.2.2.5
+!
+interface vlan254
+ description Firewall
+ no shutdown
+ ip address 10.1.254.1/30
+!
+interface vlan255
+ description D3-6xxx
+ no shutdown
+ ip address 10.1.255.1/24
+ ip helper-address 10.2.2.5
+!
+interface vlan2255
+ description Cameras
+ shutdown
+ ip address 10.4.255.1/26
+!
+interface vlan2500
+ description D11xxxxx-xxxxxx
+ no shutdown
+ ip address 10.5.255.1/24
+ ip helper-address 10.2.2.5
+!
+interface vlan3000
+ description D20x-xxxxxxx
+ no shutdown
+ ip address 10.6.0.1/22
+ ip helper-address 10.2.2.5
+!
+interface vlan3008
+ description D34xxxxx
+ no shutdown
+ ip address 10.6.8.1/24
+ ip helper-address 10.2.2.5
+!
+interface vlan3010
+ description D35xxxxx
+ no shutdown
+!
+interface vlan3032
+ description D21x-xxxxxxx
+ no shutdown
+ ip address 10.6.32.1/20
+ ip helper-address 10.2.2.5
+!
+interface vlan3240
+ description D26x-xxxxx
+ no shutdown
+ ip address 10.6.240.1/20
+ ip helper-address 10.2.2.5
+!
+interface mgmt1/1/1
+ no shutdown
+ ip address dhcp
+ ipv6 address autoconfig
+!
+interface ethernet1/1/1
+ description "D6x/xxx - xxxx x"
+ no shutdown
+ switchport mode trunk
+ switchport access vlan 1
+ switchport trunk allowed vlan 7,200,250,253-255,3000,3008,3032,3240
+ flowcontrol receive on
+!
+interface ethernet1/1/2
+ description "D6x/xxx - xxxx A"
+ no shutdown
+ switchport mode trunk
+ switchport access vlan 1
+ switchport trunk allowed vlan 7,200,250,253-255,3000,3008,3032,3240
+ flowcontrol receive on
+!
+interface ethernet1/1/3
+ description "D30 xxxxx"
+ no shutdown
+ switchport mode trunk
+ switchport access vlan 1
+ switchport trunk allowed vlan 7,200,250,253-255,3000,3008,3032,3240
+ flowcontrol receive on
+!
+interface ethernet1/1/4
+ description "D27xx xxxx"
+ no shutdown
+ switchport mode trunk
+ switchport access vlan 1
+ switchport trunk allowed vlan 7,200,250,253-255,3000,3008,3032,3240
+ flowcontrol receive on
+!
+interface ethernet1/1/5
+ description "D31 xxxxx"
+ no shutdown
+ switchport mode trunk
+ switchport access vlan 1
+ switchport trunk allowed vlan 7,200,250,253-255,3000,3008,3032,3240
+ flowcontrol receive on
+!
+interface ethernet1/1/6
+ description "D13 xxxxxxxxxx"
+ no shutdown
+ switchport mode trunk
+ switchport access vlan 1
+ switchport trunk allowed vlan 7,200,250,253-255,3000,3008,3032,3240
+ flowcontrol receive on
+!
+interface ethernet1/1/7
+ description "D17/xxx xxxxx"
+ no shutdown
+ switchport mode trunk
+ switchport access vlan 1
+ switchport trunk allowed vlan 7,200,250,253-255,3000,3008,3032,3240
+ flowcontrol receive on
+!
+interface ethernet1/1/8
+ description "D8xxx xxxxxxxxxx"
+ no shutdown
+ switchport mode trunk
+ switchport access vlan 1
+ switchport trunk allowed vlan 7,200,250,253-255,3000,3008,3032,3240
+ flowcontrol receive on
+!
+interface ethernet1/1/9
+ description "D3x/xxx - xxxxxxxx"
+ no shutdown
+ switchport mode trunk
+ switchport access vlan 1
+ switchport trunk allowed vlan 7,200,250,253-255,3000,3008,3032,3240
+ flowcontrol receive on
+!
+interface ethernet1/1/10
+ description "D32 xxxxx"
+ no shutdown
+ switchport mode trunk
+ switchport access vlan 1
+ switchport trunk allowed vlan 7,200,250,253-255,3000,3008,3032,3240
+ flowcontrol receive on
+!
+interface ethernet1/1/11
+ description Admin
+ no shutdown
+ switchport mode trunk
+ switchport access vlan 1
+ switchport trunk allowed vlan 7,200,250,253-255,3000,3008,3032,3240
+ speed 10000
+ flowcontrol receive on
+!
+interface ethernet1/1/12
+ description "D9xxxxxxxx xxxxx"
+ no shutdown
+ switchport mode trunk
+ switchport access vlan 1
+ switchport trunk allowed vlan 7,200,250,253-255,3000,3008,3032,3240
+ flowcontrol receive on
+!
+interface ethernet1/1/13
+ description "D3 7xx"
+ no shutdown
+ switchport mode trunk
+ switchport access vlan 1
+ switchport trunk allowed vlan 7,200,250,253-255,3000,3008,3032,3240
+ flowcontrol receive on
+!
+interface ethernet1/1/14
+ description "D5xx. xxxx xxxxxx"
+ no shutdown
+ switchport mode trunk
+ switchport access vlan 1
+ switchport trunk allowed vlan 7,200,250,253-255,3000,3008,3032,3240
+ flowcontrol receive on
+!
+interface ethernet1/1/15
+ description D3-8x
+ no shutdown
+ switchport mode trunk
+ switchport access vlan 1
+ switchport trunk allowed vlan 7,200,250,253-255,3000,3008,3032,3240
+ flowcontrol receive on
+!
+interface ethernet1/1/16
+ description "D33x xxxx"
+ no shutdown
+ switchport mode trunk
+ switchport access vlan 1
+ switchport trunk allowed vlan 7,200,250,253-255,3000,3008,3032,3240
+ flowcontrol receive on
+!
+interface ethernet1/1/17
+ description "D18x xxxxxxxx"
+ no shutdown
+ switchport mode trunk
+ switchport access vlan 1
+ switchport trunk allowed vlan 7,200,250,253-255,3000,3008,3032,3240
+ flowcontrol receive on
+!
+interface ethernet1/1/18
+ description D14xxxxxxxxxxx
+ no shutdown
+ switchport mode trunk
+ switchport access vlan 1
+ switchport trunk allowed vlan 7,200,250,253-255,3000,3008,3032,3240
+ flowcontrol receive on
+!
+interface ethernet1/1/19
+ description "D2 - 3xxx x"
+ no shutdown
+ switchport mode trunk
+ switchport access vlan 1
+ switchport trunk allowed vlan 7,200,250,253-255,3000,3008,3032,3240
+ flowcontrol receive on
+!
+interface ethernet1/1/20
+ description "D2 - 4xxx x"
+ no shutdown
+ switchport mode trunk
+ switchport access vlan 1
+ switchport trunk allowed vlan 7,200,250,253-255,3000,3008,3032,3240
+ flowcontrol receive on
+!
+interface ethernet1/1/21
+ description "D2 - 5xxx x"
+ no shutdown
+ switchport mode trunk
+ switchport access vlan 1
+ switchport trunk allowed vlan 7,200,250,253-255,3000,3008,3032,3240
+ flowcontrol receive on
+!
+interface ethernet1/1/22
+ description D4xxxxxxx-xxxxxxxx
+ no shutdown
+ switchport access vlan 254
+ flowcontrol receive on
+!
+interface ethernet1/1/23
+ description D2xxxxxx-xxxxxxxxxx
+ no shutdown
+ switchport mode trunk
+ switchport access vlan 1
+ switchport trunk allowed vlan 7,200,250,253-255,2500,3000,3008,3010,3032,3240
+ speed 10000
+ flowcontrol receive on
+!
+interface ethernet1/1/24
+ description "D1 - 5xx xxxxx"
+ no shutdown
+ switchport mode trunk
+ switchport access vlan 1
+ switchport trunk allowed vlan 7,200,250,253-255,2500,3000,3008,3032,3240
+ flowcontrol receive on
+!
+interface ethernet1/1/25
+ no shutdown
+ switchport access vlan 1
+ flowcontrol receive on
+!
+interface ethernet1/1/26
+ no shutdown
+ switchport access vlan 1
+ flowcontrol receive on
+!
+interface ethernet1/1/29
+ no shutdown
+ switchport access vlan 1
+ flowcontrol receive on
+!
+interface ethernet1/1/30
+ no shutdown
+ switchport access vlan 1
+ flowcontrol receive on
+!
+interface ethernet1/1/31
+ no shutdown
+ switchport access vlan 1
+ flowcontrol receive on
+!
+interface ethernet1/1/32
+ no shutdown
+ switchport access vlan 1
+ flowcontrol receive on
+!
+interface ethernet1/1/33
+ no shutdown
+ switchport access vlan 1
+ flowcontrol receive on
+!
+interface ethernet1/1/34
+ no shutdown
+ switchport access vlan 1
+ flowcontrol receive on
+!
+interface ethernet1/1/35
+ no shutdown
+ switchport access vlan 1
+ flowcontrol receive on
+!
+interface ethernet1/1/36
+ no shutdown
+ switchport access vlan 1
+ flowcontrol receive on
+!
+interface ethernet1/1/37
+ no shutdown
+ switchport access vlan 1
+ flowcontrol receive on
+!
+interface ethernet1/1/38
+ no shutdown
+ switchport access vlan 1
+ flowcontrol receive on
+!
+interface ethernet1/1/39
+ no shutdown
+ switchport access vlan 1
+ flowcontrol receive on
+!
+interface ethernet1/1/40
+ no shutdown
+ switchport access vlan 1
+ flowcontrol receive on
+!
+interface ethernet1/1/41
+ no shutdown
+ switchport access vlan 1
+ flowcontrol receive on
+!
+interface ethernet1/1/42
+ no shutdown
+ switchport access vlan 1
+ flowcontrol receive on
+!
+interface ethernet1/1/43
+ no shutdown
+ switchport access vlan 1
+ flowcontrol receive on
+!
+interface ethernet1/1/44
+ no shutdown
+ switchport access vlan 1
+ flowcontrol receive on
+!
+interface ethernet1/1/45
+ no shutdown
+ switchport access vlan 1
+ flowcontrol receive on
+!
+interface ethernet1/1/46
+ no shutdown
+ switchport access vlan 1
+ flowcontrol receive on
+!
+interface ethernet1/1/47
+ no shutdown
+ switchport access vlan 1
+ flowcontrol receive on
+!
+interface ethernet1/1/48
+ no shutdown
+ switchport access vlan 1
+ flowcontrol receive on
+!
+interface ethernet1/1/49
+ no shutdown
+ switchport access vlan 1
+ flowcontrol receive on
+!
+interface ethernet1/1/50
+ no shutdown
+ switchport access vlan 1
+ flowcontrol receive on
+!
+interface ethernet1/1/51
+ no shutdown
+ switchport access vlan 1
+ flowcontrol receive on
+!
+interface ethernet1/1/52
+ no shutdown
+ switchport access vlan 1
+ flowcontrol receive on
+!
+interface ethernet1/1/53
+ no shutdown
+ switchport access vlan 1
+ flowcontrol receive on
+!
+interface ethernet1/1/54
+ no shutdown
+ switchport access vlan 1
+ flowcontrol receive on
+!
+ip route 0.0.0.0/0 10.1.254.2
+ip route 10.5.251.0/24 10.1.255.21
+!
+snmp-server community removed ro
+snmp-server contact "L10xxxx xxxxxxx"
+!
+telemetry
+ntp server 10.2.2.5
+H12-xxxx-xxxxx#
+H12-xxxx-xxxxx#

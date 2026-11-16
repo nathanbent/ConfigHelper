@@ -24,6 +24,8 @@
     const cxNoShut = fl === 'aoscx' && /^\s+no shutdown\s*$/m.test(text);
     let ctx = null;
     let stpSeen = false;
+    const routes = [];                           // static routes other than the default
+    const breakouts = [];                        // OS10: [port, mode] from "interface breakout 1/1/25 map 100g-1x"
 
     function finish() {
       if (ctx && ctx.type === 'if') finishIf(ctx.p, ctx.c);
@@ -39,6 +41,11 @@
       if (c.ip) p.ip = c.ip;
       if (c.lag) p.lag = c.lag;
       if (c.voice) p.voiceVlan = c.voice;
+      // OS10 has no "vlan N" blocks: "interface vlanN" is what creates the VLAN, routed or not
+      if (fl === 'os10' && p.kind === 'svi' && /^Vlan\d+$/.test(p.short)) {
+        NP.addVlan(dev, p.short.slice(4), c.vlanName || p.description);
+        if (c.vlanName && !p.description) p.description = c.vlanName;
+      }
       if (!l2) return;
       // LAG members with no VLAN settings of their own inherit from the LAG: leave blank
       if (c.lag && !c.mode && !c.access && !c.native && c.allowed === null) { p.mode = ''; p.untagged = ''; p.tagged = ''; return; }
@@ -76,6 +83,9 @@
       if ((m = l.match(/^interface (.+)$/))) {
         const name = m[1].trim();
         if (/^range /i.test(name)) return;
+        // OS10 port-group settings, not interfaces
+        const bo = name.match(/^breakout (\S+) map (\S+)/);
+        if (bo) { breakouts.push([bo[1], bo[2]]); NP.addOther(dev, 'Port breakout', bo[1] + ' ' + bo[2]); return; }
         ctx = { type: 'if', p: NP.port(dev, name),
           c: { sw: null, mode: '', access: '', native: '', allowed: null, voice: '', shutdown: null, ip: '', lag: '' } };
         return;
@@ -143,9 +153,13 @@
         if (!dev.gateway) dev.gateway = m[1];
         return;
       }
+      if ((m = l.match(/^ip route (?:vrf \S+ )?(\d+\.\d+\.\d+\.\d+)(\/\d+| \d+\.\d+\.\d+\.\d+) (?:interface )?(\S+)/))) {
+        addUnique(routes, (m[2][0] === '/' ? m[1] + m[2] : NP.cidr(m[1], m[2].trim())) + ' via ' + m[3]);
+        return;
+      }
       if (l === 'ip routing') { dev.other['IP routing'] = 'enabled'; return; }
       if ((m = l.match(/^router (\S+)(?: (\S+))?/))) { NP.addOther(dev, 'Routing protocols', m[1] + (m[2] ? ' ' + m[2] : '')); return; }
-      if ((m = l.match(/^vrf (?:definition|context) (\S+)/))) { NP.addOther(dev, 'VRFs', m[1]); return; }
+      if ((m = l.match(/^(?:ip )?vrf (?:definition |context )?(\S+)$/))) { if (m[1] !== 'default') NP.addOther(dev, 'VRFs', m[1]); return; }
 
       // ---- everything else worth a line in the summary
       if ((m = l.match(/^version (\S+)/))) { dev.version = dev.version || m[1]; return; }
@@ -157,6 +171,9 @@
       }
       if (/^line vty/.test(l)) { ctx = { type: 'line' }; return; }
       if (/^aaa new-model/.test(l)) { NP.addOther(dev, 'AAA', 'new-model'); return; }
+      if ((m = l.match(/^aaa authentication login (\S+) (.+)/))) { NP.addOther(dev, 'Login authentication', m[1] + ': ' + m[2]); return; }
+      if (fl === 'os10' && l === 'iscsi enable') { dev.other.iSCSI = 'auto-detect enabled'; return; }
+      if (fl === 'os10' && /^(iscsi target port |password-attributes |logging audit |telemetry$)/.test(l)) return;
       if (/^radius[- ]server/.test(l) || /^aaa group server radius/.test(l)) { NP.addOther(dev, 'AAA', 'RADIUS'); return; }
       if (/^tacacs[- ]server/.test(l) || /^aaa group server tacacs/.test(l)) { NP.addOther(dev, 'AAA', 'TACACS+'); return; }
       if ((m = l.match(/^username (\S+)/))) { NP.addOther(dev, 'Local users', m[1]); return; }
@@ -198,6 +215,7 @@
       }
       const p = ctx.p, c = ctx.c;
       if ((m = l.match(/^description (.+)/))) { p.description = NP.unquote(m[1]); return; }
+      if ((m = l.match(/^vlan-name (.+)/))) { c.vlanName = NP.unquote(m[1]); return; }
       if (l === 'shutdown') { c.shutdown = true; return; }
       if (l === 'no shutdown') { c.shutdown = false; return; }
       if (l === 'no switchport' || l === 'routing') { c.sw = false; return; }
@@ -241,6 +259,12 @@
       }
       if (/^no lldp (transmit|receive)/.test(l)) { NP.addNote(p, 'lldp off'); return; }
       if (/^no cdp enable/.test(l)) { NP.addNote(p, 'cdp off'); return; }
+      if ((m = l.match(/^flowcontrol (receive|transmit) (on|off)/))) {
+        // "receive on" is what OS10 writes on every port once iSCSI auto-detect is enabled
+        if (m[2] === 'on' && !(fl === 'os10' && m[1] === 'receive')) NP.addNote(p, 'flowcontrol ' + m[1]);
+        return;
+      }
+      if (/^ipv6 address (autoconfig|dhcp)/.test(l)) return;
       NP.miss(l, 'interface');
     }
 
@@ -255,6 +279,14 @@
       else NP.missInner();
     });
     finish();
+
+    if (routes.length) dev.other['Static routes'] = routes.slice(0, 8).join(', ') + (routes.length > 8 ? ', +' + (routes.length - 8) + ' more' : '');
+    // a port left whole ("100g-1x") runs at the speed its breakout mode names
+    breakouts.forEach(function (b) {
+      const sp = b[1].match(/^(\d+)g-1x$/i);
+      const p = sp && NP.findPort(dev, 'ethernet' + b[0]);
+      if (p && !p.speed) p.speed = sp[1] + 'G';
+    });
 
     // platform defaults, only where the config was silent
     if (!stp.mode) {
@@ -459,6 +491,41 @@
         if (d && d !== '--' && !p.description) p.description = d;
       }
     });
+
+    // ---- show interface status (OS10): "Eth 1/1/1   desc..   up   10G   full   T   1   7,200"
+    NP.eachTable(text, function (h) { return /^Port\s+Description\s+Status\s+Speed\s+Duplex\s+Mode/.test(h); }, function (ln, header) {
+      const iDesc = header.indexOf('Description'), iStatus = header.indexOf('Status');
+      const name = ln.slice(0, iDesc).replace(/\s+/g, '');
+      const rest = ln.slice(iStatus).trim().split(/\s+/);
+      if (!/^[A-Za-z\-]+\d[\d\/:.]*$/.test(name) || !/^(up|down)$/i.test(rest[0] || '')) return;
+      const p = NP.port(dev, name);
+      dev.statusLoaded = true;
+      const d = ln.slice(iDesc, iStatus).trim();
+      if (d && !p.description && !/\.\.$/.test(d)) p.description = d;      // ".." marks a cut-off description
+      p.link = rest[0].toLowerCase();
+      if (p.adminUp === null) p.adminUp = true;
+      if (p.link === 'up') {
+        if (rest[1] && rest[1] !== '0') p.speed = NP.fmtSpeed(rest[1]);
+        if (rest[2] && rest[2] !== 'auto') p.duplex = NP.fmtDuplex(rest[2]);
+      }
+    });
+
+    // ---- show lldp neighbors (OS10)
+    NP.eachTable(text, function (h) { return /^\s*Loc PortID\s+Rem Host Name\s+Rem Port Id/.test(h); }, function (ln, header) {
+      const iHost = header.indexOf('Rem Host Name'), iPort = header.indexOf('Rem Port Id'), iCh = header.indexOf('Rem Chassis Id');
+      const local = ln.slice(0, iHost).trim();
+      if (!/^[A-Za-z\-]+\s?\d[\d\/:.]*$/.test(local)) return;
+      const host = ln.slice(iHost, iPort).trim(), pid = ln.slice(iPort, iCh < 0 ? undefined : iCh).trim();
+      const p = NP.port(dev, local.replace(/\s+/g, ''));
+      p.neighbor = host && host !== '-' && !/^not advertised$/i.test(host) ? host : (iCh < 0 ? '' : ln.slice(iCh).trim());
+      p.neighborPort = pid;
+    });
+
+    // ---- show version (OS10)
+    if (fl === 'os10' && (m = text.match(/^OS Version:\s*(\S+)/m))) {
+      dev.version = m[1];
+      if ((m = text.match(/^System Type:\s*(\S+)/m))) dev.model = m[1];
+    }
 
     // ---- show vlan [brief]
     NP.eachTable(text, function (h) { return /^VLAN\s+Name\s+Status\s+Ports/.test(h); }, function (ln) {

@@ -186,6 +186,11 @@ test('ui', { skip: chromium ? false : 'Playwright is not installed' }, async (t)
     await page.fill('input[aria-label="Replacement 1 find"]', 'Eth');
     await page.press('input[aria-label="Replacement 1 find"]', 'Tab');
     assert.equal(await first(), '1/1');
+    await page.uncheck('input[aria-label="Use replacement 1"]');
+    assert.equal(await first(), 'Eth1/1');
+    assert.equal(await page.inputValue('input[aria-label="Replacement 1 find"]'), 'Eth', 'kept while switched off');
+    await page.check('input[aria-label="Use replacement 1"]');
+    assert.equal(await first(), '1/1');
     await page.fill('input[aria-label="Replacement 1 find"]', '/(/');
     await page.press('input[aria-label="Replacement 1 find"]', 'Tab');
     assert.match(await page.textContent('.only .warnhint'), /Not a valid regular expression/);
