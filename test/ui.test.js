@@ -175,6 +175,26 @@ test('ui', { skip: chromium ? false : 'Playwright is not installed' }, async (t)
     assert.deepEqual(errors, []);
   });
 
+  await t.test('labels: find and replace in the label text', async (t) => {
+    const { page, errors } = await open(t);
+    await page.selectOption('#selSample', 'nxos');
+    await page.click('#btnParse');
+    await tab(page, 'Labels');
+    const first = () => page.locator('.labelprev tbody tr').first().locator('td').first().textContent();
+    assert.equal(await first(), 'Eth1/1');
+    await page.click('button:has-text("+ Add replacement")');
+    await page.fill('input[aria-label="Replacement 1 find"]', 'Eth');
+    await page.press('input[aria-label="Replacement 1 find"]', 'Tab');
+    assert.equal(await first(), '1/1');
+    await page.fill('input[aria-label="Replacement 1 find"]', '/(/');
+    await page.press('input[aria-label="Replacement 1 find"]', 'Tab');
+    assert.match(await page.textContent('.only .warnhint'), /Not a valid regular expression/);
+    assert.equal(await first(), 'Eth1/1');
+    await page.click('button[aria-label="Remove replacement 1"]');
+    assert.equal(await page.locator('input[aria-label="Replacement 1 find"]').count(), 0);
+    assert.deepEqual(errors, []);
+  });
+
   await t.test('sanitize and problem report', async (t) => {
     const { page, errors } = await open(t);
     await page.click('#sanBox summary');

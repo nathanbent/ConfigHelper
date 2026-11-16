@@ -618,6 +618,22 @@ test('label print-only: odd setups, edited ports, changed since a snapshot, cust
   assert.deepEqual(ports(NP.labelRows([d], { lines: L, physicalOnly: true, only: 'edited' })), ['Gi1/0/2', 'Gi1/0/3']);
 });
 
+test('label text: {portid} and find-and-replace', () => {
+  const d = run('nxos').dev;
+  const rows = NP.labelRows([d], { lines: ['{port}', '{portid}'], physicalOnly: true });
+  assert.deepEqual(rows[1], ['Eth1/1', '1/1']);
+  // plain text in any case, applied in order; regular expressions with groups; then the character limit
+  const r = NP.labelRows([d], { lines: ['{port} {desc}'], physicalOnly: true, maxLen: 6, replace: [{ find: 'eth', replace: '' }] });
+  assert.equal(r[1][0], '1/1 ' + d.ports.find(p => p.short === 'Eth1/1').description.slice(0, 2).trim());
+  const re = NP.labelReplacer([{ find: '/^Eth(\\d+)\\/(\\d+)$/', replace: 'S$1 P$2' }, { find: 'a.b', replace: '$1' }]);
+  assert.equal(re('Eth1/49'), 'S1 P49');
+  assert.equal(re('xA.By aXb'), 'x$1y aXb', 'plain finds are literal, and so is $ in their replacement');
+  const broken = NP.labelReplacer([{ find: '/[/', replace: '' }, { find: 'Gi', replace: '' }]);
+  assert.deepEqual(broken.errors, ['/[/']);
+  assert.equal(broken('Gi1/0/1'), '1/0/1');
+  assert.equal(NP.labelTokens.portid(null, { short: 'ge-0/0/3' }), '0/0/3');
+});
+
 test('export formats and device report', () => {
   const rows = [['Port', 'Description'], ['Gi1/0/1', 'a|b, "c"'], ['Gi1/0/2', '']];
   assert.equal(NP.formatRows(rows, 'csv'), '\ufeffPort,Description\r\nGi1/0/1,"a|b, ""c"""\r\nGi1/0/2,\r\n');

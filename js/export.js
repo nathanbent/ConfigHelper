@@ -257,6 +257,7 @@
     host: function (d) { return d.hostname; },
     port: function (d, p) { return p.short; },
     portfull: function (d, p) { return p.name; },
+    portid: function (d, p) { return String(p.short || '').replace(/^[^\d]*/, ''); },
     num: function (d, p) { return NP.portNum(p.name); },
     desc: function (d, p) { return p.description; },
     vlan: function (d, p) { return p.untagged; },
@@ -279,6 +280,7 @@
   // what each field holds, shown when hovering a field button on the Labels tab
   NP.labelTokenHelp = {
     host: 'Device hostname', port: 'Short port name (Gi1/0/1)', portfull: 'Full port name (GigabitEthernet1/0/1)',
+    portid: 'Port without its type prefix (Eth1/1/1 -> 1/1/1)',
     num: 'Port number only (1)', desc: 'Port description', vlan: 'Access or native (untagged) VLAN',
     tagged: 'Tagged (trunk) VLANs', voice: 'Voice VLAN', mode: 'access, trunk, routed ...', neighbor: 'CDP/LLDP neighbor name',
     nport: 'Neighbor port', ninfo: 'Neighbor platform / details', ip: 'Port IP address', lag: 'Port-channel / LAG',
@@ -324,6 +326,28 @@
       return r.empty ? '' : r.text;
     });
     return sub(withOpt).text.replace(/\s+/g, ' ').trim();
+  };
+
+  // ------------------------------------------------------- text replacements
+  // [{find, replace}] applied in order to each filled label line. find is plain text matched in any case, or
+  // /pattern/flags for a regular expression ($1 in replace for its groups). -> fn(text), with fn.errors listing
+  // the finds that are not valid regular expressions (those are skipped).
+  NP.labelReplacer = function (list) {
+    const errors = [];
+    const steps = (list || []).filter(function (r) { return r && r.find; }).map(function (r) {
+      const m = /^\/(.+)\/([a-z]*)$/.exec(r.find);
+      try {
+        const re = m ? new RegExp(m[1], m[2].includes('g') ? m[2] : m[2] + 'g')
+          : new RegExp(r.find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+        return { re: re, to: m ? String(r.replace || '') : String(r.replace || '').replace(/\$/g, '$$$$') };
+      } catch (e) { errors.push(r.find); return null; }
+    }).filter(Boolean);
+    const fn = function (text) {
+      if (!steps.length) return text;
+      return steps.reduce(function (t, x) { return t.replace(x.re, x.to); }, text).replace(/\s+/g, ' ').trim();
+    };
+    fn.errors = errors;
+    return fn;
   };
 
   // opts: physicalOnly, upOnly, describedOnly, skipDisabled, match ("ap, 1/0/1" = any of these, anywhere in the row),
@@ -425,7 +449,8 @@
 
   // opts adds: lines:[..], per:'port'|'device', refCols (extra Device/Port/Description/VLAN columns),
   //            maxLen (trim each line to N characters, 0 = no limit), dedupe (drop repeated labels),
-  //            only ('odd' | 'edited' | 'snap', see NP.labelOnly) and snap (snapshot index for 'snap')
+  //            only ('odd' | 'edited' | 'snap', see NP.labelOnly) and snap (snapshot index for 'snap'),
+  //            replace ([{find, replace}], see NP.labelReplacer; applied before the character limit)
   NP.labelRows = function (devs, opts) {
     const lines = (opts.lines || []).map(function (l, i) { return { tpl: l, name: 'Line' + (i + 1) }; })
       .filter(function (l) { return l.tpl && l.tpl.trim(); });
@@ -434,10 +459,11 @@
     const rows = [lines.map(function (l) { return l.name; }).concat(ref)];
     const keep = NP.labelFilter(opts);
     const max = +opts.maxLen || 0;
+    const edit = NP.labelReplacer(opts.replace);
     const seen = {};
     const add = function (dev, p) {
       const filled = lines.map(function (l) {
-        const t = NP.fillTemplate(l.tpl, dev, p);
+        const t = edit(NP.fillTemplate(l.tpl, dev, p));
         return max > 0 && t.length > max ? t.slice(0, max).trim() : t;
       });
       if (!filled.some(Boolean)) return;
