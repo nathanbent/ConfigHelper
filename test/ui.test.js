@@ -180,7 +180,7 @@ test('ui', { skip: chromium ? false : 'Playwright is not installed' }, async (t)
     await page.selectOption('#selSample', 'nxos');
     await page.click('#btnParse');
     await tab(page, 'Labels');
-    const first = () => page.locator('.labelprev tbody tr').first().locator('td').first().textContent();
+    const first = () => page.locator('.labelprev tbody tr').first().locator('td.line').first().textContent();
     assert.equal(await first(), 'Eth1/1');
     await page.click('button:has-text("+ Add replacement")');
     await page.fill('input[aria-label="Replacement 1 find"]', 'Eth');
@@ -204,6 +204,35 @@ test('ui', { skip: chromium ? false : 'Playwright is not installed' }, async (t)
     await page.click('.devices .pick >> nth=0');
     await tab(page, 'Labels');
     assert.equal(await page.inputValue('input[aria-label="Replacement 1 find"]'), 'Gi');
+    assert.deepEqual(errors, []);
+  });
+
+  await t.test('labels: overrides, typed and from ticked rows', async (t) => {
+    const { page, errors } = await open(t);
+    await page.selectOption('#selSample', 'ios');
+    await page.click('#btnParse');
+    await tab(page, 'Labels');
+    await page.check('.opts label:has-text("Physical ports only") input');
+    const lines = () => page.locator('.labelprev tbody tr').evaluateAll(r => r.map(x => [...x.querySelectorAll('td.line')].map(c => c.textContent).join(' | ')));
+    assert.deepEqual((await lines()).slice(0, 2), ['Gi1/0/1 | Reception PC + phone', 'Gi1/0/2 | AP-Lobby']);
+    // tick the first row, shift-tick the third: three rows selected
+    await page.click('input[aria-label="Select label for Gi1/0/1"]');
+    await page.click('input[aria-label="Select label for Gi1/0/3"]', { modifiers: ['Shift'] });
+    assert.match(await page.textContent('.pickbar .count'), /^3 selected/);
+    await page.selectOption('select[aria-label="Field to set on the selected labels"]', 'desc');
+    await page.fill('input[aria-label="Value for the selected labels"]', 'Office {num}');
+    await page.click('.pickbar button:has-text("Apply to 3")');
+    assert.equal(await page.inputValue('input[aria-label="Override 1 ports"]'), 'Gi1/0/1-3');
+    assert.deepEqual((await lines()).slice(0, 4), ['Gi1/0/1 | Office 1', 'Gi1/0/2 | Office 2', 'Gi1/0/3 | Office 3', 'Te1/1/1 | CORE-01 Te1/0/1']);
+    assert.equal(await page.locator('.labelprev tr.overridden').count(), 3);
+    // typed: leave out the uplinks
+    await page.click('button:has-text("+ Add override")');
+    await page.selectOption('select[aria-label="Override 2 field"]', 'skip');
+    await page.fill('input[aria-label="Override 2 ports"]', 'Te1/1/1-2');
+    await page.press('input[aria-label="Override 2 ports"]', 'Tab');
+    assert.ok(!(await lines()).some(l => /^Te/.test(l)));
+    await page.click('button[aria-label="Remove override 1"]');
+    assert.equal((await lines())[0], 'Gi1/0/1 | Reception PC + phone');
     assert.deepEqual(errors, []);
   });
 

@@ -137,6 +137,15 @@ and link the `Line1`/`Line2` text to the matching fields (the fiber flag already
   matched in any case (`Eth` replaced with nothing turns `Eth1/1/1` into `1/1/1`), or `/pattern/` for a regular
   expression, with `$1` for its groups (`/^Eth(\d+)\/\d+\/(\d+)$/` to `U$1-$2` gives `U1-1`)
   The cable labels (under Cable list) use the same list and can edit it too.
+- **+ Add override** changes what the labels say for some ports without editing the ports themselves: pick the
+  ports, a field and a value. Ports are a list with ranges on the last number: `Gi1/0/1-24, Gi1/0/48`,
+  `1/0/1-24` (without the type), `1-24` (port numbers, on any unit) or `*` for every port; a device can be
+  chosen when several are loaded. The field is one the lines use (`{desc}` = `Spare` makes `[<{desc}>]` read
+  `<Spare>`), a whole line (used as written: the replacements do not change it, the character limit does), or
+  *No label for these ports*. A value can hold fields itself: `Office {num}` or `{desc} (old)`. Later overrides
+  win. To add one quickly, tick rows in the label preview (shift-click ticks a range), choose the field and value
+  above the table and press **Apply**; the ports are written as ranges in a new override you can change later.
+  Overridden rows are marked in the preview. Overrides apply to port labels, not device or cable labels.
 
 **Print only** narrows the labels to the ports you actually need to (re)print:
 

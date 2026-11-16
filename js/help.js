@@ -72,13 +72,14 @@
         'Use it for': ['Printing port, patch panel, cable or asset labels without retyping the port sheet.'],
         'Give it': [
           'A label type preset, then up to three lines made of text and fields such as `{host}`, `{port}`, `{desc}` and `{vlan}`.',
-          '`{neighbor|desc}` uses the first field that has a value. `[VLAN {vlan}]` is dropped when the field inside is empty. Click a field button to add it to the line you last clicked in. Replacements edit the finished text (`Eth` to nothing).',
-          'The options choose which ports get a label: physical only, up only, described only, a match filter, this device or all of them.',
-          'Print only: ports set up unlike most, edited ports, or labels changed since a snapshot. Conditions filter any column.'
+          '`{neighbor|desc}` uses the first field with a value. `[VLAN {vlan}]` is dropped when the field inside is empty. Replacements edit the finished text (`Eth` to nothing).',
+          'The options choose which ports get a label: physical, up, described, matching, this device or all.',
+          'Print only: ports set up unlike most, edited ports, or labels changed since a snapshot. Conditions filter any column.',
+          'Overrides set a field or line for some ports (`{desc}` = `Office {num}` on `Gi1/0/1-24`) or skip them. Tick preview rows (shift-click: range) to add one.'
         ],
         'You get': ['A preview, and a file with the `Line1`, `Line2` and `Line3` columns you filled in. In P-touch Editor, connect it as a database and drag the Line fields onto the layout.'],
         'Limits': [
-          'Ports unticked in Edit on the Ports tab get no label. The character limit cuts a line; it does not shrink the text.',
+          'Ports unticked in Edit get no label. The character limit cuts a line, not shrinks it.',
           'The file has no byte-order mark. Keep label text to plain ASCII if P-touch Editor shows odd characters.'
         ],
         'More': ['[Labels and P-touch Editor](' + REPO + '#labels-and-p-touch-editor)']

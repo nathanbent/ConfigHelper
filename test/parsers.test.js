@@ -634,6 +634,35 @@ test('label text: {portid} and find-and-replace', () => {
   assert.equal(NP.labelTokens.portid(null, { short: 'ge-0/0/3' }), '0/0/3');
 });
 
+test('label overrides: port lists, fields, whole lines, no label', () => {
+  const d = run('ios').dev;
+  const pick = spec => NP.eports(d).filter(NP.portSpec(spec)).map(p => p.short);
+  assert.deepEqual(pick('Gi1/0/1-3'), ['Gi1/0/1', 'Gi1/0/2', 'Gi1/0/3']);
+  assert.deepEqual(pick('gigabitethernet1/0/3 - 2, te1/1/2'), ['Gi1/0/2', 'Gi1/0/3', 'Te1/1/2']);
+  assert.deepEqual(pick('1/1/1-2'), ['Te1/1/1', 'Te1/1/2'], 'without the type');
+  assert.deepEqual(pick('4'), ['Gi1/0/4'], 'a bare number is the port number of a physical port');
+  assert.equal(pick('*').length, NP.eports(d).length);
+  const j = { short: 'ge-0/0/3', name: 'ge-0/0/3', kind: 'physical' };
+  assert.deepEqual(['ge-0/0/1-ge-0/0/5', 'ge-0/0/1-5', 'ge-0/0/4-5', '0/0/3'].map(s => NP.portSpec(s)(j)), [true, true, false, true]);
+  assert.equal(NP.portSpecText(NP.eports(d).filter(NP.portSpec('Gi1/0/1, Gi1/0/2, Gi1/0/4, Te1/1/1, Te1/1/2'))), 'Gi1/0/1-2, Gi1/0/4, Te1/1/1-2');
+
+  const L = ['{port}', '[<{desc}>]', '', '[VLAN {vlan}]'];
+  const rows = NP.labelRows([d], { lines: L, physicalOnly: true, replace: [{ find: 'Gi', replace: 'G' }], overrides: [
+    { ports: 'Gi1/0/1-3', field: 'desc', value: 'Office {num}' },
+    { ports: '3', field: 'desc', value: '' },                         // later wins; empty drops the [..] part
+    { ports: 'Te1/1/1', field: 'line4', value: 'UPLINK Gi' },         // whole line: no replacements
+    { ports: 'Gi1/0/4', field: 'skip' },
+    { host: 'other-switch', ports: '*', field: 'desc', value: 'not this device' }] });
+  assert.deepEqual(rows.slice(1), [
+    ['G1/0/1', '<Office 1>', 'VLAN 10'], ['G1/0/2', '<Office 2>', 'VLAN 99'], ['G1/0/3', '', 'VLAN 10'],
+    ['Te1/1/1', '<CORE-01 Te1/0/1>', 'UPLINK Gi'], ['Te1/1/2', '<CORE-01 Te2/0/1>', 'VLAN 99']]);
+  assert.deepEqual(rows.ports.map(x => x[2]), [true, true, true, true, false]);
+  assert.equal(d.ports.find(p => p.short === 'Gi1/0/1').description, 'Reception PC + phone', 'port data untouched');
+  // a half-filled override (no ports) does nothing; device labels ignore overrides
+  assert.equal(NP.labelRows([d], { lines: L, physicalOnly: true, overrides: [{ ports: '', field: 'skip' }] }).length, 7);
+  assert.equal(NP.labelRows([d], { per: 'device', lines: ['{host}'], overrides: [{ ports: '*', field: 'skip' }] }).length, 2);
+});
+
 test('export formats and device report', () => {
   const rows = [['Port', 'Description'], ['Gi1/0/1', 'a|b, "c"'], ['Gi1/0/2', '']];
   assert.equal(NP.formatRows(rows, 'csv'), '\ufeffPort,Description\r\nGi1/0/1,"a|b, ""c"""\r\nGi1/0/2,\r\n');
