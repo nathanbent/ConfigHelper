@@ -136,6 +136,7 @@ and link the `Line1`/`Line2` text to the matching fields (the fiber flag already
 - **+ Add replacement** edits the finished text of every line, in order, before the character limit: plain text
   matched in any case (`Eth` replaced with nothing turns `Eth1/1/1` into `1/1/1`), or `/pattern/` for a regular
   expression, with `$1` for its groups (`/^Eth(\d+)\/\d+\/(\d+)$/` to `U$1-$2` gives `U1-1`)
+  The cable labels (under Cable list) use the same list and can edit it too.
 
 **Print only** narrows the labels to the ports you actually need to (re)print:
 

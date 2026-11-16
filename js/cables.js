@@ -93,14 +93,15 @@
     return one(opt).text.replace(/\s+/g, ' ').trim();
   }
   // opts: lines:[..], bothEnds (a second label per cable with the ends swapped, so each end reads "here -> there"),
-  //       maxLen, loadedOnly
+  //       maxLen, loadedOnly, replace ([{find, replace}], see NP.labelReplacer; before the character limit)
   NP.cableLabelRows = function (cables, opts) {
     const lines = (opts.lines || []).map(function (l, i) { return { tpl: l, name: 'Line' + (i + 1) }; })
       .filter(function (l) { return l.tpl && l.tpl.trim(); });
     const max = +opts.maxLen || 0;
+    const edit = NP.labelReplacer(opts.replace);
     const rows = [lines.map(function (l) { return l.name; })];
     const add = function (c) {
-      const r = lines.map(function (l) { const t = fill(l.tpl, c); return max > 0 && t.length > max ? t.slice(0, max).trim() : t; });
+      const r = lines.map(function (l) { const t = edit(fill(l.tpl, c)); return max > 0 && t.length > max ? t.slice(0, max).trim() : t; });
       if (r.some(Boolean)) rows.push(r);
     };
     cables.forEach(function (c) {
