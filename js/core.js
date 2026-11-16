@@ -12,7 +12,7 @@
   // Platforms whose parser has been checked against output from real hardware, and on what.
   // Everything else was written from documentation and made-up samples: shown as "experimental".
   NP.verified = { ios: 'Catalyst 3850, IOS-XE 16.12', junos: 'EX2300-C, Junos 25.2', icx: 'ICX7150-48P, FastIron 10.0.10; ICX6610, FastIron 08.0.30 (config only)',
-    os10: 'S4148, OS10 10.5.0.4 (config only)' };
+    os6: 'N3024P + N3048P stack, 6.5.4.10', os10: 'S4148, OS10 10.5.0.4 (config only)' };
 
   // ---------------------------------------------------------------- vendors
   NP.vendors = {};

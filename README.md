@@ -106,7 +106,7 @@ works** panel: what the view is for, what it needs, what you get and its limits.
 | Ubiquiti UniFi | controller JSON: device list (`stat/device`), ideally with the network list (`rest/networkconf`) | `mca-dump` on the switch |
 | MikroTik RouterOS | `/export` | |
 
-Tested against real output so far (`test/fixtures/`): Cisco Catalyst 3850 on IOS-XE 16.12, Juniper EX2300-C on Junos 25.2, Ruckus ICX7150-48P on FastIron 10.0.10, Ruckus ICX6610 on FastIron 08.0.30 (config only), FortiGate 201F on FortiOS 8.0 with three FortiLink-managed FortiSwitches (the three FortiLink commands only), Dell S4148 on OS10 10.5.0.4 (config only; the OS10 show commands are still unchecked). Everything else
+Tested against real output so far (`test/fixtures/`): Cisco Catalyst 3850 on IOS-XE 16.12, Juniper EX2300-C on Junos 25.2, Ruckus ICX7150-48P on FastIron 10.0.10, Ruckus ICX6610 on FastIron 08.0.30 (config only), a Dell N3024P + N3048P stack on OS6 6.5.4.10, FortiGate 201F on FortiOS 8.0 with three FortiLink-managed FortiSwitches (the three FortiLink commands only), Dell S4148 on OS10 10.5.0.4 (config only; the OS10 show commands are still unchecked). Everything else
 was written against the vendors' documented formats and the made-up samples in `js/samples.js`, so expect
 gaps on real devices; when you find one, add the output (sanitised) to `test/fixtures/` with a test and fix
 the parser.
@@ -136,6 +136,7 @@ and link the `Line1`/`Line2` text to the matching fields (the fiber flag already
 - **+ Add replacement** edits the finished text of every line, in order, before the character limit: plain text
   matched in any case (`Eth` replaced with nothing turns `Eth1/1/1` into `1/1/1`), or `/pattern/` for a regular
   expression, with `$1` for its groups (`/^Eth(\d+)\/\d+\/(\d+)$/` to `U$1-$2` gives `U1-1`)
+  The cable labels (under Cable list) use the same list and can edit it too.
 
 **Print only** narrows the labels to the ports you actually need to (re)print:
 
