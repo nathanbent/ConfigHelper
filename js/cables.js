@@ -10,6 +10,11 @@
     if (!/^\d+\.\d+\.\d+\.\d+$/.test(s)) s = s.split('.')[0];
     return s;
   };
+  // the management address the neighbor advertised (CDP/LLDP detail), kept in neighborInfo with the platform
+  NP.neighborIp = function (p) {
+    const m = String((p && p.neighborInfo) || '').match(/(?:^|[\s,])(\d{1,3}(?:\.\d{1,3}){3})(?=$|[\s,])/);
+    return m ? m[1] : '';
+  };
   function findFar(dev, text) {
     if (!text) return null;
     let p = NP.findPort(dev, text);
@@ -34,8 +39,8 @@
         if (!p.neighbor || p.kind === 'lag') return;
         const B = byHost[NP.hostKey(p.neighbor)];
         const link = {
-          a: { host: A.hostname, dev: A.id, port: p.short, key: p.key, desc: p.description },
-          b: { host: p.neighbor, dev: '', port: p.neighborPort, key: '', desc: '', info: p.neighborInfo || '' },
+          a: { host: A.hostname, dev: A.id, port: p.short, key: p.key, desc: p.description, ip: '' },
+          b: { host: p.neighbor, dev: '', port: p.neighborPort, key: '', desc: '', info: p.neighborInfo || '', ip: NP.neighborIp(p) },
           speed: p.speed || '', status: 'far end not loaded', note: ''
         };
         if (B && B !== A) {
@@ -46,6 +51,7 @@
             if (seen[pair]) return;             // already listed from the other end
             link.b.port = q.short; link.b.key = q.key; link.b.desc = q.description;
             link.speed = link.speed || q.speed || '';
+            if (NP.hostKey(q.neighbor) === NP.hostKey(A.hostname)) link.a.ip = NP.neighborIp(q);
             if (!q.neighbor) { link.status = 'one end only'; link.note = B.hostname + ' has no neighbor data for ' + q.short; }
             else {
               const back = NP.hostKey(q.neighbor) === NP.hostKey(A.hostname) ? eport(A, findFar(A, q.neighborPort)) : null;
@@ -66,16 +72,16 @@
   };
 
   NP.cableRows = function (cables) {
-    return [['ID', 'Device A', 'Port A', 'Description A', 'Device B', 'Port B', 'Description B', 'Speed', 'Status', 'Note']]
+    return [['ID', 'Device A', 'IP A', 'Port A', 'Description A', 'Device B', 'IP B', 'Port B', 'Description B', 'Speed', 'Status', 'Note']]
       .concat(cables.map(function (c) {
-        return [c.id, c.a.host, c.a.port, c.a.desc, c.b.host, c.b.port, c.b.desc, c.speed, c.status, c.note];
+        return [c.id, c.a.host, c.a.ip, c.a.port, c.a.desc, c.b.host, c.b.ip, c.b.port, c.b.desc, c.speed, c.status, c.note];
       }));
   };
 
   NP.cableTokens = {
     id: function (c) { return c.id; },
-    a: function (c) { return c.a.host; }, aport: function (c) { return c.a.port; }, adesc: function (c) { return c.a.desc; },
-    b: function (c) { return c.b.host; }, bport: function (c) { return c.b.port; }, bdesc: function (c) { return c.b.desc; },
+    a: function (c) { return c.a.host; }, aip: function (c) { return c.a.ip; }, aport: function (c) { return c.a.port; }, adesc: function (c) { return c.a.desc; },
+    b: function (c) { return c.b.host; }, bip: function (c) { return c.b.ip; }, bport: function (c) { return c.b.port; }, bdesc: function (c) { return c.b.desc; },
     speed: function (c) { return c.speed; }
   };
   function fill(tpl, c) {

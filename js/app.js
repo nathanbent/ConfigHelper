@@ -377,6 +377,27 @@
           return h('span', { class: 'chip' }, h('b', { text: v.id }), v.name ? ' ' + v.name : '');
         }))));
     }
+    const ips = NP.ipInterfaces(dev);
+    if (ips.length) {
+      const ipRows = NP.ipInterfaceRows(dev);
+      view.appendChild(h('section', { class: 'card' },
+        h('div', { class: 'toolbar' },
+          h('h2', { text: 'IP interfaces (' + ips.length + ')' }),
+          h('span', { class: 'spacer' }),
+          h('button', { title: 'Tab-separated, pastes into a spreadsheet', onclick: function (e) { copyText(NP.formatRows(ipRows, 'tsv'), e.target, 'Copy table'); } }, 'Copy table'),
+          h('button', { onclick: function (e) { copyText(NP.formatRows(ipRows, 'md'), e.target, 'Copy as Markdown'); } }, 'Copy as Markdown'),
+          h('button', { onclick: function () {
+            state.only = { title: 'IP interfaces', keys: ips.map(function (r) { return r.port.key; }) };
+            state.tab = 'ports'; state.search = ''; state.physOnly = false; state.hideDown = false;
+            if (!state.cols.includes('ip')) state.cols = state.cols.concat('ip');
+            render();
+          } }, 'Show in Ports')),
+        h('div', { class: 'tablewrap' }, h('table', {},
+          h('thead', {}, h('tr', {}, ipRows[0].map(function (t) { return h('th', { class: 'nosort', scope: 'col', text: t }); }))),
+          h('tbody', {}, ipRows.slice(1).map(function (r) {
+            return h('tr', {}, r.map(function (c, i) { return h('td', { class: i === 0 || i === 3 ? 'mono' : '', text: c }); }));
+          }))))));
+    }
     view.appendChild(h('section', { class: 'card' },
       h('div', { class: 'toolbar' },
         h('button', { onclick: function () {
@@ -480,7 +501,7 @@
     const q = K.q.trim().toLowerCase();
     const list = all.filter(function (c) {
       if (K.loadedOnly && !c.b.dev) return false;
-      return !q || [c.id, c.a.host, c.a.port, c.a.desc, c.b.host, c.b.port, c.b.desc, c.status].join(' ').toLowerCase().includes(q);
+      return !q || [c.id, c.a.host, c.a.ip, c.a.port, c.a.desc, c.b.host, c.b.ip, c.b.port, c.b.desc, c.status].join(' ').toLowerCase().includes(q);
     });
     const count = function (s) { return all.filter(function (c) { return c.status === s; }).length; };
     view.appendChild(h('section', { class: 'card' },
@@ -513,12 +534,12 @@
         h('button', { onclick: function (e) { copyText(NP.formatRows(rows(), K.fmt).replace(/^\ufeff/, ''), e.target, 'Copy'); } }, 'Copy'),
         h('button', { onclick: function () { window.print(); } }, 'Print')),
       list.length ? h('div', { class: 'tablewrap' }, h('table', {},
-        h('thead', {}, h('tr', {}, ['ID', 'Device A', 'Port A', 'Description A', 'Device B', 'Port B', 'Description B', 'Speed', 'Status'].map(function (t) {
+        h('thead', {}, h('tr', {}, ['ID', 'Device A', 'IP A', 'Port A', 'Description A', 'Device B', 'IP B', 'Port B', 'Description B', 'Speed', 'Status'].map(function (t) {
           return h('th', { class: 'nosort', scope: 'col', text: t }); }))),
         h('tbody', {}, list.map(function (c) {
           const cls = c.status === 'both ends' ? 'up' : c.status === 'mismatch' ? 'off' : c.status === 'one end only' ? 'warn' : 'down';
-          return h('tr', {}, h('td', { class: 'mono', text: c.id }), h('td', { text: c.a.host }), h('td', { class: 'mono', text: c.a.port }), h('td', { class: 'wrap', text: c.a.desc }),
-            h('td', { text: c.b.host }), h('td', { class: 'mono', text: c.b.port }), h('td', { class: 'wrap', text: c.b.desc }), h('td', { text: c.speed }),
+          return h('tr', {}, h('td', { class: 'mono', text: c.id }), h('td', { text: c.a.host }), h('td', { class: 'mono', text: c.a.ip }), h('td', { class: 'mono', text: c.a.port }), h('td', { class: 'wrap', text: c.a.desc }),
+            h('td', { text: c.b.host }), h('td', { class: 'mono', text: c.b.ip }), h('td', { class: 'mono', text: c.b.port }), h('td', { class: 'wrap', text: c.b.desc }), h('td', { text: c.speed }),
             h('td', { title: c.note || null }, h('span', { class: 'pill ' + cls, text: c.status }), c.note ? h('div', { class: 'hint', text: c.note }) : null));
         })))) : h('p', { class: 'empty', text: 'No cables match.' })));
 

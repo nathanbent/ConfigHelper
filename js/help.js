@@ -43,11 +43,12 @@
       }
     },
     overview: {
-      desc: 'What the device is and how it is set up: identity, management, services, VLANs and stack units.',
+      desc: 'What the device is and how it is set up: identity, management, services, VLANs, IP interfaces and stack units.',
       sections: {
         'Use it for': ['Checking a device at a glance, and as the summary for documentation or a handover.'],
         'Give it': ['Nothing here. Sections appear when the loaded output contains them: the software version needs version output, and per-unit tables need ports from more than one stack unit or slot.'],
-        'You get': ['Export summary CSV gives these values as a file. Export device report gives the overview, VLANs and port table as one Markdown document.'],
+        'You get': ['IP interfaces lists every SVI, loopback, routed and management port with an address, its VLAN and VLAN name, description and state; secondary addresses and DHCP helpers are in Notes. Copy it as a table or Markdown for documentation.',
+          'Export summary CSV gives these values as a file. Export device report gives the overview, VLANs, IP interfaces and port table as one Markdown document.'],
         'Limits': ['A setting missing from this page may be unset on the device, or may be something the parser did not read. The Not parsed tab shows what was skipped.']
       }
     },
@@ -151,6 +152,7 @@
         'Give it': ['CDP or LLDP neighbor output for each device. The Commands to run list includes it.'],
         'You get': [
           'One row per link. A link reported by both devices appears once, marked "both ends"; the others are marked "one end only", "far end not loaded" or "mismatch".',
+          'IP A and IP B are the management addresses the devices advertise in CDP or LLDP detail output. IP B comes from device A\'s neighbor data; IP A is filled in when device B is loaded and reports the link back. Labels can use them as {aip} and {bip}.',
           'Export the list in any format, or as a label file. The text replacements and the overrides set on the Labels tab apply to the cable labels too.'
         ],
         'Limits': [

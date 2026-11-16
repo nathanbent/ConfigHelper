@@ -677,6 +677,20 @@ test('export formats and device report', () => {
   assert.match(rep, /\| GigabitEthernet1\/0\/1 \| Reception PC \+ phone \| 10 \|/);
 });
 
+test('IP interfaces: SVIs, routed and management ports with VLAN names; secondaries kept as notes', () => {
+  const nx = run('nxos').dev;
+  assert.deepEqual(NP.ipInterfaces(nx).map(r => [r.iface, r.vlan, r.vlanName, r.ip]),
+    [['Eth1/49', '', '', '10.255.0.1/31'], ['Vlan100', '100', 'SERVERS', '10.100.0.2/24'], ['mgmt0', '', '', '10.20.99.21/24']]);
+  const fg = run('fortigate').dev;
+  const cams = NP.ipInterfaces(fg).find(r => r.iface === 'cameras');
+  assert.equal(cams.vlan, '40');
+  const t = 'hostname R1\ninterface Vlan10\n ip address 10.0.0.1 255.255.255.0\n ip address 10.1.0.1 255.255.255.0 secondary\n!\nvlan 10\n name USERS\n';
+  const d = NP.ingest(t, { vendor: 'ios', devices: [] }).dev;
+  assert.deepEqual(NP.ipInterfaceRows(d)[1], ['Vlan10', '10', 'USERS', '10.0.0.1/24', '', 'enabled', 'secondary 10.1.0.1/24']);
+  assert.match(NP.deviceReport(d, ['name']), /## IP interfaces\n\n\| Interface \| VLAN \| VLAN name \| IP address \|/);
+  assert.ok(NP.summaryRows(d).some(r => r[0] === 'IP interfaces' && r[1] === 'Vlan10' && /10\.0\.0\.1\/24 · USERS/.test(r[2])));
+});
+
 test('not parsed: skipped lines are reported, noise is dropped, secrets are stripped', () => {
   const text = require('fs').readFileSync(require('path').join(__dirname, 'fixtures', 'cisco-3850-lab.txt'), 'utf8');
   const d = NP.ingest(text, { devices: [] }).dev;
@@ -887,11 +901,11 @@ test('snapshots and compare', () => {
 test('cable list across devices', () => {
   const mk = (host, lines) => NP.ingest(host + '#show running-config\nhostname ' + host + '\n' +
     lines.map(l => 'interface ' + l[0] + '\n description ' + l[1] + '\n').join('') + '!\n' + host + '#show cdp neighbors detail\n' +
-    lines.filter(l => l[2]).map(l => '-------------------------\nDevice ID: ' + l[2] + '\nEntry address(es):\n  IP address: 10.0.0.9\nPlatform: cisco X,  Capabilities: Switch\n' +
+    lines.filter(l => l[2]).map(l => '-------------------------\nDevice ID: ' + l[2] + '\nEntry address(es):\n  IP address: ' + (l[4] || '10.0.0.9') + '\nPlatform: cisco X,  Capabilities: Switch\n' +
       'Interface: ' + l[0] + ',  Port ID (outgoing port): ' + l[3] + '\n').join(''), { vendor: 'ios', devices: [] }).dev;
-  const core = mk('CORE-01', [['TenGigabitEthernet1/0/1', 'to access A', 'ACCESS-A.corp.example.com', 'TenGigabitEthernet1/1/1'],
+  const core = mk('CORE-01', [['TenGigabitEthernet1/0/1', 'to access A', 'ACCESS-A.corp.example.com', 'TenGigabitEthernet1/1/1', '10.0.0.11'],
     ['TenGigabitEthernet1/0/2', 'to access B', 'ACCESS-B', 'Te1/1/1'], ['TenGigabitEthernet1/0/3', 'to firewall', 'FW-EDGE', 'port5']]);
-  const accA = mk('ACCESS-A', [['TenGigabitEthernet1/1/1', 'uplink', 'CORE-01.corp.example.com', 'TenGigabitEthernet1/0/1'],
+  const accA = mk('ACCESS-A', [['TenGigabitEthernet1/1/1', 'uplink', 'CORE-01.corp.example.com', 'TenGigabitEthernet1/0/1', '10.0.0.1'],
     ['GigabitEthernet1/0/5', 'AP', 'AP-LOBBY', 'eth0']]);
   const accB = mk('ACCESS-B', [['TenGigabitEthernet1/1/1', 'uplink', '', ''], ['TenGigabitEthernet1/1/2', 'wrong', 'CORE-01', 'Te1/0/9']]);
   const cables = NP.cables([core, accA, accB]);
@@ -905,7 +919,12 @@ test('cable list across devices', () => {
   ]);
   assert.equal(cables[0].b.desc, 'uplink');
   assert.match(cables[4].note, /not found on CORE-01/);
-  assert.deepEqual(NP.cableRows(cables)[1].slice(0, 7), ['C001', 'CORE-01', 'Te1/0/1', 'to access A', 'ACCESS-A', 'Te1/1/1', 'uplink']);
+  assert.deepEqual(NP.cableRows(cables)[1].slice(0, 9),
+    ['C001', 'CORE-01', '10.0.0.1', 'Te1/0/1', 'to access A', 'ACCESS-A', '10.0.0.11', 'Te1/1/1', 'uplink']);
+  // the far end's advertised address; the near end's only when the far end reports it back
+  assert.deepEqual(cables.slice(1, 3).map(c => [c.a.ip, c.b.ip]), [['', '10.0.0.9'], ['', '10.0.0.9']]);
+  assert.equal(NP.neighborIp({ neighborInfo: 'C9300-48P, 10.1.2.3' }), '10.1.2.3');
+  assert.equal(NP.neighborIp({ neighborInfo: 'WS-C2960X' }), '');
 
   // a disagreement between the two ends is flagged, and both views are kept
   NP.setEdit(accA, NP.portId('Te1/1/1').key, 'neighborPort', 'Te1/0/2');
@@ -919,6 +938,7 @@ test('cable list across devices', () => {
   assert.deepEqual(lab.slice(0, 3), [['Line1', 'Line2'], ['CORE-01 Te1/0/1', 'ACCESS-A Te1/1/1'], ['ACCESS-A Te1/1/1', 'CORE-01 Te1/0/1']]);
   assert.equal(lab.length, 1 + 3 * 2);
   assert.equal(NP.cableLabelRows(cables, { lines: ['{id} {a}>{b}'], maxLen: 12 })[1][0], 'C001 CORE-01');
+  assert.equal(NP.cableLabelRows(cables, { lines: ['{b} [{bip}]'] })[1][0], 'ACCESS-A 10.0.0.11');
   // the text replacements from the Labels tab apply here too, before the character limit
   assert.deepEqual(NP.cableLabelRows(cables, { lines: ['{a} {aport}'], loadedOnly: true, replace: [{ find: 'Te', replace: '' }, { find: '/-0(\\d)/', replace: '$1' }] })[1],
     ['CORE1 1/0/1']);

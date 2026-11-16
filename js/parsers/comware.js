@@ -76,7 +76,10 @@
         }
         else if ((m = l.match(/^voice[- ]vlan (\d+) enable/))) p.voiceVlan = m[1];
         else if ((m = l.match(/^port link-aggregation group (\d+)/))) p.lag = 'BAGG' + m[1];
-        else if ((m = l.match(/^ip address (\S+) (\S+)/))) { if (!/ sub$/.test(l) && !c.ip) c.ip = NP.cidr(m[1], m[2]); }
+        else if ((m = l.match(/^ip address (\S+) (\S+)/))) {
+          if (/ sub$/.test(l)) NP.addNote(p, 'secondary ' + NP.cidr(m[1], m[2]));
+          else if (!c.ip) c.ip = NP.cidr(m[1], m[2]);
+        }
         else if (/^stp edged-port/.test(l)) NP.addFlag(p, 'stp', 'edge');
         else if (/^stp root-protection/.test(l)) NP.addFlag(p, 'stp', 'rootguard');
         else if (/^stp loop-protection/.test(l)) NP.addFlag(p, 'stp', 'loopguard');

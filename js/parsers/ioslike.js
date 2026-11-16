@@ -235,7 +235,8 @@
       if ((m = l.match(/^lag (\d+)/))) { c.lag = 'lag' + m[1]; return; }
       if ((m = l.match(/^channel-group (\d+)/))) { c.lag = 'Po' + m[1]; return; }
       if ((m = l.match(/^ip(?:v4)? (?:address|static) (\S+)(?: (\d+\.\d+\.\d+\.\d+))?(.*)/))) {
-        if (!/secondary/.test(m[3]) && !c.ip) c.ip = NP.cidr(m[1], m[2]);
+        if (/secondary/.test(m[3])) NP.addNote(p, 'secondary ' + NP.cidr(m[1], m[2]));
+        else if (!c.ip) c.ip = NP.cidr(m[1], m[2]);
         return;
       }
       if ((m = l.match(/^spanning-tree (.+)/))) { NP.addFlag(p, 'stp', stpFlag(m[1])); return; }
