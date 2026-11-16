@@ -531,7 +531,7 @@
           const f = NP.formats[K.fmt];
           download('cable-list.' + f.ext, NP.formatRows(rows(), K.fmt), f.mime);
         } }, 'Download'),
-        h('button', { onclick: function (e) { copyText(NP.formatRows(rows(), K.fmt).replace(/^\ufeff/, ''), e.target, 'Copy'); } }, 'Copy'),
+        h('button', { onclick: function (e) { copyText(NP.formatRows(rows(), K.fmt === 'xlsx' ? 'tsv' : K.fmt).replace(/^\ufeff/, ''), e.target, 'Copy'); } }, 'Copy'),
         h('button', { onclick: function () { window.print(); } }, 'Print')),
       list.length ? h('div', { class: 'tablewrap' }, h('table', {},
         h('thead', {}, h('tr', {}, ['ID', 'Device A', 'IP A', 'Port A', 'Description A', 'Device B', 'IP B', 'Port B', 'Description B', 'Speed', 'Status'].map(function (t) {
@@ -802,7 +802,7 @@
             download((E.devs === 'all' ? 'all-devices' : fileSafe(dev.hostname)) + '-ports.' + f.ext, NP.formatRows(exportRows(dev, list), E.fmt), f.mime);
           } }, 'Download'),
           h('button', { title: 'Copy in the chosen format', onclick: function (e) {
-            copyText(NP.formatRows(exportRows(dev, list), E.fmt).replace(/^﻿/, ''), e.target, 'Copy');
+            copyText(NP.formatRows(exportRows(dev, list), E.fmt === 'xlsx' ? 'tsv' : E.fmt).replace(/^﻿/, ''), e.target, 'Copy');
           } }, 'Copy'))));
     const ec = NP.editCount(dev);
     const editBtn = h('button', { class: state.editing ? 'primary' : '', 'aria-pressed': String(state.editing),
@@ -1095,7 +1095,7 @@
         h('input', { type: 'text', inputmode: 'numeric', value: String(L.maxLen || 0),
           onchange: set(function (t) { L.maxLen = Math.max(0, parseInt(t.value, 10) || 0); }) })),
       h('label', {}, 'File format',
-        sel(L.delim, [[',', 'CSV, comma'], [';', 'CSV, semicolon'], ['\t', 'Tab-separated .txt']], function (v) { L.delim = v; save(); render(); })));
+        sel(L.delim, [[',', 'CSV, comma'], [';', 'CSV, semicolon'], ['\t', 'Tab-separated .txt'], ['xlsx', 'Excel workbook .xlsx (keeps 1/1/1 as text)']], function (v) { L.delim = v; save(); render(); })));
     // "Print only": narrow the labels to the ports that stand out, and/or to custom conditions on any column.
     if (!Array.isArray(L.rules)) L.rules = [];
     const snaps = L.scope === 'all' ? [] : dev.snapshots || [];
@@ -1185,8 +1185,9 @@
           download(tpl.file.replace(/\.lbx$/, '.zip'), NP.zipStore(tpl.file, NP.b64Bytes(tpl.b64)), 'application/zip');
         } }, 'Zipped (.zip, phone app)'),
         h('button', { class: 'primary', disabled: rows.length < 2, onclick: function () {
-          const name = (L.scope === 'all' ? 'all-devices' : fileSafe(dev.hostname)) + '-labels.' + (L.delim === '\t' ? 'txt' : 'csv');
-          download(name, NP.csv(rows, L.delim), L.delim === '\t' ? 'text/plain' : 'text/csv');
+          const base = (L.scope === 'all' ? 'all-devices' : fileSafe(dev.hostname)) + '-labels.';
+          if (L.delim === 'xlsx') download(base + 'xlsx', NP.xlsx(rows), NP.formats.xlsx.mime);
+          else download(base + (L.delim === '\t' ? 'txt' : 'csv'), NP.csv(rows, L.delim), L.delim === '\t' ? 'text/plain' : 'text/csv');
         } }, 'Export label file')),
       perDevice || rows.length < 2 ? null : pickBar(rows),
       rows.length > 1
@@ -1216,7 +1217,7 @@
                 r.map(function (c, i) { return h('td', { class: i < lineCount ? 'line' : '', text: c }); }));
             }))))
         : h('p', { class: 'empty', text: 'No ports match these options.' }),
-      h('p', { class: 'hint', text: 'In P-touch Editor: File > Database > Connect, choose this file, tick "Header row contains field names", then drag the Line fields onto the label and print all records. Or start from a P-touch template (pick one next to Export; each uses Line1 and Line2): open it, connect this file the same way and link its Line1 and Line2 text to the matching fields. Brother\'s phone app (Pro Label Tool) takes the zipped template instead.' })));
+      h('p', { class: 'hint', text: 'In P-touch Editor: File > Database > Connect, choose this file, tick "Header row contains field names" (if port numbers like 1/1/1 come in as dates, export as Excel workbook .xlsx instead: a CSV cannot say a column is text), then drag the Line fields onto the label and print all records. Or start from a P-touch template (pick one next to Export; each uses Line1 and Line2): open it, connect this file the same way and link its Line1 and Line2 text to the matching fields. Brother\'s phone app (Pro Label Tool) takes the zipped template instead.' })));
   }
 
   // -------------------------------------------------------------------- wire
