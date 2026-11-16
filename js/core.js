@@ -11,7 +11,8 @@
 
   // Platforms whose parser has been checked against output from real hardware, and on what.
   // Everything else was written from documentation and made-up samples: shown as "experimental".
-  NP.verified = { ios: 'Catalyst 3850, IOS-XE 16.12', junos: 'EX2300-C, Junos 25.2', icx: 'ICX7150-48P, FastIron 10.0.10; ICX6610, FastIron 08.0.30 (config only)' };
+  NP.verified = { ios: 'Catalyst 3850, IOS-XE 16.12', junos: 'EX2300-C, Junos 25.2', icx: 'ICX7150-48P, FastIron 10.0.10; ICX6610, FastIron 08.0.30 (config only)',
+    os10: 'S4148, OS10 10.5.0.4 (config only)' };
 
   // ---------------------------------------------------------------- vendors
   NP.vendors = {};
@@ -321,7 +322,7 @@
     'transceiver ', 'control-plane', 'line (con|aux)', 'banner ', 'crypto ', 'call-home', 'class-map ', 'policy-map ',
     'no (login|device-tracking|ip domain[- ]lookup|ip address|aaa new-model|untagged|tagged)', 'enable (secret|password|super-user)',
     'archive', 'alias ', 'hw-module', 'ip forward-protocol', 'ip classless', 'ip subnet-zero', 'login ', 'subscriber ',
-    'mls ', 'module \\d', 'stack-port', '[\\w.\\-@]+[#>]$', 'ip http (authentication|client)', 'switch \\d+ provision', 'system mtu'
+    'mls ', 'module \\d', 'stack-port', '<[^<>]*\\b(removed|redacted|omitted|snipped)\\b[^<>]*>$', '[\\w.\\-@]+[#>]$', 'ip http (authentication|client)', 'switch \\d+ provision', 'system mtu'
   ].join('|') + ')', 'i');
   const NOISE_CMD = /^(terminal |term |skip-page|no page|screen-length|set cli |config system console|set output|show int$|exit|end$|enable$)/i;
 
