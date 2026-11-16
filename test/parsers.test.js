@@ -1020,7 +1020,7 @@ test('problem report bundles the sanitized input with what the parser made of it
   assert.match(bad.text, /Platform: not recognised/);
   assert.ok(!bad.text.includes('hunter2'));
   // only platforms checked on real hardware count as verified
-  assert.deepEqual(Object.keys(NP.verified), ['ios', 'junos', 'icx']);
+  assert.deepEqual(Object.keys(NP.verified), ['ios', 'junos', 'icx', 'os6']);
 });
 
 const bigStack = require('./stack.js');
@@ -1344,6 +1344,46 @@ test('real EX2300-C session (Junos 25.2, sanitized)', () => {
   assert.deepEqual([port(d, 'ge-0/1/0').link, port(d, 'ge-0/1/1').link], ['not present', 'not present']);
   assert.ok(d.ports.filter(p => p.poeStatus).length === 12);
   assert.ok(!d.unparsed.some(u => u.ctx === 'command' && /poe|lldp|terse/.test(u.text)));
+});
+
+test('real N3024P + N3048P stack session (OS6 6.5.4.10, secrets removed)', () => {
+  const r = NP.ingest(fixture('dell-n3048p-stack.txt'), { devices: [] });
+  const d = r.dev;
+  assert.equal(r.vendor, 'os6');
+  assert.deepEqual([d.hostname, d.model, d.version, d.serial, d.mgmtIp, d.gateway],
+    ['SW-LAB-RACKB-STACK01', 'N3048P', '6.5.4.10', 'CN0000000000000000000A0', '10.255.255.11/24 (Vlan255)', '10.255.255.1']);
+  assert.deepEqual(d.vlans.map(v => v.id), [7, 200, 250, 253, 255, 2500, 3000, 3032, 3240]);
+  assert.equal(d.ports.filter(p => p.kind === 'physical').length, 76);   // 24 + 2 SFP+ on unit 1, 48 + 2 on unit 2
+  assert.equal(d.other['Stack members'], '1: N3024P, 2: N3048P');
+  assert.equal(d.other['Voice VLAN'], 'enabled');
+  assert.match(d.other.QoS, /trust ip-dscp/);
+  // phone ports: general mode, untagged 1, voice VLAN 7
+  const ph = port(d, 'Gi1/0/4');
+  assert.deepEqual([ph.mode, ph.untagged, ph.tagged, ph.voiceVlan, ph.link, ph.speed, ph.poeStatus, ph.poeWatts, ph.poeClass, ph.neighbor],
+    ['general', '1', '7', '7', 'up', '1G', 'on', '3.1', '4', 'DEV-R2-TD']);
+  // AP trunks: native 253, every VLAN, LLDP system name
+  const ap = port(d, 'Gi2/0/1');
+  assert.deepEqual([ap.description, ap.mode, ap.untagged, ap.tagged, ap.poeWatts, ap.neighbor, ap.neighborPort],
+    ['AEROHIVE-AP', 'trunk', '253', 'all', '7.5', 'BLDG-B1-WL-1', 'mgt0']);
+  assert.deepEqual([port(d, 'Te1/0/2').neighbor, port(d, 'Te1/0/2').neighborPort], ['LAB-CORE-S4148', 'ethernet1/1/24']);
+  assert.deepEqual([port(d, 'Gi1/0/23').mode, port(d, 'Gi1/0/23').untagged, port(d, 'Gi1/0/23').voiceVlan], ['access', '2500', '7']);
+  assert.equal(port(d, 'Gi1/0/9').poeStatus, 'test-fail');
+  assert.deepEqual([port(d, 'Te2/0/2').mode, port(d, 'Te2/0/2').link], ['access', 'down']);   // only in show interfaces status
+  assert.equal(d.ports.filter(p => p.poeStatus === 'on').length, 21);
+  assert.equal(d.ports.filter(p => p.neighbor).length, 24);
+  assert.deepEqual(d.unparsed, []);
+  // the FortiGate prompt the session was started from is not a second device
+  assert.equal(r.debug.input.sections.filter(s => s.used).length, 5);
+});
+
+test('OS6 show interfaces status alone: wrapped VLAN lists, full-range trunks read as all', () => {
+  const t = fixture('dell-n3048p-stack.txt');
+  const r = NP.ingest(t.slice(t.indexOf('SW-LAB-RACKB-STACK01#show interfaces status'), t.indexOf('SW-LAB-RACKB-STACK01#show power inline')), { devices: [] });
+  const d = r.dev;
+  assert.equal(r.vendor, 'os6');
+  assert.deepEqual([port(d, 'Gi2/0/1').untagged, port(d, 'Gi2/0/1').tagged], ['253', 'all']);
+  assert.deepEqual([port(d, 'Te1/0/2').untagged, port(d, 'Te1/0/2').tagged], ['1', 'all']);
+  assert.deepEqual([port(d, 'Gi1/0/4').mode, port(d, 'Gi1/0/4').tagged], ['general', '7']);
 });
 
 test('real ICX6610 config (FastIron 08.0.30, sanitized)', () => {
