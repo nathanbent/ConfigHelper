@@ -128,10 +128,14 @@ with a taller second line, and a 2-line fiber flag on 18 mm tape. Open it, conne
 and link the `Line1`/`Line2` text to the matching fields (the fiber flag already has one side linked).
 `Zipped (.zip, phone app)` gives the same template inside a `.zip`, the form Brother's Pro Label Tool app imports.
 
-- `{host} {port} {portfull} {num} {desc} {vlan} {tagged} {voice} {mode} {neighbor} {nport} {ninfo} {ip} {lag} {speed}`, and per device `{mgmtip} {model} {serial} {version} {location}`
+- `{host} {port} {portfull} {portid} {num} {desc} {vlan} {tagged} {voice} {mode} {neighbor} {nport} {ninfo} {ip} {lag} {speed}`, and per device `{mgmtip} {model} {serial} {version} {location}`
 - `{neighbor|desc}` uses the first field that has a value
 - `[VLAN {vlan}]` is dropped when the field inside is empty; `[n{vlan}] [t{tagged}]` gives `n10 t20,30`
 - Click a field button to add it to the line you last clicked in, at the cursor; hover a field for what it holds
+- `{portid}` is the port without its type: `Eth1/1/1` gives `1/1/1`, `Gi1/0/12` gives `1/0/12`
+- **+ Add replacement** edits the finished text of every line, in order, before the character limit: plain text
+  matched in any case (`Eth` replaced with nothing turns `Eth1/1/1` into `1/1/1`), or `/pattern/` for a regular
+  expression, with `$1` for its groups (`/^Eth(\d+)\/\d+\/(\d+)$/` to `U$1-$2` gives `U1-1`)
 
 **Print only** narrows the labels to the ports you actually need to (re)print:
 

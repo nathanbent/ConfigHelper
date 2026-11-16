@@ -20,7 +20,7 @@
     norm: { scope: 'device', pick: {} },  // Normalize tab: this device or all, and what each group is normalized to (not saved)
     label: { preset: 'port', per: 'port', lines: NP.labelPresets.port.lines.slice(), scope: 'device',
       physicalOnly: true, upOnly: false, describedOnly: false, skipDisabled: true,
-      match: '', maxLen: 0, refCols: false, dedupe: false, delim: ',', only: '', snap: '', rules: [] }
+      match: '', maxLen: 0, refCols: false, dedupe: false, delim: ',', only: '', snap: '', rules: [], replace: [] }
   };
 
   function h(tag, attrs) {
@@ -955,6 +955,26 @@
         h('button', { type: 'button', disabled: perDevice, onclick: function () {
           L.rules.push({ field: 'untagged', op: 'not', value: '' }); save(); render();
         } }, '+ Add condition')));
+    // Find and replace on the finished label text, e.g. drop "Eth" from Eth1/1/1.
+    if (!Array.isArray(L.replace)) L.replace = [];
+    const bad = NP.labelReplacer(L.replace).errors;
+    const replaceRow = function (r, i) {
+      const upd = function (k) { return function (e) { r[k] = e.target.value; save(); render(); }; };
+      return h('div', { class: 'rule' },
+        h('input', { type: 'text', value: r.find || '', placeholder: 'Find, e.g. Eth', 'aria-label': 'Replacement ' + (i + 1) + ' find',
+          class: bad.includes(r.find) ? 'bad' : null, onchange: upd('find') }),
+        h('span', { text: '→' }),
+        h('input', { type: 'text', value: r.replace || '', placeholder: '(nothing)', 'aria-label': 'Replacement ' + (i + 1) + ' replace with',
+          onchange: upd('replace') }),
+        h('button', { type: 'button', class: 'link', 'aria-label': 'Remove replacement ' + (i + 1),
+          onclick: function () { L.replace.splice(i, 1); save(); render(); } }, 'Remove'));
+    };
+    const replaceBox = h('div', { class: 'only' },
+      h('p', { class: 'hint', text: 'Replace text in every label line, in order: plain text in any case (Eth → nothing turns Eth1/1/1 into 1/1/1), or /pattern/ for a regular expression with $1 for its groups. The {portid} field also gives the port without its type.' }),
+      h('div', { class: 'rules' },
+        L.replace.map(replaceRow),
+        bad.length ? h('p', { class: 'hint warnhint', text: 'Not a valid regular expression, so skipped: ' + bad.join(', ') }) : null,
+        h('button', { type: 'button', onclick: function () { L.replace.push({ find: '', replace: '' }); save(); render(); } }, '+ Add replacement')));
     const head = rows[0];
     const lineCount = (L.lines || []).filter(function (l) { return l && l.trim(); }).length;
     view.appendChild(h('section', { class: 'card' },
@@ -964,6 +984,7 @@
         check('Only ports with a description or neighbor', 'describedOnly', perDevice), check('Skip disabled ports', 'skipDisabled', perDevice),
         check('Remove duplicate labels', 'dedupe'), check('Add reference columns (device, port, description, VLAN)', 'refCols')),
       perDevice ? null : onlyBox,
+      replaceBox,
       h('div', { class: 'tokens' },
         h('p', {}, 'Click a field to add it to ', h('b', { class: 'which', text: 'Line ' + (labelCaret.line + 1) }),
           ' at the cursor (click in a line first to choose it). Hover a field for what it holds.'),
