@@ -45,7 +45,8 @@ per-port changes, with live state (link, PoE draw, neighbors) optional, and expo
 
 **Cable list** (under the device list) combines the CDP/LLDP neighbors of every loaded device into one list
 of links. A link reported by both switches appears once and is marked "both ends"; others are marked "one end
-only", "far end not loaded" or "mismatch". Export it in any format, or as cable labels with one label per end.
+only", "far end not loaded" or "mismatch". The management IP each end advertises in CDP/LLDP detail
+output is shown as IP A and IP B. Export it in any format, or as cable labels with one label per end.
 
 **Sanitize for sharing** (under the paste box) rewrites raw output so it can go in a bug report: secrets,
 certificates and banners are removed, and hostnames, usernames, descriptions, VLAN names, IP and MAC addresses
