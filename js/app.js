@@ -840,7 +840,9 @@
     const bad = NP.labelReplacer(L.replace).errors;
     const replaceRow = function (r, i) {
       const upd = function (k) { return function (e) { r[k] = e.target.value; save(); render(); }; };
-      return h('div', { class: 'rule' },
+      return h('div', { class: 'rule' + (r.off ? ' off' : '') },
+        h('input', { type: 'checkbox', checked: !r.off, title: 'Use this replacement', 'aria-label': 'Use replacement ' + (i + 1),
+          onchange: function (e) { if (e.target.checked) delete r.off; else r.off = true; save(); render(); } }),
         h('input', { type: 'text', value: r.find || '', placeholder: 'Find, e.g. Eth', 'aria-label': 'Replacement ' + (i + 1) + ' find',
           class: bad.includes(r.find) ? 'bad' : null, onchange: upd('find') }),
         h('span', { text: '→' }),
@@ -850,7 +852,7 @@
           onclick: function () { L.replace.splice(i, 1); save(); render(); } }, 'Remove'));
     };
     return h('div', { class: 'only' },
-      h('p', { class: 'hint', text: 'Replace text in every label line, in order: plain text in any case (Eth → nothing turns Eth1/1/1 into 1/1/1), or /pattern/ for a regular expression with $1 for its groups. Port labels and cable labels share this list. ' + (extra || '') }),
+      h('p', { class: 'hint', text: 'Replace text in every label line, in order: plain text in any case (Eth → nothing turns Eth1/1/1 into 1/1/1), or /pattern/ for a regular expression with $1 for its groups. Untick one to switch it off without losing it. Port labels and cable labels share this list. ' + (extra || '') }),
       h('div', { class: 'rules' },
         L.replace.map(replaceRow),
         bad.length ? h('p', { class: 'hint warnhint', text: 'Not a valid regular expression, so skipped: ' + bad.join(', ') }) : null,

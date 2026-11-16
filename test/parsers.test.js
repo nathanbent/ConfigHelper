@@ -631,6 +631,7 @@ test('label text: {portid} and find-and-replace', () => {
   const broken = NP.labelReplacer([{ find: '/[/', replace: '' }, { find: 'Gi', replace: '' }]);
   assert.deepEqual(broken.errors, ['/[/']);
   assert.equal(broken('Gi1/0/1'), '1/0/1');
+  assert.equal(NP.labelReplacer([{ find: 'Gi', replace: '', off: true }, { find: '/', replace: '-' }])('Gi1/0/1'), 'Gi1-0-1', 'a switched-off replacement is skipped');
   assert.equal(NP.labelTokens.portid(null, { short: 'ge-0/0/3' }), '0/0/3');
 });
 
