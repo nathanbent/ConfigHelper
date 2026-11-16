@@ -202,3 +202,6 @@ details.cols summary.primary { background: var(--accent); border-color: var(--ac
 .only .rule input[type=text] { min-width: 160px; font-family: var(--mono); font-size: 13px; color: var(--ink); }
 .only .rule input.bad { outline: 2px solid var(--warn); outline-offset: -1px; }
 .only .rule.off input[type=text] { opacity: .55; }
+.only .rule .grip { cursor: grab; border: 0; background: none; padding: 0 4px; min-height: 0; color: var(--muted); font-size: 16px; line-height: 1; }
+.only .rule.dragging { opacity: .4; }
+.only .rule.dropto { box-shadow: inset 0 2px 0 var(--accent); }

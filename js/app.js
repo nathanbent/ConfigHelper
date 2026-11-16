@@ -838,9 +838,34 @@
     const L = state.label;
     if (!Array.isArray(L.replace)) L.replace = [];
     const bad = NP.labelReplacer(L.replace).errors;
+    // Order matters (each works on the text the one above left), so rows can be dragged by their handle,
+    // or moved with the arrow keys while the handle has focus.
+    const move = function (from, to) {
+      if (to < 0 || to >= L.replace.length || to === from) return;
+      L.replace.splice(to, 0, L.replace.splice(from, 1)[0]);
+      save(); render();
+      const again = document.querySelector('button[aria-label="Move replacement ' + (to + 1) + '"]');
+      if (again) again.focus();
+    };
     const replaceRow = function (r, i) {
       const upd = function (k) { return function (e) { r[k] = e.target.value; save(); render(); }; };
-      return h('div', { class: 'rule' + (r.off ? ' off' : '') },
+      const row = h('div', { class: 'rule' + (r.off ? ' off' : ''), 'data-i': i,
+        ondragstart: function (e) { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(i)); row.classList.add('dragging'); },
+        ondragend: function () { row.draggable = false; row.classList.remove('dragging'); },
+        ondragover: function (e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; row.classList.add('dropto'); },
+        ondragleave: function () { row.classList.remove('dropto'); },
+        ondrop: function (e) {
+          e.preventDefault();
+          const from = parseInt(e.dataTransfer.getData('text/plain'), 10);
+          if (!isNaN(from)) move(from, i);
+        } },
+        h('button', { type: 'button', class: 'grip', text: '⠿', title: 'Drag to reorder (or focus and press the up and down arrows)',
+          'aria-label': 'Move replacement ' + (i + 1),
+          onmousedown: function () { row.draggable = true; }, onmouseup: function () { row.draggable = false; },
+          onkeydown: function (e) {
+            if (e.key === 'ArrowUp') { e.preventDefault(); move(i, i - 1); }
+            else if (e.key === 'ArrowDown') { e.preventDefault(); move(i, i + 1); }
+          } }),
         h('input', { type: 'checkbox', checked: !r.off, title: 'Use this replacement', 'aria-label': 'Use replacement ' + (i + 1),
           onchange: function (e) { if (e.target.checked) delete r.off; else r.off = true; save(); render(); } }),
         h('input', { type: 'text', value: r.find || '', placeholder: 'Find, e.g. Eth', 'aria-label': 'Replacement ' + (i + 1) + ' find',
@@ -850,9 +875,10 @@
           onchange: upd('replace') }),
         h('button', { type: 'button', class: 'link', 'aria-label': 'Remove replacement ' + (i + 1),
           onclick: function () { L.replace.splice(i, 1); save(); render(); } }, 'Remove'));
+      return row;
     };
     return h('div', { class: 'only' },
-      h('p', { class: 'hint', text: 'Replace text in every label line, in order: plain text in any case (Eth → nothing turns Eth1/1/1 into 1/1/1), or /pattern/ for a regular expression with $1 for its groups. Untick one to switch it off without losing it. Port labels and cable labels share this list. ' + (extra || '') }),
+      h('p', { class: 'hint', text: 'Replace text in every label line, in order: plain text in any case (Eth → nothing turns Eth1/1/1 into 1/1/1), or /pattern/ for a regular expression with $1 for its groups. Untick one to switch it off without losing it; drag ⠿ to change the order. Port labels and cable labels share this list. ' + (extra || '') }),
       h('div', { class: 'rules' },
         L.replace.map(replaceRow),
         bad.length ? h('p', { class: 'hint warnhint', text: 'Not a valid regular expression, so skipped: ' + bad.join(', ') }) : null,
