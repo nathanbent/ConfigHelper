@@ -84,9 +84,11 @@
     try {
       state.saveFailed = false;
       const devJson = JSON.stringify(state.devices);
+      const pre = NP.cleanPresets(state.label.replacePresets);  // presets are in the backup too (none: same fingerprint as before)
+      const fp = devJson + (pre.length ? JSON.stringify(pre) : '');
       let hsh = 2166136261;                              // FNV-1a: a cheap fingerprint to tell "changed since the last backup"
-      for (let i = 0; i < devJson.length; i++) { hsh ^= devJson.charCodeAt(i); hsh = Math.imul(hsh, 16777619); }
-      state.sig = devJson.length + ':' + (hsh >>> 0);
+      for (let i = 0; i < fp.length; i++) { hsh ^= fp.charCodeAt(i); hsh = Math.imul(hsh, 16777619); }
+      state.sig = fp.length + ':' + (hsh >>> 0);
       localStorage.setItem(STORE, '{"devices":' + devJson + ',' + JSON.stringify({ current: state.current, cols: state.cols, label: state.label,
         backupSig: state.backupSig, lastBackup: state.lastBackup }).slice(1));
     } catch (e) {
@@ -1291,8 +1293,9 @@
       if (e.dataTransfer.files && e.dataTransfer.files.length) { e.preventDefault(); readFiles(e.dataTransfer.files); }
     });
     $('btnBackup').addEventListener('click', function () {
-      if (!state.devices.length) { msg('Nothing to back up yet.', 'err'); return; }
-      download('confighelper-backup-' + new Date().toISOString().slice(0, 10) + '.json', NP.backup(state.devices), 'application/json');
+      if (!state.devices.length && !NP.cleanPresets(state.label.replacePresets).length) { msg('Nothing to back up yet.', 'err'); return; }
+      download('confighelper-backup-' + new Date().toISOString().slice(0, 10) + '.json',
+        NP.backup(state.devices, { replacePresets: state.label.replacePresets }), 'application/json');
       save();                                             // refresh the fingerprint, then record it as backed up
       state.backupSig = state.sig; state.lastBackup = new Date().toISOString();
       save(); render();
@@ -1310,7 +1313,10 @@
             if (i >= 0) state.devices[i] = d; else state.devices.push(d);
           });
           if (devs.length) state.current = devs[0].id;
-          msg('Imported ' + devs.length + ' device(s).', 'ok');
+          if (!Array.isArray(state.label.replacePresets)) state.label.replacePresets = [];
+          const pm = NP.mergePresets(state.label.replacePresets, NP.restorePresets(String(fr.result)));
+          msg('Imported ' + devs.length + ' device(s)' + (pm.added ? ' and ' + pm.added + ' replacement preset(s)' +
+            (pm.renamed ? ' (' + pm.renamed + ' renamed with "(imported)" because a different preset here has that name)' : '') : '') + '.', 'ok');
         } catch (err) { msg(err.message, 'err'); }
         save(); render();
       };

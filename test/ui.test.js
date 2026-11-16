@@ -396,6 +396,41 @@ test('ui', { skip: chromium ? false : 'Playwright is not installed' }, async (t)
     assert.deepEqual(errors, []);
   });
 
+  await t.test('replacement presets go into the backup and come back on import', async (t) => {
+    const { page, errors } = await open(t);
+    await page.selectOption('#selSample', 'nxos');
+    await page.click('#btnParse');
+    await save(page, () => page.click('#btnBackup'));
+    assert.match(await page.textContent('#bkHint'), /^Backed up /);
+    await tab(page, 'Labels');
+    await page.click('button:has-text("+ Add replacement")');
+    await page.fill('input[aria-label="Replacement 1 find"]', 'Eth');
+    await page.press('input[aria-label="Replacement 1 find"]', 'Tab');
+    await page.click('button:has-text("Save as preset")');
+    assert.match(await page.textContent('#bkHint'), /Changed since the backup/, 'a new preset is not backed up yet');
+    const file = await save(page, () => page.click('#btnBackup'));
+    assert.deepEqual(JSON.parse(file.text).replacePresets, [{ name: 'Preset 1', list: [{ find: 'Eth', replace: '' }] }]);
+    // a fresh browser: importing the file brings the device and the preset
+    const fresh = await open(t);
+    const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'ch-'));
+    const p = path.join(dir, 'backup.json');
+    fs.writeFileSync(p, file.text);
+    // the file is read asynchronously: wait for this import's message, not whatever #msg said before
+    const imported = async (re) => {
+      await fresh.page.waitForFunction(src => new RegExp(src).test(document.getElementById('msg').textContent), re.source);
+      return fresh.page.textContent('#msg');
+    };
+    await fresh.page.setInputFiles('#fileBackup', p);
+    assert.match(await imported(/^Imported 1 device\(s\) and 1 replacement preset\(s\)\.$/), /1 replacement preset/);
+    await tab(fresh.page, 'Labels');
+    assert.match(await fresh.page.textContent('select[aria-label="Replacement preset"]'), /Preset 1 \(1\)/);
+    // importing again adds nothing
+    await fresh.page.evaluate(() => { document.getElementById('msg').textContent = ''; });
+    await fresh.page.setInputFiles('#fileBackup', p);
+    assert.match(await imported(/^Imported /), /^Imported 1 device\(s\)\.$/);
+    assert.deepEqual(errors.concat(fresh.errors), []);
+  });
+
   await t.test('normalize: flags odd spellings and VLANs, and the correction reaches the labels', async (t) => {
     const { page, errors } = await open(t);
     const intf = (n, desc, allowed) => 'interface GigabitEthernet1/0/' + n + '\n description ' + desc +
