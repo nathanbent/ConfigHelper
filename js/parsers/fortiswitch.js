@@ -36,6 +36,7 @@
     if (F.find(t, 'system snmp community').some(function (b) { return b.entries.length; })) addUnique(dev.snmp.versions, 'v2c');
     if (F.find(t, 'system snmp user').some(function (b) { return b.entries.length; })) addUnique(dev.snmp.versions, 'v3');
     each('router static', function (e) {
+      F.staticRoute(dev, e);
       const dst = e.set.dst ? e.set.dst.join(' ') : '0.0.0.0 0.0.0.0';
       if (/^0\.0\.0\.0[ \/]0(\.0\.0\.0)?$/.test(dst) && one(e, 'gateway') && !dev.gateway) dev.gateway = one(e, 'gateway');
     });

@@ -43,12 +43,13 @@
       }
     },
     overview: {
-      desc: 'What the device is and how it is set up: identity, management, services, VLANs, IP interfaces and stack units.',
+      desc: 'What the device is and how it is set up: identity, management, services, VLANs, IP interfaces, routes and stack units.',
       sections: {
         'Use it for': ['Checking a device at a glance, and as the summary for documentation or a handover.'],
         'Give it': ['Nothing here. Sections appear when the loaded output contains them: the software version needs version output, and per-unit tables need ports from more than one stack unit or slot.'],
         'You get': ['IP interfaces lists every SVI, loopback, routed and management port with an address, its VLAN and VLAN name, description and state; secondary addresses and DHCP helpers are in Notes. Copy it as a table or Markdown for documentation.',
-          'Export summary CSV gives these values as a file. Export device report gives the overview, VLANs, IP interfaces and port table as one Markdown document.'],
+          'Default gateway and static routes lists the routes in the config (destination, next hop, interface, VRF, distance, name). Where a route names only a next hop, the interface is worked out from the device\'s own subnets and marked "connected". Routes learned from routing protocols are not shown: they are not in the config.',
+          'Export summary CSV gives these values as a file. Export device report gives the overview, VLANs, IP interfaces, static routes and port table as one Markdown document. The Compare tab lists routes added, removed or changed.'],
         'Limits': ['A setting missing from this page may be unset on the device, or may be something the parser did not read. The Not parsed tab shows what was skipped.']
       }
     },

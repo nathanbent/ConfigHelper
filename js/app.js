@@ -398,6 +398,21 @@
             return h('tr', {}, r.map(function (c, i) { return h('td', { class: i === 0 || i === 3 ? 'mono' : '', text: c }); }));
           }))))));
     }
+    const rts = NP.routeRows(dev);
+    if (rts.length > 1 || dev.gateway) {
+      view.appendChild(h('section', { class: 'card' },
+        h('div', { class: 'toolbar' },
+          h('h2', { text: 'Default gateway and static routes' + (rts.length > 1 ? ' (' + (rts.length - 1) + ')' : '') }),
+          h('span', { class: 'spacer' }),
+          rts.length > 1 ? h('button', { title: 'Tab-separated, pastes into a spreadsheet', onclick: function (e) { copyText(NP.formatRows(rts, 'tsv'), e.target, 'Copy table'); } }, 'Copy table') : null,
+          rts.length > 1 ? h('button', { onclick: function (e) { copyText(NP.formatRows(rts, 'md'), e.target, 'Copy as Markdown'); } }, 'Copy as Markdown') : null),
+        dev.gateway ? h('dl', { class: 'kv' }, h('dt', { text: 'Default gateway' }), h('dd', { class: 'mono', text: dev.gateway })) : null,
+        rts.length > 1 ? h('div', { class: 'tablewrap' }, h('table', {},
+          h('thead', {}, h('tr', {}, rts[0].map(function (t) { return h('th', { class: 'nosort', scope: 'col', text: t }); }))),
+          h('tbody', {}, rts.slice(1).map(function (r) {
+            return h('tr', {}, r.map(function (c, i) { return h('td', { class: i < 3 ? 'mono' : '', text: c }); }));
+          })))) : h('p', { class: 'hint', text: 'No static routes in the loaded config.' })));
+    }
     view.appendChild(h('section', { class: 'card' },
       h('div', { class: 'toolbar' },
         h('button', { onclick: function () {

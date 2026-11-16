@@ -114,10 +114,50 @@
       NP.ipInterfaces(dev).map(function (r) { return [r.iface, r.vlan, r.vlanName, r.ip, r.description, r.state, r.notes]; }));
   };
 
+  // ---------------------------------------------------------------- routes
+  const ipNum = function (ip) {
+    const o = String(ip).split('.').map(Number);
+    return o.length === 4 && o.every(function (x) { return x >= 0 && x <= 255; }) ? ((o[0] << 24) >>> 0) + (o[1] << 16) + (o[2] << 8) + o[3] : null;
+  };
+  // the device's own interface whose subnet holds this address (how a next hop is reached)
+  NP.connectedVia = function (dev, ip) {
+    const n = ipNum(ip);
+    if (n === null) return null;
+    let best = null, bestLen = -1;
+    dev.ports.forEach(function (p) {
+      const m = String(p.ip || '').match(/^(\d+\.\d+\.\d+\.\d+)\/(\d+)$/);
+      if (!m || +m[2] < 1 || +m[2] > 32) return;
+      const len = +m[2], mask = len === 32 ? 0xffffffff : (~((1 << (32 - len)) - 1)) >>> 0;
+      if (((ipNum(m[1]) & mask) >>> 0) === ((n & mask) >>> 0) && len > bestLen) { best = p; bestLen = len; }
+    });
+    return best;
+  };
+  // -> [{dest, via, iface, connected, vrf, distance, name, note, isDefault}]: default routes first, global before VRFs
+  NP.routeList = function (dev) {
+    return (dev.routes || []).map(function (r) {
+      const c = !r.iface && r.via ? NP.connectedVia(dev, r.via) : null;
+      return Object.assign({}, r, { connected: c ? c.short : '', isDefault: NP.isDefaultRoute(r) });
+    }).sort(function (a, b) {
+      return (a.vrf ? 1 : 0) - (b.vrf ? 1 : 0) || NP.naturalCompare(a.vrf, b.vrf) ||
+        (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0) || NP.naturalCompare(a.dest, b.dest);
+    });
+  };
+  NP.routeRows = function (dev) {
+    return [['Destination', 'Next hop', 'Interface', 'VRF', 'Distance', 'Name', 'Note']].concat(NP.routeList(dev).map(function (r) {
+      return [r.dest + (r.isDefault ? ' (default)' : ''), r.via, r.iface || (r.connected ? r.connected + ' (connected)' : ''), r.vrf, r.distance, r.name, r.note];
+    }));
+  };
+  NP.routeText = function (r) {
+    return [r.via ? 'via ' + r.via : '', r.iface ? 'dev ' + r.iface : '', r.distance ? 'distance ' + r.distance : '', r.note].filter(Boolean).join(' ') || '(no next hop)';
+  };
+
   NP.summaryRows = function (dev) {
     const rows = [['Section', 'Item', 'Value']];
     NP.summary(dev).forEach(function (s) { s.rows.forEach(function (r) { rows.push([s.title, r[0], r[1]]); }); });
     dev.vlans.forEach(function (v) { rows.push(['VLANs', v.id, v.name]); });
+    NP.routeList(dev).forEach(function (r) {
+      rows.push(['Routes', r.dest + (r.vrf ? ' (vrf ' + r.vrf + ')' : ''), NP.routeText(r) + (r.name ? ' · ' + r.name : '')]);
+    });
     NP.ipInterfaces(dev).forEach(function (r) {
       rows.push(['IP interfaces', r.iface, [r.ip, r.vlanName, r.description, r.state].filter(Boolean).join(' · ')]);
     });
@@ -694,6 +734,8 @@
     }
     const ipRows = NP.ipInterfaceRows(dev);
     if (ipRows.length > 1) out.push('## IP interfaces', '', NP.mdTable(ipRows));
+    const rtRows = NP.routeRows(dev);
+    if (rtRows.length > 1) out.push('## Static routes', '', NP.mdTable(rtRows));
     const found = NP.checks ? NP.checks(dev) : [];
     if (found.length) {
       out.push('## Checks', '', NP.mdTable([['Level', 'Finding', 'Ports']].concat(found.map(function (f) {

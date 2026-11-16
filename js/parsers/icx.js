@@ -189,7 +189,7 @@
       else if ((m = l.match(/^default-vlan-id (\d+)/))) defaultVlan = +m[1];
       else if ((m = l.match(/^ip address (\d+\.\d+\.\d+\.\d+)(?:\/(\d+)| (\d+\.\d+\.\d+\.\d+))?/))) { dev.mgmtIp = NP.cidr(m[1], m[2] || m[3]); dev.mgmtIpFixed = true; }
       else if ((m = l.match(/^ip default-gateway (\S+)/))) dev.gateway = m[1];
-      else if ((m = l.match(/^ip route 0\.0\.0\.0(?:\/0| 0\.0\.0\.0) (\d+\.\d+\.\d+\.\d+)/))) dev.gateway = dev.gateway || m[1];
+      else if ((m = l.match(/^ip route (.+)/)) && NP.addRoute(dev, NP.parseIpRoute(m[1]))) { /* gateway from the routes, after the walk */ }
       else if ((m = l.match(/^ip dns domain-(?:list|name) (\S+)/))) dev.domain = dev.domain || m[1];
       else if ((m = l.match(/^ip dns server-address (.+)/))) m[1].split(/\s+/).forEach(function (a) { addUnique(dev.dns, a); });
       else if ((m = l.match(/^sntp server (\S+)/))) addUnique(dev.ntp, m[1]);

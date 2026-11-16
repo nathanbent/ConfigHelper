@@ -36,6 +36,25 @@
     return out;
   }
 
+  // "set [routing-instances R] routing-options static route DEST <rest>": one set line per attribute,
+  // so they are gathered onto one route; each further next-hop is a route of its own (ECMP)
+  function staticRoute(dev, dest, vrf, rest) {
+    const all = (dev.routes || []).filter(function (r) { return r.dest === dest && r.vrf === vrf; });
+    let r = all[0] || NP.addRoute(dev, { dest: dest, vrf: vrf });
+    let x;
+    if ((x = rest.match(/^(?:qualified-)?next-hop (\S+)(?: preference (\d+))?/))) {
+      const ip = /^\d+\.\d+\.\d+\.\d+$/.test(x[1]);
+      if (r.via || r.iface) {
+        if (all.some(function (y) { return y.via === x[1] || y.iface === x[1]; })) return;
+        r = NP.addRoute(dev, { dest: dest, vrf: vrf, distance: r.distance, via: ip ? x[1] : '', iface: ip ? '' : x[1] });
+        if (!r) return;
+      } else if (ip) r.via = x[1]; else r.iface = x[1];
+      if (x[2]) r.distance = x[2];
+    }
+    else if ((x = rest.match(/^preference (\d+)/))) all.concat(all.length ? [] : [r]).forEach(function (y) { y.distance = x[1]; });
+    else if (/^(discard|reject)\b/.test(rest)) r.note = 'discard';
+  }
+
   function parseConfig(lines, dev) {
     const vlanIds = {};                 // name -> id
     const ranges = {};                  // interface-range name -> members
@@ -111,7 +130,7 @@
       else if ((m = l.match(/^set snmp contact (.+)/))) dev.snmp.contact = NP.unquote(m[1]);
       else if (/^set snmp community /.test(l)) addUnique(dev.snmp.versions, 'v2c');
       else if (/^set snmp v3 /.test(l)) addUnique(dev.snmp.versions, 'v3');
-      else if ((m = l.match(/^set routing-options static route 0\.0\.0\.0\/0 next-hop (\S+)/))) dev.gateway = dev.gateway || m[1];
+      else if ((m = l.match(/^set (?:routing-instances (\S+) )?routing-options static route (\S+) (.+)/))) staticRoute(dev, m[2], m[1] || '', m[3]);
       else if ((m = l.match(/^set vlans (\S+) l3-interface (\S+)/))) {
         const p = NP.port(dev, m[2]); if (!p.description) p.description = m[1];
       }

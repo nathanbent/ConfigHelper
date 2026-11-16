@@ -108,7 +108,7 @@
         expandPorts(m[1]).forEach(function (n) { touch(n).lag = t.name; });
       }
       else if ((m = l.match(/^ip default-gateway (\S+)/))) dev.gateway = m[1];
-      else if ((m = l.match(/^ip route 0\.0\.0\.0 0\.0\.0\.0 (\S+)/))) dev.gateway = dev.gateway || m[1];
+      else if ((m = l.match(/^ip route (.+)/)) && NP.addRoute(dev, NP.parseIpRoute(m[1]))) { /* gateway from the routes, after the walk */ }
       else if ((m = l.match(/^ip dns domain-name (.+)/))) dev.domain = NP.unquote(m[1]);
       else if ((m = l.match(/^ip dns server-address (?:priority \d+ )?(\S+)/))) addUnique(dev.dns, m[1]);
       else if ((m = l.match(/^(?:ntp|sntp) server (?:priority \d+ )?(\S+)/))) addUnique(dev.ntp, m[1]);

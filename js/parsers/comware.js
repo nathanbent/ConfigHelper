@@ -109,7 +109,12 @@
       else if ((m = l.match(/^snmp-agent sys-info location (.+)/))) dev.snmp.location = m[1];
       else if ((m = l.match(/^snmp-agent sys-info contact (.+)/))) dev.snmp.contact = m[1];
       else if ((m = l.match(/^snmp-agent sys-info version (.+)/))) m[1].split(/\s+/).forEach(function (v) { addUnique(dev.snmp.versions, v); });
-      else if ((m = l.match(/^ip route-static 0\.0\.0\.0 (?:0|0\.0\.0\.0) (?:\S*[A-Za-z]\S* )?(\d+\.\d+\.\d+\.\d+)/))) dev.gateway = dev.gateway || m[1];
+      else if ((m = l.match(/^ip route-static (?:vpn-instance (\S+) )?(\d+\.\d+\.\d+\.\d+) (\d+(?:\.\d+\.\d+\.\d+)?)(.*)$/))) {
+        // ip route-static [vpn-instance V] DEST MASK|LEN [IFACE] [NEXTHOP] [preference N] [description TEXT]
+        const d = m[4].match(/^(.*?)(?: description (.+))?$/);
+        const r = NP.parseIpRoute((/\./.test(m[3]) ? m[2] + ' ' + m[3] : m[2] + '/' + m[3]) + ' ' + d[1].replace(/\bpreference\b/, 'distance'));
+        if (r) { if (m[1]) r.vrf = m[1]; if (d[2]) r.name = d[2]; NP.addRoute(dev, r); }
+      }
       else if ((m = l.match(/^stp mode (\S+)/))) dev.stp.mode = m[1];
       else if (/^stp (global )?enable/.test(l)) dev.stp.enabled = 'yes';
       else if (/^(undo stp (global )?enable|stp (global )?disable)/.test(l)) dev.stp.enabled = 'no';

@@ -38,6 +38,10 @@
       if (s.title === 'Ports') return;                        // counts follow from the port diff
       s.rows.forEach(function (r) { out[s.title + ': ' + r[0]] = String(r[1]); });
     });
+    (dev.routes || []).forEach(function (r) {
+      const k = 'Static route: ' + r.dest + (r.vrf ? ' (vrf ' + r.vrf + ')' : '');
+      out[k] = out[k] ? out[k] + '; ' + NP.routeText(r) : NP.routeText(r);
+    });
     return out;
   }
 

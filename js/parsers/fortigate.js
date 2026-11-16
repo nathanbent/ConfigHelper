@@ -88,7 +88,18 @@
       else keys.forEach(function (k) { NP.miss(k, b.name); });
     });
   }
-  NP.fortiTree = { tree: tree, find: find, one: one, report: report };      // shared with the FortiSwitch parser
+  // one "config router static" entry -> a route; a missing dst is the default route
+  function staticRoute(dev, e) {
+    const dst = e.set.dst ? e.set.dst.join(' ') : '0.0.0.0 0.0.0.0';
+    const r = NP.parseIpRoute(dst) || { dest: one(e, 'dstaddr') ? 'address ' + one(e, 'dstaddr') : dst };
+    r.via = one(e, 'gateway') && one(e, 'gateway') !== '0.0.0.0' ? one(e, 'gateway') : '';
+    r.iface = one(e, 'device');
+    r.distance = one(e, 'distance');
+    r.name = one(e, 'comment');
+    r.note = [one(e, 'blackhole') === 'enable' ? 'discard' : '', one(e, 'status') === 'disable' ? 'disabled' : ''].filter(Boolean).join(', ');
+    return NP.addRoute(dev, r);
+  }
+  NP.fortiTree = { tree: tree, find: find, one: one, report: report, staticRoute: staticRoute };      // shared with the FortiSwitch parser
 
   // ---- FortiLink: switches whose port config lives on the FortiGate.
   // Each one becomes its own device (see NP.ingest), so tables and labels work per switch.
@@ -244,6 +255,7 @@
     if (find(t, 'system snmp user').some(function (b) { return b.entries.length; })) addUnique(dev.snmp.versions, 'v3');
     find(t, 'router static').forEach(function (b) {
       b.entries.forEach(function (e) {
+        staticRoute(dev, e);
         const dst = e.set.dst ? e.set.dst.join(' ') : '0.0.0.0 0.0.0.0';
         if (/^0\.0\.0\.0[ \/]0(\.0\.0\.0)?$/.test(dst) && one(e, 'gateway') && !dev.gateway) {
           dev.gateway = one(e, 'gateway') + (one(e, 'device') ? ' (' + one(e, 'device') + ')' : '');

@@ -44,6 +44,7 @@
 
     text.split(/\r?\n/).forEach(function (raw) {
       const l = raw.trim();
+      let r;
       if (!l) return;
       if (l[0] === '!') {
         // not the end of a block: OS9 prints a "!" inside an interface, before its LACP lines
@@ -131,8 +132,11 @@
       if ((m = l.match(/^hostname (\S+)/))) dev.hostname = NP.unquote(m[1]);
       else if ((m = l.match(/^default vlan-id (\d+)/))) defaultVlan = +m[1];
       else if ((m = l.match(/^stack-unit (\d+) provision (\S+)/))) { NP.addOther(dev, 'Stack members', m[1] + ': ' + m[2]); if (!dev.model) dev.model = m[2]; }
-      else if ((m = l.match(/^management route 0\.0\.0\.0\/0 (\S+)/))) dev.gateway = m[1];
-      else if ((m = l.match(/^ip route 0\.0\.0\.0(?:\/0| 0\.0\.0\.0) (\d+\.\d+\.\d+\.\d+)/))) dev.gateway = dev.gateway || m[1];
+      else if ((m = l.match(/^management route (.+)/)) && (r = NP.parseIpRoute(m[1]))) {
+        NP.addRoute(dev, Object.assign(r, { vrf: 'management' }));
+        if (NP.isDefaultRoute(r) && r.via) dev.gateway = r.via;      // the gateway the box is managed through
+      }
+      else if ((m = l.match(/^ip route (.+)/)) && NP.addRoute(dev, NP.parseIpRoute(m[1]))) { /* gateway from the routes, after the walk */ }
       else if ((m = l.match(/^ip domain-name (\S+)/))) dev.domain = m[1];
       else if ((m = l.match(/^ip name-server (.+)/))) m[1].split(/\s+/).forEach(function (a) { addUnique(dev.dns, a); });
       else if ((m = l.match(/^ntp server (\S+)/))) addUnique(dev.ntp, m[1]);
