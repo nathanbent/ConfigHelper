@@ -119,7 +119,7 @@ Not covered yet: EdgeOS/VyOS.
 
 The Labels tab produces a file with only the `Line1`, `Line2`, `Line3` columns you fill in (empty lines are
 left out). Options: label type presets (port, patch panel, port + VLAN, port + native/tagged VLAN, cable wrap, cable, one-per-device asset label),
-a port match filter, a per-line character limit, duplicate removal, comma/semicolon/tab output, and optional
+a port match filter, a "print only" choice with custom conditions (below), a per-line character limit, duplicate removal, comma/semicolon/tab output, and optional
 reference columns (`Device`, `Port`, `Description`, `VLAN`).
 
 `P-touch template (.lbx)` downloads the ready-made P-touch Editor layout chosen in the list beside it (kept in
@@ -128,10 +128,30 @@ with a taller second line, and a 2-line fiber flag on 18 mm tape. Open it, conne
 and link the `Line1`/`Line2` text to the matching fields (the fiber flag already has one side linked).
 `Zipped (.zip, phone app)` gives the same template inside a `.zip`, the form Brother's Pro Label Tool app imports.
 
-- `{host} {port} {portfull} {num} {desc} {vlan} {tagged} {voice} {mode} {neighbor} {nport} {ninfo} {ip} {lag} {speed}`, and per device `{mgmtip} {model} {serial} {version} {location}`
+- `{host} {port} {portfull} {portid} {num} {desc} {vlan} {tagged} {voice} {mode} {neighbor} {nport} {ninfo} {ip} {lag} {speed}`, and per device `{mgmtip} {model} {serial} {version} {location}`
 - `{neighbor|desc}` uses the first field that has a value
 - `[VLAN {vlan}]` is dropped when the field inside is empty; `[n{vlan}] [t{tagged}]` gives `n10 t20,30`
 - Click a field button to add it to the line you last clicked in, at the cursor; hover a field for what it holds
+- `{portid}` is the port without its type: `Eth1/1/1` gives `1/1/1`, `Gi1/0/12` gives `1/0/12`
+- **+ Add replacement** edits the finished text of every line, in order, before the character limit: plain text
+  matched in any case (`Eth` replaced with nothing turns `Eth1/1/1` into `1/1/1`), or `/pattern/` for a regular
+  expression, with `$1` for its groups (`/^Eth(\d+)\/\d+\/(\d+)$/` to `U$1-$2` gives `U1-1`)
+
+**Print only** narrows the labels to the ports you actually need to (re)print:
+
+- *Ports set up differently from most*: the ports whose mode, native, tagged or voice VLAN is not the setup most
+  of the selected ports share (the note under it says which setup that is). With 48 access ports on VLAN 10 and a
+  handful of trunks and odd VLANs, only the handful get labels.
+- *Ports I edited*: ports changed with Edit on the Ports tab or by a Normalize correction.
+- *Labels changed since a snapshot*: ports whose label text, as the lines are set now, differs from what it would
+  have said in a snapshot (saved on the Compare tab), plus ports that are new since. Reprint only what changed.
+- *Conditions* (`+ Add condition`): any port column with `is`, `is not`, `contains`, `does not contain`,
+  `is empty` or `is not empty`, e.g. `Tagged VLANs contains 30` and `Mode is trunk`. All conditions must match.
+  VLAN columns compare as VLAN lists (`contains 30` matches `10,20-40` but not `130`); in other columns a comma
+  means any of (`Description contains AP, printer`).
+
+These combine with the options above: "set up differently from most" is worked out among the ports that pass
+them, so `Description contains AP` plus that choice finds the APs that are not set up like the other APs.
 
 In P-touch Editor, connect the CSV as a database (File > Database > Connect), treat the first row as field
 names, drag the `Line` fields onto the label layout, and print all records. The label CSV is written without

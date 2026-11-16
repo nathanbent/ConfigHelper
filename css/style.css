@@ -188,10 +188,16 @@ details.cols .pop.right label select { width: 100%; }
 details.cols summary.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
 
 @media print {
-  .top, aside, .toolbar, .tabs, .labelform, .opts, .tokens, .pagedesc, .pagehelp, .warnhint { display: none !important; }
+  .top, aside, .toolbar, .tabs, .labelform, .opts, .only, .tokens, .pagedesc, .pagehelp, .warnhint { display: none !important; }
   .layout { display: block; padding: 0; }
   body { background: #fff; color: #000; }
   .card { border: 0; padding: 0; }
   .tablewrap { overflow: visible; border: 0; }
   table { font-size: 10px; } th, td { padding: 3px 5px; white-space: normal; }
 }
+.only { border-top: 1px solid var(--line); padding-top: 10px; margin-bottom: 12px; }
+.only > label { display: grid; gap: 4px; max-width: 460px; }
+.only .rules { margin-top: 8px; display: grid; gap: 6px; justify-items: start; }
+.only .rule { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.only .rule input[type=text] { min-width: 160px; font-family: var(--mono); font-size: 13px; color: var(--ink); }
+.only .rule input.bad { outline: 2px solid var(--warn); outline-offset: -1px; }
