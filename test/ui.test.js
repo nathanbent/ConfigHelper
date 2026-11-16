@@ -267,6 +267,19 @@ test('ui', { skip: chromium ? false : 'Playwright is not installed' }, async (t)
     assert.ok(!(await lines()).some(l => /^Te/.test(l)));
     await page.click('button[aria-label="Remove override 1"]');
     assert.equal((await lines())[0], 'Gi1/0/1 | Reception PC + phone');
+    // the cable labels use the same overrides: no labels start at the skipped uplinks, and a description shows up
+    await page.click('button:has-text("+ Add override")');
+    await page.fill('input[aria-label="Override 2 ports"]', 'Gi1/0/2');
+    await page.press('input[aria-label="Override 2 ports"]', 'Tab');
+    await page.fill('input[aria-label="Override 2 value"]', 'Lobby AP');
+    await page.press('input[aria-label="Override 2 value"]', 'Tab');
+    await page.click('#btnCables');
+    await page.fill('.labelform input >> nth=1', '{b} {bport} {bdesc}');
+    await page.press('.labelform input >> nth=1', 'Tab');
+    const cab = await page.locator('.labelprev tbody tr').evaluateAll(r => r.map(x => x.textContent));
+    assert.ok(!cab.some(l => /^SW-ACCESS-01 Te/.test(l)), cab.join('\n'));
+    assert.ok(cab.some(l => /SW-ACCESS-01 Gi1\/0\/2 Lobby AP$/.test(l)), cab.join('\n'));
+    assert.equal(await page.locator('.labelprev tr.overridden').count(), 2);
     assert.deepEqual(errors, []);
   });
 
