@@ -2,9 +2,9 @@
 
 Paste a switch, router or firewall config (and optionally show-command output) and get:
 
-- an **overview**: hostname, model, software, management IP, DNS, NTP, syslog, SNMP, spanning tree, multicast, VLANs and other notable settings
+- an **overview**: hostname, model, software, management IP, DNS, NTP, syslog, SNMP, spanning tree, multicast, VLANs, IP interfaces (SVIs, loopbacks, routed and management ports with their addresses) and other notable settings
 - a **port table**: description, admin/link state, speed, mode, untagged/native and tagged VLANs, voice VLAN, LAG, PoE, STP settings, CDP/LLDP neighbor
-- **exports**: port table as CSV, tab-separated text, Markdown or JSON (shown or all columns and rows, one or all devices); a per-device Markdown report; summary CSV; JSON backup (re-importable); and a label file for Brother P-touch Editor
+- **exports**: port table as CSV, tab-separated text, Markdown or JSON (shown or all columns and rows, one or all devices); a per-device Markdown report (with the IP interface table); summary CSV; JSON backup (re-importable); and a label file for Brother P-touch Editor
 
 Everything runs in the browser. Nothing is uploaded, and secrets (password hashes, SNMP communities, keys) are never stored or exported.
 

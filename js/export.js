@@ -92,10 +92,35 @@
     return sec.filter(function (s) { return s.rows.length; });
   };
 
+  // Every interface with an address (SVIs, loopbacks, routed ports, management, tunnels), for
+  // documentation: [{port, iface, vlan, vlanName, ip, description, state, notes}] in port order.
+  NP.ipInterfaces = function (dev) {
+    return NP.eports(dev).filter(function (p) { return p.ip; }).map(function (p) {
+      let vlan = '', vlanName = '';
+      if (p.kind === 'svi') {
+        // named VLAN interfaces (FortiGate, MikroTik) carry their ID as the one tagged VLAN
+        const m = p.mode === 'vlan' && /^\d+$/.test(p.tagged) ? [p.tagged, p.tagged] : String(p.short).match(/(\d+)$/);
+        const v = m && dev.vlans.find(function (x) { return x.id === +m[1]; });
+        if (m) vlan = m[1];
+        if (v) vlanName = v.name;
+      } else if (p.mode !== 'routed' && p.untagged && p.kind !== 'mgmt' && p.kind !== 'loopback') vlan = p.untagged;
+      const state = p.adminUp === false ? 'disabled' : p.link || NP.adminText(p);
+      return { port: p, iface: p.short, kind: p.kind, vlan: vlan, vlanName: vlanName, ip: p.ip,
+        description: p.description, state: state, notes: p.notes };
+    });
+  };
+  NP.ipInterfaceRows = function (dev) {
+    return [['Interface', 'VLAN', 'VLAN name', 'IP address', 'Description', 'State', 'Notes']].concat(
+      NP.ipInterfaces(dev).map(function (r) { return [r.iface, r.vlan, r.vlanName, r.ip, r.description, r.state, r.notes]; }));
+  };
+
   NP.summaryRows = function (dev) {
     const rows = [['Section', 'Item', 'Value']];
     NP.summary(dev).forEach(function (s) { s.rows.forEach(function (r) { rows.push([s.title, r[0], r[1]]); }); });
     dev.vlans.forEach(function (v) { rows.push(['VLANs', v.id, v.name]); });
+    NP.ipInterfaces(dev).forEach(function (r) {
+      rows.push(['IP interfaces', r.iface, [r.ip, r.vlanName, r.description, r.state].filter(Boolean).join(' · ')]);
+    });
     return rows;
   };
 
@@ -667,6 +692,8 @@
     if (dev.vlans.length) {
       out.push('## VLANs', '', NP.mdTable([['VLAN', 'Name']].concat(dev.vlans.map(function (v) { return [v.id, v.name]; }))));
     }
+    const ipRows = NP.ipInterfaceRows(dev);
+    if (ipRows.length > 1) out.push('## IP interfaces', '', NP.mdTable(ipRows));
     const found = NP.checks ? NP.checks(dev) : [];
     if (found.length) {
       out.push('## Checks', '', NP.mdTable([['Level', 'Finding', 'Ports']].concat(found.map(function (f) {

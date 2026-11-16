@@ -677,6 +677,20 @@ test('export formats and device report', () => {
   assert.match(rep, /\| GigabitEthernet1\/0\/1 \| Reception PC \+ phone \| 10 \|/);
 });
 
+test('IP interfaces: SVIs, routed and management ports with VLAN names; secondaries kept as notes', () => {
+  const nx = run('nxos').dev;
+  assert.deepEqual(NP.ipInterfaces(nx).map(r => [r.iface, r.vlan, r.vlanName, r.ip]),
+    [['Eth1/49', '', '', '10.255.0.1/31'], ['Vlan100', '100', 'SERVERS', '10.100.0.2/24'], ['mgmt0', '', '', '10.20.99.21/24']]);
+  const fg = run('fortigate').dev;
+  const cams = NP.ipInterfaces(fg).find(r => r.iface === 'cameras');
+  assert.equal(cams.vlan, '40');
+  const t = 'hostname R1\ninterface Vlan10\n ip address 10.0.0.1 255.255.255.0\n ip address 10.1.0.1 255.255.255.0 secondary\n!\nvlan 10\n name USERS\n';
+  const d = NP.ingest(t, { vendor: 'ios', devices: [] }).dev;
+  assert.deepEqual(NP.ipInterfaceRows(d)[1], ['Vlan10', '10', 'USERS', '10.0.0.1/24', '', 'enabled', 'secondary 10.1.0.1/24']);
+  assert.match(NP.deviceReport(d, ['name']), /## IP interfaces\n\n\| Interface \| VLAN \| VLAN name \| IP address \|/);
+  assert.ok(NP.summaryRows(d).some(r => r[0] === 'IP interfaces' && r[1] === 'Vlan10' && /10\.0\.0\.1\/24 · USERS/.test(r[2])));
+});
+
 test('not parsed: skipped lines are reported, noise is dropped, secrets are stripped', () => {
   const text = require('fs').readFileSync(require('path').join(__dirname, 'fixtures', 'cisco-3850-lab.txt'), 'utf8');
   const d = NP.ingest(text, { devices: [] }).dev;

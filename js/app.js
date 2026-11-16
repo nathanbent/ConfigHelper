@@ -375,6 +375,27 @@
           return h('span', { class: 'chip' }, h('b', { text: v.id }), v.name ? ' ' + v.name : '');
         }))));
     }
+    const ips = NP.ipInterfaces(dev);
+    if (ips.length) {
+      const ipRows = NP.ipInterfaceRows(dev);
+      view.appendChild(h('section', { class: 'card' },
+        h('div', { class: 'toolbar' },
+          h('h2', { text: 'IP interfaces (' + ips.length + ')' }),
+          h('span', { class: 'spacer' }),
+          h('button', { title: 'Tab-separated, pastes into a spreadsheet', onclick: function (e) { copyText(NP.formatRows(ipRows, 'tsv'), e.target, 'Copy table'); } }, 'Copy table'),
+          h('button', { onclick: function (e) { copyText(NP.formatRows(ipRows, 'md'), e.target, 'Copy as Markdown'); } }, 'Copy as Markdown'),
+          h('button', { onclick: function () {
+            state.only = { title: 'IP interfaces', keys: ips.map(function (r) { return r.port.key; }) };
+            state.tab = 'ports'; state.search = ''; state.physOnly = false; state.hideDown = false;
+            if (!state.cols.includes('ip')) state.cols = state.cols.concat('ip');
+            render();
+          } }, 'Show in Ports')),
+        h('div', { class: 'tablewrap' }, h('table', {},
+          h('thead', {}, h('tr', {}, ipRows[0].map(function (t) { return h('th', { class: 'nosort', scope: 'col', text: t }); }))),
+          h('tbody', {}, ipRows.slice(1).map(function (r) {
+            return h('tr', {}, r.map(function (c, i) { return h('td', { class: i === 0 || i === 3 ? 'mono' : '', text: c }); }));
+          }))))));
+    }
     view.appendChild(h('section', { class: 'card' },
       h('div', { class: 'toolbar' },
         h('button', { onclick: function () {
