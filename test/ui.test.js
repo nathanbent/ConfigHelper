@@ -192,6 +192,18 @@ test('ui', { skip: chromium ? false : 'Playwright is not installed' }, async (t)
     assert.equal(await first(), 'Eth1/1');
     await page.click('button[aria-label="Remove replacement 1"]');
     assert.equal(await page.locator('input[aria-label="Replacement 1 find"]').count(), 0);
+    // the cable labels use the same list, and can edit it
+    await page.selectOption('#selSample', 'ios');
+    await page.click('#btnParse');
+    await page.click('#btnCables');
+    assert.match(await page.textContent('.labelprev'), /SW-ACCESS-01 Gi1\/0\/2/);
+    await page.click('button:has-text("+ Add replacement")');
+    await page.fill('input[aria-label="Replacement 1 find"]', 'Gi');
+    await page.press('input[aria-label="Replacement 1 find"]', 'Tab');
+    assert.match(await page.textContent('.labelprev'), /SW-ACCESS-01 1\/0\/2/);
+    await page.click('.devices .pick >> nth=0');
+    await tab(page, 'Labels');
+    assert.equal(await page.inputValue('input[aria-label="Replacement 1 find"]'), 'Gi');
     assert.deepEqual(errors, []);
   });
 

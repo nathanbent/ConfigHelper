@@ -889,6 +889,9 @@ test('cable list across devices', () => {
   assert.deepEqual(lab.slice(0, 3), [['Line1', 'Line2'], ['CORE-01 Te1/0/1', 'ACCESS-A Te1/1/1'], ['ACCESS-A Te1/1/1', 'CORE-01 Te1/0/1']]);
   assert.equal(lab.length, 1 + 3 * 2);
   assert.equal(NP.cableLabelRows(cables, { lines: ['{id} {a}>{b}'], maxLen: 12 })[1][0], 'C001 CORE-01');
+  // the text replacements from the Labels tab apply here too, before the character limit
+  assert.deepEqual(NP.cableLabelRows(cables, { lines: ['{a} {aport}'], loadedOnly: true, replace: [{ find: 'Te', replace: '' }, { find: '/-0(\\d)/', replace: '$1' }] })[1],
+    ['CORE1 1/0/1']);
 });
 
 test('sanitize: every sample still parses to the same structure, with nothing identifying left', () => {

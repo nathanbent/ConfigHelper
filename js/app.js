@@ -520,7 +520,7 @@
             h('td', { title: c.note || null }, h('span', { class: 'pill ' + cls, text: c.status }), c.note ? h('div', { class: 'hint', text: c.note }) : null));
         })))) : h('p', { class: 'empty', text: 'No cables match.' })));
 
-    const lab = NP.cableLabelRows(list, K);
+    const lab = NP.cableLabelRows(list, Object.assign({}, K, { replace: state.label.replace }));
     const line = function (i) {
       return h('label', {}, 'Line ' + (i + 1) + (i ? ' (optional)' : ''),
         h('input', { type: 'text', value: K.lines[i] || '', onchange: function (e) { K.lines[i] = e.target.value; render(); } }));
@@ -533,6 +533,7 @@
       h('div', { class: 'opts' },
         h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: K.bothEnds, onchange: function (e) { K.bothEnds = e.target.checked; render(); } }),
           'Two labels per cable, one for each end (the second swaps A and B, so each reads "this end, then far end")')),
+      replaceEditor(''),
       h('p', { class: 'tokens' }, 'Fields: ', Object.keys(NP.cableTokens).map(function (t) { return [h('code', { text: '{' + t + '}' }), ' ']; }),
         ' The labels follow the filter above.'),
       h('div', { class: 'toolbar' }, h('span', { class: 'count', text: (lab.length - 1) + ' label(s)' }), h('span', { class: 'spacer' }),
@@ -831,6 +832,31 @@
         : h('p', { class: 'empty', text: 'No ports match.' })));
   }
 
+  // Find and replace on the finished label text, e.g. drop "Eth" from Eth1/1/1. One list, kept with the
+  // label settings, used by both the Labels tab and the cable labels.
+  function replaceEditor(extra) {
+    const L = state.label;
+    if (!Array.isArray(L.replace)) L.replace = [];
+    const bad = NP.labelReplacer(L.replace).errors;
+    const replaceRow = function (r, i) {
+      const upd = function (k) { return function (e) { r[k] = e.target.value; save(); render(); }; };
+      return h('div', { class: 'rule' },
+        h('input', { type: 'text', value: r.find || '', placeholder: 'Find, e.g. Eth', 'aria-label': 'Replacement ' + (i + 1) + ' find',
+          class: bad.includes(r.find) ? 'bad' : null, onchange: upd('find') }),
+        h('span', { text: '→' }),
+        h('input', { type: 'text', value: r.replace || '', placeholder: '(nothing)', 'aria-label': 'Replacement ' + (i + 1) + ' replace with',
+          onchange: upd('replace') }),
+        h('button', { type: 'button', class: 'link', 'aria-label': 'Remove replacement ' + (i + 1),
+          onclick: function () { L.replace.splice(i, 1); save(); render(); } }, 'Remove'));
+    };
+    return h('div', { class: 'only' },
+      h('p', { class: 'hint', text: 'Replace text in every label line, in order: plain text in any case (Eth → nothing turns Eth1/1/1 into 1/1/1), or /pattern/ for a regular expression with $1 for its groups. Port labels and cable labels share this list. ' + (extra || '') }),
+      h('div', { class: 'rules' },
+        L.replace.map(replaceRow),
+        bad.length ? h('p', { class: 'hint warnhint', text: 'Not a valid regular expression, so skipped: ' + bad.join(', ') }) : null,
+        h('button', { type: 'button', onclick: function () { L.replace.push({ find: '', replace: '' }); save(); render(); } }, '+ Add replacement')));
+  }
+
   const VLANISH = { untagged: true, tagged: true, voiceVlan: true };
   let labelCaret = { line: 0, pos: null };   // the label line the field buttons write into
   function labels(view, dev) {
@@ -955,26 +981,7 @@
         h('button', { type: 'button', disabled: perDevice, onclick: function () {
           L.rules.push({ field: 'untagged', op: 'not', value: '' }); save(); render();
         } }, '+ Add condition')));
-    // Find and replace on the finished label text, e.g. drop "Eth" from Eth1/1/1.
-    if (!Array.isArray(L.replace)) L.replace = [];
-    const bad = NP.labelReplacer(L.replace).errors;
-    const replaceRow = function (r, i) {
-      const upd = function (k) { return function (e) { r[k] = e.target.value; save(); render(); }; };
-      return h('div', { class: 'rule' },
-        h('input', { type: 'text', value: r.find || '', placeholder: 'Find, e.g. Eth', 'aria-label': 'Replacement ' + (i + 1) + ' find',
-          class: bad.includes(r.find) ? 'bad' : null, onchange: upd('find') }),
-        h('span', { text: '→' }),
-        h('input', { type: 'text', value: r.replace || '', placeholder: '(nothing)', 'aria-label': 'Replacement ' + (i + 1) + ' replace with',
-          onchange: upd('replace') }),
-        h('button', { type: 'button', class: 'link', 'aria-label': 'Remove replacement ' + (i + 1),
-          onclick: function () { L.replace.splice(i, 1); save(); render(); } }, 'Remove'));
-    };
-    const replaceBox = h('div', { class: 'only' },
-      h('p', { class: 'hint', text: 'Replace text in every label line, in order: plain text in any case (Eth → nothing turns Eth1/1/1 into 1/1/1), or /pattern/ for a regular expression with $1 for its groups. The {portid} field also gives the port without its type.' }),
-      h('div', { class: 'rules' },
-        L.replace.map(replaceRow),
-        bad.length ? h('p', { class: 'hint warnhint', text: 'Not a valid regular expression, so skipped: ' + bad.join(', ') }) : null,
-        h('button', { type: 'button', onclick: function () { L.replace.push({ find: '', replace: '' }); save(); render(); } }, '+ Add replacement')));
+    const replaceBox = replaceEditor('The {portid} field also gives the port without its type.');
     const head = rows[0];
     const lineCount = (L.lines || []).filter(function (l) { return l && l.trim(); }).length;
     view.appendChild(h('section', { class: 'card' },
