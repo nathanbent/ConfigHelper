@@ -1128,6 +1128,17 @@ test('label templates, CSV and backup round-trip', () => {
   assert.equal(back[0].hostname, d.hostname);
   assert.equal(back[0].ports.length, d.ports.length);
   assert.throws(() => NP.restore('{"x":1}'), /not a ConfigHelper backup/);
+  // label text-replacement presets ride along, and merge by name without overwriting anything
+  const pre = [{ name: 'Dell', list: [{ find: 'Eth', replace: '' }, { find: '/^1/', replace: 'P', off: true }] }];
+  const file = NP.backup([d], { replacePresets: pre.concat([{ name: '', list: [] }, { junk: 1 }]) });
+  assert.deepEqual(NP.restorePresets(file), pre, 'malformed entries are dropped');
+  assert.equal(NP.restore(file).length, 1);
+  assert.ok(!('replacePresets' in JSON.parse(NP.backup([d], { replacePresets: [] }))), 'no presets, no key');
+  assert.deepEqual(NP.restorePresets(NP.backup([d])), []);
+  const mine = [{ name: 'Dell', list: [{ find: 'Gi', replace: '' }] }];
+  assert.deepEqual(NP.mergePresets(mine, NP.restorePresets(file)), { added: 1, renamed: 1, same: 0 });
+  assert.deepEqual(mine.map(p => p.name), ['Dell', 'Dell (imported)']);
+  assert.deepEqual(NP.mergePresets(mine, NP.restorePresets(file)), { added: 0, renamed: 0, same: 1 }, 'importing twice adds nothing');
 });
 
 const icxLab = () => require('fs').readFileSync(require('path').join(__dirname, 'fixtures', 'ruckus-icx7150-lab.txt'), 'utf8');
