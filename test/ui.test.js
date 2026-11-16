@@ -415,13 +415,19 @@ test('ui', { skip: chromium ? false : 'Playwright is not installed' }, async (t)
     const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'ch-'));
     const p = path.join(dir, 'backup.json');
     fs.writeFileSync(p, file.text);
+    // the file is read asynchronously: wait for this import's message, not whatever #msg said before
+    const imported = async (re) => {
+      await fresh.page.waitForFunction(src => new RegExp(src).test(document.getElementById('msg').textContent), re.source);
+      return fresh.page.textContent('#msg');
+    };
     await fresh.page.setInputFiles('#fileBackup', p);
-    assert.match(await fresh.page.textContent('#msg'), /Imported 1 device\(s\) and 1 replacement preset\(s\)/);
+    assert.match(await imported(/^Imported 1 device\(s\) and 1 replacement preset\(s\)\.$/), /1 replacement preset/);
     await tab(fresh.page, 'Labels');
     assert.match(await fresh.page.textContent('select[aria-label="Replacement preset"]'), /Preset 1 \(1\)/);
     // importing again adds nothing
+    await fresh.page.evaluate(() => { document.getElementById('msg').textContent = ''; });
     await fresh.page.setInputFiles('#fileBackup', p);
-    assert.match(await fresh.page.textContent('#msg'), /^Imported 1 device\(s\)\.$/);
+    assert.match(await imported(/^Imported /), /^Imported 1 device\(s\)\.$/);
     assert.deepEqual(errors.concat(fresh.errors), []);
   });
 
