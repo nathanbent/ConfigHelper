@@ -520,7 +520,9 @@
             h('td', { title: c.note || null }, h('span', { class: 'pill ' + cls, text: c.status }), c.note ? h('div', { class: 'hint', text: c.note }) : null));
         })))) : h('p', { class: 'empty', text: 'No cables match.' })));
 
-    const lab = NP.cableLabelRows(list, Object.assign({}, K, { replace: state.label.replace }));
+    if (!Array.isArray(state.label.overrides)) state.label.overrides = [];
+    const lab = NP.cableLabelRows(list, Object.assign({}, K, { replace: state.label.replace, overrides: state.label.overrides, devices: state.devices }));
+    const nOver = state.label.overrides.filter(function (o) { return o && o.field && String(o.ports || '').trim(); }).length;
     const line = function (i) {
       return h('label', {}, 'Line ' + (i + 1) + (i ? ' (optional)' : ''),
         h('input', { type: 'text', value: K.lines[i] || '', onchange: function (e) { K.lines[i] = e.target.value; render(); } }));
@@ -536,12 +538,19 @@
       replaceEditor(''),
       h('p', { class: 'tokens' }, 'Fields: ', Object.keys(NP.cableTokens).map(function (t) { return [h('code', { text: '{' + t + '}' }), ' ']; }),
         ' The labels follow the filter above.'),
+      h('p', { class: 'hint' }, nOver
+        ? nOver + ' override(s) from the Labels tab apply here: {desc} and {port} change that end, {neighbor} and {nport} the far end, and "No label" leaves out the labels that start at those ports. Whole-line and VLAN overrides only affect port labels. Changed labels are marked. '
+        : 'Overrides set on the Labels tab ({desc}, {port}, {neighbor}, {nport}, No label) apply here too. ',
+        h('button', { type: 'button', class: 'link', onclick: function () { state.view = 'device'; state.tab = 'labels'; render(); } }, 'Edit overrides')),
       h('div', { class: 'toolbar' }, h('span', { class: 'count', text: (lab.length - 1) + ' label(s)' }), h('span', { class: 'spacer' }),
         h('button', { disabled: lab.length < 2, onclick: function (e) { copyText(NP.csv(lab, '\t'), e.target, 'Copy'); } }, 'Copy'),
         h('button', { class: 'primary', disabled: lab.length < 2, onclick: function () { download('cable-labels.csv', NP.csv(lab), 'text/csv'); } }, 'Export label file')),
       lab.length > 1 ? h('div', { class: 'tablewrap' }, h('table', { class: 'labelprev' },
         h('thead', {}, h('tr', {}, lab[0].map(function (c) { return h('th', { class: 'nosort', scope: 'col', text: c }); }))),
-        h('tbody', {}, lab.slice(1).map(function (r) { return h('tr', {}, r.map(function (c) { return h('td', { class: 'line', text: c }); })); })))) : null));
+        h('tbody', {}, lab.slice(1).map(function (r, i) {
+          return h('tr', { class: lab.overridden[i] ? 'overridden' : null, title: lab.overridden[i] ? 'Changed by an override' : null },
+            r.map(function (c) { return h('td', { class: 'line', text: c }); }));
+        })))) : null));
   }
 
   function compare(view, dev) {

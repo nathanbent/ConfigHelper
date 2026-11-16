@@ -151,7 +151,7 @@
         'Give it': ['CDP or LLDP neighbor output for each device. The Commands to run list includes it.'],
         'You get': [
           'One row per link. A link reported by both devices appears once, marked "both ends"; the others are marked "one end only", "far end not loaded" or "mismatch".',
-          'Export the list in any format, or as a label file.'
+          'Export the list in any format, or as a label file. The text replacements and the overrides set on the Labels tab apply to the cable labels too.'
         ],
         'Limits': [
           'Links appear only where neighbor output was loaded, so a link between two devices that do not run CDP or LLDP is missing.',
