@@ -210,6 +210,19 @@ test('ui', { skip: chromium ? false : 'Playwright is not installed' }, async (t)
     await page.focus('button[aria-label="Move replacement 1"]');
     await page.keyboard.press('ArrowDown');
     assert.equal(await page.inputValue('input[aria-label="Replacement 1 find"]'), 'Eth');
+    // presets: save the list, clear it, load it back (it survives a reload)
+    await page.click('button:has-text("Save as preset")');                       // the prompt is accepted with its default name
+    assert.match(await page.textContent('select[aria-label="Replacement preset"]'), /Preset 1 \(2\)/);
+    await page.click('button[aria-label="Remove replacement 2"]');
+    await page.click('button[aria-label="Remove replacement 1"]');
+    assert.equal(await page.locator('input[aria-label="Replacement 1 find"]').count(), 0);
+    await page.reload();
+    await tab(page, 'Labels');
+    await page.click('.only button:has-text("Load")');
+    assert.equal(await page.inputValue('input[aria-label="Replacement 2 find"]'), '/^1/');
+    assert.equal(await first(), 'P/1');
+    await page.click('button:has-text("Delete preset")');
+    assert.match(await page.textContent('.only .presets'), /none saved yet/);
     await page.click('button[aria-label="Remove replacement 2"]');
     await page.click('button[aria-label="Remove replacement 1"]');
     assert.equal(await page.locator('input[aria-label="Replacement 1 find"]').count(), 0);

@@ -20,7 +20,7 @@
     norm: { scope: 'device', pick: {} },  // Normalize tab: this device or all, and what each group is normalized to (not saved)
     label: { preset: 'port', per: 'port', lines: NP.labelPresets.port.lines.slice(), scope: 'device',
       physicalOnly: true, upOnly: false, describedOnly: false, skipDisabled: true,
-      match: '', maxLen: 0, refCols: false, dedupe: false, delim: ',', only: '', snap: '', rules: [], replace: [], overrides: [] }
+      match: '', maxLen: 0, refCols: false, dedupe: false, delim: ',', only: '', snap: '', rules: [], replace: [], replacePresets: [], overrides: [] }
   };
 
   function h(tag, attrs) {
@@ -887,11 +887,47 @@
       return row;
     };
     return h('div', { class: 'only' },
-      h('p', { class: 'hint', text: 'Replace text in every label line, in order: plain text in any case (Eth → nothing turns Eth1/1/1 into 1/1/1), or /pattern/ for a regular expression with $1 for its groups. Untick one to switch it off without losing it; drag ⠿ to change the order. Port labels and cable labels share this list. ' + (extra || '') }),
+      h('p', { class: 'hint', text: 'Replace text in every label line, in order: plain text in any case (Eth → nothing turns Eth1/1/1 into 1/1/1), or /pattern/ for a regular expression with $1 for its groups. Untick one to switch it off without losing it; drag ⠿ to change the order. Save a list as a preset to switch between sets. Port labels and cable labels share this list. ' + (extra || '') }),
       h('div', { class: 'rules' },
         L.replace.map(replaceRow),
         bad.length ? h('p', { class: 'hint warnhint', text: 'Not a valid regular expression, so skipped: ' + bad.join(', ') }) : null,
-        h('button', { type: 'button', onclick: function () { L.replace.push({ find: '', replace: '' }); save(); render(); } }, '+ Add replacement')));
+        h('button', { type: 'button', onclick: function () { L.replace.push({ find: '', replace: '' }); save(); render(); } }, '+ Add replacement')),
+      presetBar());
+  }
+  // Named copies of the replacement list, kept in this browser with the label settings.
+  let replacePick = '';
+  function presetBar() {
+    const L = state.label;
+    if (!Array.isArray(L.replacePresets)) L.replacePresets = [];
+    const P = L.replacePresets;
+    const copy = function (list) { return list.filter(function (r) { return r.find; }).map(function (r) { return Object.assign({}, r); }); };
+    const same = function (a, b) { return JSON.stringify(copy(a)) === JSON.stringify(copy(b)); };
+    if (!P.some(function (p) { return p.name === replacePick; })) replacePick = P.length ? P[0].name : '';
+    const picked = P.find(function (p) { return p.name === replacePick; });
+    return h('div', { class: 'rule presets' },
+      h('span', { class: 'hint', text: 'Presets:' }),
+      P.length ? sel(replacePick, P.map(function (p) { return [p.name, p.name + ' (' + p.list.length + ')']; }),
+        function (v) { replacePick = v; render(); }, 'Replacement preset') : h('span', { class: 'hint', text: 'none saved yet' }),
+      h('button', { type: 'button', disabled: !picked, title: 'Replace the list above with this preset', onclick: function () {
+        if (L.replace.some(function (r) { return r.find; }) && !same(L.replace, picked.list) &&
+          !P.some(function (p) { return same(p.list, L.replace); }) &&
+          !confirm('Replace the current list with "' + picked.name + '"? The current list is not saved as a preset.')) return;
+        L.replace = copy(picked.list); save(); render();
+      } }, 'Load'),
+      h('button', { type: 'button', disabled: !L.replace.some(function (r) { return r.find; }), title: 'Save the list above under a name', onclick: function () {
+        const suggest = picked && same(picked.list, L.replace) ? picked.name : 'Preset ' + (P.length + 1);
+        let name = prompt('Name for this preset', suggest);
+        if (name === null) return;
+        name = name.trim() || suggest;
+        const old = P.find(function (p) { return p.name === name; });
+        if (old && !same(old.list, L.replace) && !confirm('Overwrite the preset "' + name + '"?')) return;
+        if (old) old.list = copy(L.replace); else P.push({ name: name, list: copy(L.replace) });
+        replacePick = name; save(); render();
+      } }, 'Save as preset…'),
+      h('button', { type: 'button', class: 'link', disabled: !picked, onclick: function () {
+        if (!confirm('Delete the preset "' + picked.name + '"?')) return;
+        P.splice(P.indexOf(picked), 1); save(); render();
+      } }, 'Delete preset'));
   }
 
   // Overrides: change what the labels of a range of ports say (Line 2 = "Spare" on Gi1/0/40-48, no label for
