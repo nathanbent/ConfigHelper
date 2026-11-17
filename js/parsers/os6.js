@@ -118,7 +118,7 @@
       NP._lastMiss = null;
       if ((m = l.match(/^hostname (.+)/))) dev.hostname = NP.unquote(m[1]);
       else if ((m = l.match(/^ip default-gateway (\S+)/))) dev.gateway = m[1];
-      else if ((m = l.match(/^ip route 0\.0\.0\.0 0\.0\.0\.0 (\d+\.\d+\.\d+\.\d+)/))) dev.gateway = dev.gateway || m[1];
+      else if ((m = l.match(/^ip route (.+)/)) && NP.addRoute(dev, NP.parseIpRoute(m[1]))) { /* gateway from the routes, after the walk */ }
       else if ((m = l.match(/^ip domain-name (.+)/))) dev.domain = NP.unquote(m[1]);
       else if ((m = l.match(/^ip name-server (.+)/))) m[1].split(/\s+/).forEach(function (a) { addUnique(dev.dns, NP.unquote(a)); });
       else if ((m = l.match(/^sntp server (\S+)/))) addUnique(dev.ntp, NP.unquote(m[1]));

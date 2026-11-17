@@ -95,11 +95,21 @@
     const gwIface = {};
     const gws = sec('gateways');
     let gwDefault = '';
+    const gwByName = {};
     kids(gws, 'gateway_item').forEach(function (g) {
       gwIface[txt(g, 'interface')] = txt(g, 'gateway');
-      if (kid(g, 'defaultgw') || txt(g, 'name') === txt(gws, 'defaultgw4')) gwDefault = txt(g, 'gateway') + ' (' + txt(g, 'name') + ')';
+      gwByName[txt(g, 'name')] = g;
+      if (kid(g, 'defaultgw') || txt(g, 'name') === txt(gws, 'defaultgw4')) {
+        gwDefault = txt(g, 'gateway') + ' (' + txt(g, 'name') + ')';
+        NP.addRoute(dev, { dest: '0.0.0.0/0', via: txt(g, 'gateway'), iface: txt(g, 'interface'), name: txt(g, 'name'), note: 'default gateway' });
+      }
     });
     if (gwDefault) dev.gateway = gwDefault;
+    kids(sec('staticroutes'), 'route').forEach(function (r) {
+      const g = gwByName[txt(r, 'gateway')];
+      NP.addRoute(dev, { dest: txt(r, 'network'), via: g ? txt(g, 'gateway') : '', iface: g ? txt(g, 'interface') : '',
+        name: [txt(r, 'gateway'), txt(r, 'descr')].filter(Boolean).join(': '), note: kid(r, 'disabled') ? 'disabled' : '' });
+    });
     const ifs = sec('interfaces');
     (ifs ? ifs.kids : []).forEach(function (n) {
       const os = txt(n, 'if');

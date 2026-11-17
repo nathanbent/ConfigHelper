@@ -24,7 +24,6 @@
     const cxNoShut = fl === 'aoscx' && /^\s+no shutdown\s*$/m.test(text);
     let ctx = null;
     let stpSeen = false;
-    const routes = [];                           // static routes other than the default
     const breakouts = [];                        // OS10: [port, mode] from "interface breakout 1/1/25 map 100g-1x"
 
     function finish() {
@@ -149,17 +148,14 @@
 
       // ---- routing / gateway
       if ((m = l.match(/^ip default-gateway (\S+)/))) { dev.gateway = m[1]; return; }
-      if ((m = l.match(/^ip route (?:vrf \S+ )?0\.0\.0\.0(?:\/0| 0\.0\.0\.0) (?:[A-Za-z]\S* )?(\d+\.\d+\.\d+\.\d+)/))) {
-        if (!dev.gateway) dev.gateway = m[1];
-        return;
-      }
-      if ((m = l.match(/^ip route (?:vrf \S+ )?(\d+\.\d+\.\d+\.\d+)(\/\d+| \d+\.\d+\.\d+\.\d+) (?:interface )?(\S+)/))) {
-        addUnique(routes, (m[2][0] === '/' ? m[1] + m[2] : NP.cidr(m[1], m[2].trim())) + ' via ' + m[3]);
-        return;
-      }
+      if ((m = l.match(/^(ip|management) route (.+)/)) && staticRoute(m[2], m[1] === 'management' ? 'management' : '')) return;
       if (l === 'ip routing') { dev.other['IP routing'] = 'enabled'; return; }
       if ((m = l.match(/^router (\S+)(?: (\S+))?/))) { NP.addOther(dev, 'Routing protocols', m[1] + (m[2] ? ' ' + m[2] : '')); return; }
-      if ((m = l.match(/^(?:ip )?vrf (?:definition |context )?(\S+)$/))) { if (m[1] !== 'default') NP.addOther(dev, 'VRFs', m[1]); return; }
+      if ((m = l.match(/^(?:ip )?vrf (?:definition |context )?(\S+)$/))) {
+        if (m[1] !== 'default') NP.addOther(dev, 'VRFs', m[1]);
+        ctx = { type: 'vrf', name: m[1] === 'default' ? '' : m[1] };    // NX-OS keeps a VRF's static routes inside "vrf context"
+        return;
+      }
 
       // ---- everything else worth a line in the summary
       if ((m = l.match(/^version (\S+)/))) { dev.version = dev.version || m[1]; return; }
@@ -194,8 +190,20 @@
       NP.miss(l, 'global');
     }
 
+    function staticRoute(args, vrf) {
+      const r = NP.parseIpRoute(args);
+      if (!r) return false;
+      if (vrf && !r.vrf) r.vrf = vrf;
+      NP.addRoute(dev, r);
+      return true;
+    }
+
     function sub(l) {
       let m;
+      if (ctx.type === 'vrf') {
+        if ((m = l.match(/^ip route (.+)/))) staticRoute(m[1], ctx.name);
+        return;
+      }
       if (ctx.type === 'vlan') {
         if ((m = l.match(/^name (.+)/))) NP.addVlan(dev, ctx.ids[0], m[1]);
         else if (/^ip igmp snooping( enable)?$/.test(l)) addUnique(mc.notes, 'snooping on VLAN ' + ctx.ids.join(','));
@@ -281,7 +289,6 @@
     });
     finish();
 
-    if (routes.length) dev.other['Static routes'] = routes.slice(0, 8).join(', ') + (routes.length > 8 ? ', +' + (routes.length - 8) + ' more' : '');
     // a port left whole ("100g-1x") runs at the speed its breakout mode names
     breakouts.forEach(function (b) {
       const sp = b[1].match(/^(\d+)g-1x$/i);

@@ -152,6 +152,8 @@
           if (t[7] === 'destination') r.dst = t[8];
           else if (t[7] === 'nexthop' && t[8] === 'ip-address') r.hop = t[9];
           else if (t[7] === 'interface') r.dev = t[8];
+          else if (t[7] === 'admin-dist') r.dist = t[8];
+          else if (t[7] === 'nexthop' && /^(discard|next-vr)$/.test(t[8])) r.other = t[8] === 'discard' ? 'discard' : 'next VR ' + (t[9] || '');
         }
         else if (t[3] === 'protocol' && t[4] && t[5] === 'enable' && t[6] === 'yes') NP.addOther(dev, 'Routing protocols', t[4]);
         return;
@@ -185,8 +187,10 @@
       if (!mg.description) mg.description = 'Management port';
     }
     Object.keys(routes).forEach(function (k) {
-      const r = routes[k];
-      if (r.dst === '0.0.0.0/0' && r.hop) NP.addOther(dev, 'Default route', r.hop + (r.dev ? ' via ' + r.dev : '') + ' (' + k.split('/')[0] + ')');
+      const r = routes[k], vr = k.split('/')[0];
+      if (!r.dst) return;
+      NP.addRoute(dev, { dest: r.dst, via: r.hop, iface: r.dev, vrf: vr === 'default' ? '' : vr, distance: r.dist, name: k.slice(vr.length + 1), note: r.other });
+      if (r.dst === '0.0.0.0/0' && r.hop) NP.addOther(dev, 'Default route', r.hop + (r.dev ? ' via ' + r.dev : '') + ' (' + vr + ')');
     });
     dev.gateway = sys['default-gateway'] ? sys['default-gateway'] + ' (mgmt)' : dev.gateway;
 

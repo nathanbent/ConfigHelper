@@ -187,6 +187,7 @@
       stp: { enabled: '', mode: '', priority: [], notes: [] },
       multicast: { igmpSnooping: '', querier: '', routing: '', notes: [] },
       vlans: [],          // {id, name}
+      routes: [],         // {dest, via, iface, vrf, distance, name, note}: static routes from the config
       ports: [],
       other: {},          // free-form "Label" -> "value"
       sources: [],        // what was pasted in, for the record (names only)
@@ -228,6 +229,55 @@
     if (!v) { v = { id: id, name: '' }; dev.vlans.push(v); }
     if (name) v.name = NP.unquote(name);
     return v;
+  };
+
+  // Static route. dest is CIDR ("0.0.0.0/0"); the rest may be empty. A route already listed
+  // (same destination, next hop, interface and VRF) is filled in rather than repeated.
+  NP.addRoute = function (dev, r) {
+    if (!r || !r.dest) return null;
+    if (!dev.routes) dev.routes = [];
+    const x = { dest: r.dest, via: r.via || '', iface: r.iface || '', vrf: r.vrf || '',
+      distance: r.distance ? String(r.distance) : '', name: r.name || '', note: r.note || '' };
+    const same = dev.routes.find(function (y) { return y.dest === x.dest && y.via === x.via && y.iface === x.iface && y.vrf === x.vrf; });
+    if (same) { Object.keys(x).forEach(function (k) { if (x[k] && !same[k]) same[k] = x[k]; }); return same; }
+    dev.routes.push(x);
+    return x;
+  };
+  NP.isDefaultRoute = function (r) { return /^0\.0\.0\.0\/0$|^::\/0$/.test(r.dest); };
+  // the default gateway as the routes give it: a global default route first, then one in a VRF
+  NP.gatewayFromRoutes = function (dev) {
+    const d = (dev.routes || []).filter(function (r) { return NP.isDefaultRoute(r) && r.via && r.note !== 'discard'; });
+    const r = d.find(function (x) { return !x.vrf; }) || d[0];
+    return r ? r.via + (r.vrf ? ' (vrf ' + r.vrf + ')' : '') : '';
+  };
+
+  // The arguments of a Cisco-style "ip route" (IOS, NX-OS, OS6, OS9, OS10, AOS-CX, ICX, ProCurve):
+  // [vrf V] DEST MASK|DEST/LEN [IFACE] [NEXTHOP] [DISTANCE] [name N] [tag T] [track T] [permanent] [vrf V] [distance D]
+  const IPV4 = /^\d+\.\d+\.\d+\.\d+$/;
+  NP.parseIpRoute = function (args) {
+    const t = String(args).trim().split(/\s+/);
+    let i = 0;
+    const r = {};
+    if (t[i] === 'vrf') { r.vrf = t[i + 1]; i += 2; }
+    let dest = t[i++] || '';
+    if (/^\d+\.\d+\.\d+\.\d+\/\d+$/.test(dest)) { /* already CIDR */ }
+    else if (IPV4.test(dest) && IPV4.test(t[i] || '')) dest = NP.cidr(dest, t[i++]);
+    else return null;
+    r.dest = dest;
+    while (i < t.length) {
+      const w = t[i++];
+      if (IPV4.test(w)) { if (!r.via) r.via = w; }
+      else if (/^\d{1,3}$/.test(w)) { if (!r.distance) r.distance = w; }
+      else if (w === 'name' || w === 'description') r.name = NP.unquote(t[i++] || '');
+      else if (w === 'vrf') r.vrf = t[i++];
+      else if (w === 'distance' || w === 'metric') r.distance = t[i++];
+      else if (w === 'tag' || w === 'track') i++;
+      else if (w === 'interface') r.iface = t[i++];
+      else if (/^(null0?|nullroute|blackhole|reject|discard|drop)$/i.test(w)) r.note = 'discard';
+      else if (/^(ethernet|ve|vlan|lag|loopback|management|port-channel|tunnel)$/i.test(w) && /^\d/.test(t[i] || '')) r.iface = w + ' ' + t[i++];
+      else if (/[a-z]/i.test(w) && /\d/.test(w) && !r.iface) r.iface = w;
+    }
+    return r;
   };
 
   NP.addNote = function (p, note) {
@@ -455,6 +505,7 @@
 
   NP.finalize = function (dev) {
     dev.ports.sort(NP.comparePorts);
+    if (!dev.gateway) dev.gateway = NP.gatewayFromRoutes(dev);
     dev.vlans.sort(function (a, b) { return a.id - b.id; });
     if (!dev.mgmtIpFixed) {
       // every address the box can be managed on: mgmt port first, then SVIs, then loopbacks

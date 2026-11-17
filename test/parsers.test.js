@@ -677,6 +677,66 @@ test('export formats and device report', () => {
   assert.match(rep, /\| GigabitEthernet1\/0\/1 \| Reception PC \+ phone \| 10 \|/);
 });
 
+test('static routes: Cisco-style syntax, VRFs and the default gateway', () => {
+  assert.deepEqual(NP.parseIpRoute('vrf Mgmt-vrf 0.0.0.0 0.0.0.0 10.0.65.1'), { vrf: 'Mgmt-vrf', dest: '0.0.0.0/0', via: '10.0.65.1' });
+  assert.deepEqual(NP.parseIpRoute('10.5.0.0/16 Vlan10 10.1.1.1 5 name TO-DC'),
+    { dest: '10.5.0.0/16', iface: 'Vlan10', via: '10.1.1.1', distance: '5', name: 'TO-DC' });
+  assert.deepEqual(NP.parseIpRoute('0.0.0.0/0 10.1.1.1 vrf mgmt distance 20'), { dest: '0.0.0.0/0', via: '10.1.1.1', vrf: 'mgmt', distance: '20' });
+  assert.equal(NP.parseIpRoute('10.9.0.0 255.255.0.0 Null0').note, 'discard');
+  assert.equal(NP.parseIpRoute('0.0.0.0/0 ethernet 1/1/1 10.0.0.1').iface, 'ethernet 1/1/1');
+  assert.equal(NP.parseIpRoute('profile x'), null);
+
+  // the real 3850: global default first, the management VRF one kept apart; both reached over a connected subnet
+  const c = NP.ingest(require('fs').readFileSync(require('path').join(__dirname, 'fixtures', 'cisco-3850-lab.txt'), 'utf8'), { devices: [] }).dev;
+  assert.equal(c.gateway, '10.0.0.1');
+  assert.deepEqual(NP.routeRows(c).slice(1).map(r => [r[0], r[1], r[2], r[3]]),
+    [['0.0.0.0/0 (default)', '10.0.0.1', 'Vlan3000 (connected)', ''], ['0.0.0.0/0 (default)', '10.0.65.1', 'Gi0/0 (connected)', 'Mgmt-vrf']]);
+
+  // NX-OS keeps VRF routes inside "vrf context"; with no global default, the gateway names the VRF
+  const t = 'hostname N\nvrf context management\n  ip route 0.0.0.0/0 10.20.99.1\nip route 10.0.0.0/8 10.255.0.0 name CORE\n';
+  const n = NP.ingest(t, { vendor: 'ios', devices: [] }).dev;
+  assert.deepEqual(n.routes.map(r => [r.dest, r.via, r.vrf, r.name]), [['0.0.0.0/0', '10.20.99.1', 'management', ''], ['10.0.0.0/8', '10.255.0.0', '', 'CORE']]);
+  assert.equal(n.gateway, '10.20.99.1 (vrf management)');
+  assert.deepEqual(n.unparsed, []);
+
+  // an L2 switch with only "ip default-gateway" has a gateway and no routes
+  const l2 = run('ios').dev;
+  assert.deepEqual([l2.gateway, l2.routes.length], ['10.10.99.1', 0]);
+});
+
+test('static routes: other platforms', () => {
+  const routes = (text, vendor) => NP.ingest(text, { vendor: vendor, devices: [] }).dev.routes.map(r => [r.dest, r.via, r.iface, r.vrf, r.distance, r.name, r.note].join('|'));
+  assert.deepEqual(routes('sysname C\nip route-static 0.0.0.0 0 10.50.99.1\nip route-static vpn-instance mgmt 10.8.0.0 16 Vlan-interface99 10.50.99.2 preference 70 description to lab net\n', 'comware'),
+    ['0.0.0.0/0|10.50.99.1|||||', '10.8.0.0/16|10.50.99.2|Vlan-interface99|mgmt|70|to lab net|']);
+  assert.deepEqual(routes('set system host-name J\nset routing-options static route 0.0.0.0/0 next-hop 10.60.99.1\n' +
+    'set routing-options static route 10.1.0.0/16 next-hop 10.60.99.2\nset routing-options static route 10.1.0.0/16 next-hop 10.60.99.3\n' +
+    'set routing-options static route 10.1.0.0/16 preference 20\nset routing-options static route 10.66.0.0/16 discard\n' +
+    'set routing-instances mgmt_junos routing-options static route 0.0.0.0/0 next-hop 10.99.0.1\n', 'junos'),
+    ['0.0.0.0/0|10.60.99.1|||||', '10.1.0.0/16|10.60.99.2|||20||', '10.1.0.0/16|10.60.99.3|||20||', '10.66.0.0/16||||||discard', '0.0.0.0/0|10.99.0.1||mgmt_junos|||']);
+  assert.deepEqual(routes('config system global\n    set hostname "FG"\nend\nconfig router static\n    edit 1\n        set gateway 203.0.113.1\n        set device "wan1"\n    next\n' +
+    '    edit 2\n        set dst 10.200.0.0 255.255.0.0\n        set gateway 10.0.0.2\n        set device "internal"\n        set distance 20\n        set comment "branch"\n        set status disable\n    next\n' +
+    '    edit 3\n        set dst 10.66.0.0 255.255.0.0\n        set blackhole enable\n    next\nend\n', 'fortigate'),
+    ['0.0.0.0/0|203.0.113.1|wan1||||', '10.200.0.0/16|10.0.0.2|internal||20|branch|disabled', '10.66.0.0/16||||||discard']);
+  assert.deepEqual(routes('/ip route\nadd gateway=10.70.99.1\nadd dst-address=10.9.0.0/16 gateway=10.70.99.2 distance=5 comment=lab routing-table=vpn\n/system identity\nset name=M\n', 'mikrotik'),
+    ['0.0.0.0/0|10.70.99.1|||||', '10.9.0.0/16|10.70.99.2||vpn|5|lab|']);
+  const pf = NP.samples.pfsense.text.replace('</pfsense>', '<staticroutes><route><network>10.20.0.0/16</network><gateway>WANGW</gateway><descr>branch</descr></route></staticroutes></pfsense>');
+  assert.deepEqual(routes(pf, 'pfsense'), ['0.0.0.0/0|203.0.113.1|wan|||WANGW|default gateway', '10.20.0.0/16|203.0.113.1|wan|||WANGW: branch|']);
+  assert.deepEqual(run('paloalto').dev.routes.map(r => [r.dest, r.via, r.name].join('|')), ['0.0.0.0/0|203.0.113.1|default-route']);
+});
+
+test('static routes: report, summary CSV and Compare', () => {
+  const t = 'hostname R1\ninterface Vlan10\n ip address 10.0.0.2 255.255.255.0\n!\nip route 0.0.0.0 0.0.0.0 10.0.0.1\n';
+  const d = NP.ingest(t, { vendor: 'ios', devices: [] }).dev;
+  assert.match(NP.deviceReport(d, ['name']), /## Static routes\n\n\| Destination \| Next hop \| Interface \|.*\n.*\n\| 0\.0\.0\.0\/0 \(default\) \| 10\.0\.0\.1 \| Vlan10 \(connected\) \|/);
+  assert.ok(NP.summaryRows(d).some(r => r[0] === 'Routes' && r[1] === '0.0.0.0/0' && r[2] === 'via 10.0.0.1'));
+  const old = JSON.parse(JSON.stringify(d));
+  NP.addRoute(d, NP.parseIpRoute('10.9.0.0 255.255.0.0 10.0.0.9'));
+  d.routes[0].via = '10.0.0.254';
+  const res = NP.diff(old, d);
+  assert.deepEqual(res.settings.filter(s => /^Static route/.test(s.item)).map(s => [s.item, s.before, s.after]),
+    [['Static route: 0.0.0.0/0', 'via 10.0.0.1', 'via 10.0.0.254'], ['Static route: 10.9.0.0/16', '', 'via 10.0.0.9']]);
+});
+
 test('IP interfaces: SVIs, routed and management ports with VLAN names; secondaries kept as notes', () => {
   const nx = run('nxos').dev;
   assert.deepEqual(NP.ipInterfaces(nx).map(r => [r.iface, r.vlan, r.vlanName, r.ip]),
@@ -1711,7 +1771,9 @@ test('real Dell S4148 core config (OS10 10.5.0.4, sanitized), pasted through a f
   assert.deepEqual([up.mode, up.untagged, up.tagged], ['trunk', '1', '7,200,250,253-255,2500,3000,3008,3010,3032,3240']);
   assert.deepEqual([port(d, 'ethernet1/1/22').mode, port(d, 'ethernet1/1/22').untagged], ['access', '254']);
   assert.equal(d.ports.filter(p => p.mode === 'trunk').length, 23);
-  assert.equal(d.other['Static routes'], '10.5.251.0/24 via 10.1.255.21');
+  assert.equal(d.other['Static routes'], undefined);              // now a table of its own
+  assert.deepEqual(NP.routeRows(d).slice(1).map(r => r.slice(0, 3)),
+    [['0.0.0.0/0 (default)', '10.1.254.2', 'Vlan254 (connected)'], ['10.5.251.0/24', '10.1.255.21', 'Vlan255 (connected)']]);
   assert.equal(d.other['Login authentication'], 'default: local, console: local');
   assert.ok(!NP.checks(d).some(c => c.id === 'undefvlan' || /not defined/i.test(c.title)));
   assert.deepEqual(d.unparsed, []);

@@ -119,6 +119,10 @@
       } else if (path === '/ip dns') {
         (a.servers || '').split(',').filter(Boolean).forEach(function (s) { addUnique(dev.dns, s); });
       } else if (path === '/ip route') {
+        NP.addRoute(dev, { dest: a['dst-address'] || '0.0.0.0/0', via: /^\d+\.\d+\.\d+\.\d+$/.test(a.gateway || '') ? a.gateway : '',
+          iface: /^\d+\.\d+\.\d+\.\d+$/.test(a.gateway || '') ? '' : a.gateway || '', distance: a.distance,
+          vrf: a['routing-table'] && a['routing-table'] !== 'main' ? a['routing-table'] : '', name: a.comment,
+          note: [a.blackhole === 'yes' || a.type === 'blackhole' ? 'discard' : '', a.disabled === 'yes' ? 'disabled' : ''].filter(Boolean).join(', ') });
         if (a.gateway && (!a['dst-address'] || a['dst-address'] === '0.0.0.0/0') && !dev.gateway) dev.gateway = a.gateway;
       } else if (path === '/system identity') {
         if (a.name) dev.hostname = a.name;
