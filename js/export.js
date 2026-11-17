@@ -19,7 +19,8 @@
     csv: { label: 'CSV (Excel, Sheets)', ext: 'csv', mime: 'text/csv' },
     tsv: { label: 'Tab-separated text', ext: 'txt', mime: 'text/plain' },
     md: { label: 'Markdown table (wiki, tickets)', ext: 'md', mime: 'text/markdown' },
-    json: { label: 'JSON', ext: 'json', mime: 'application/json' }
+    json: { label: 'JSON', ext: 'json', mime: 'application/json' },
+    xlsx: { label: 'Excel workbook (.xlsx, cells kept as text)', ext: 'xlsx', mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
   };
   NP.mdTable = function (rows) {
     const cell = function (c) { return String(c == null ? '' : c).replace(/\|/g, '\\|').replace(/[\r\n]+/g, ' '); };
@@ -34,6 +35,7 @@
       }).join('\r\n') + '\r\n';
     }
     if (fmt === 'md') return NP.mdTable(rows);
+    if (fmt === 'xlsx') return NP.xlsx(rows);
     if (fmt === 'json') {
       return JSON.stringify(rows.slice(1).map(function (r) {
         const o = {};
@@ -42,6 +44,54 @@
       }), null, 1) + '\n';
     }
     return '\ufeff' + NP.csv(rows);          // BOM so Excel reads UTF-8
+  };
+
+  // rows -> a one-sheet .xlsx (Uint8Array) with every cell stored as text in a Text-formatted column, so Excel and
+  // P-touch Editor's database link keep "1/1/1" or "1-2" as written instead of reading them as dates or numbers.
+  NP.xlsx = function (rows) {
+    const esc = function (c) {
+      return String(c == null ? '' : c).replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    };
+    const col = function (i) { let s = ''; for (i++; i; i = Math.floor((i - 1) / 26)) s = String.fromCharCode(65 + (i - 1) % 26) + s; return s; };
+    const width = rows.reduce(function (n, r) { return Math.max(n, r.length); }, 1);
+    const xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+    const sheet = xml + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      '<cols><col min="1" max="' + width + '" width="24" style="1" customWidth="1"/></cols><sheetData>' +
+      rows.map(function (r, ri) {
+        return '<row r="' + (ri + 1) + '">' + r.map(function (c, ci) {
+          const t = esc(c);
+          return '<c r="' + col(ci) + (ri + 1) + '" s="1" t="inlineStr"><is><t' + (/^\s|\s$/.test(t) ? ' xml:space="preserve"' : '') + '>' + t + '</t></is></c>';
+        }).join('') + '</row>';
+      }).join('') + '</sheetData></worksheet>';
+    const enc = new TextEncoder();
+    const file = function (name, text) { return { name: name, bytes: enc.encode(text) }; };
+    const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+    const PR = 'http://schemas.openxmlformats.org/package/2006/relationships';
+    return NP.zip([
+      file('[Content_Types].xml', xml + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+        '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+        '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'),
+      file('_rels/.rels', xml + '<Relationships xmlns="' + PR + '"><Relationship Id="rId1" Type="' + R + '/officeDocument" Target="xl/workbook.xml"/></Relationships>'),
+      file('xl/workbook.xml', xml + '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="' + R + '">' +
+        '<sheets><sheet name="Labels" sheetId="1" r:id="rId1"/></sheets></workbook>'),
+      file('xl/_rels/workbook.xml.rels', xml + '<Relationships xmlns="' + PR + '">' +
+        '<Relationship Id="rId1" Type="' + R + '/worksheet" Target="worksheets/sheet1.xml"/>' +
+        '<Relationship Id="rId2" Type="' + R + '/styles" Target="styles.xml"/></Relationships>'),
+      // cellXfs 1 = number format 49, which is Excel's built-in "@" (Text)
+      file('xl/styles.xml', xml + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        '<fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>' +
+        '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>' +
+        '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+        '<xf numFmtId="49" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs>' +
+        '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>'),
+      file('xl/worksheets/sheet1.xml', sheet)
+    ]);
   };
 
   NP.vendorLabel = function (dev) {

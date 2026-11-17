@@ -120,7 +120,7 @@ Not covered yet: EdgeOS/VyOS.
 
 The Labels tab produces a file with only the `Line1`, `Line2`, `Line3` columns you fill in (empty lines are
 left out). Options: label type presets (port, patch panel, port + VLAN, port + native/tagged VLAN, cable wrap, cable, one-per-device asset label),
-a port match filter, a "print only" choice with custom conditions (below), a per-line character limit, duplicate removal, comma/semicolon/tab output, and optional
+a port match filter, a "print only" choice with custom conditions (below), a per-line character limit, duplicate removal, comma/semicolon/tab or Excel workbook (.xlsx) output, and optional
 reference columns (`Device`, `Port`, `Description`, `VLAN`).
 
 `P-touch template (.lbx)` downloads the ready-made P-touch Editor layout chosen in the list beside it (kept in
@@ -175,6 +175,11 @@ them, so `Description contains AP` plus that choice finds the APs that are not s
 In P-touch Editor, connect the CSV as a database (File > Database > Connect), treat the first row as field
 names, drag the `Line` fields onto the label layout, and print all records. The label CSV is written without
 a byte-order mark; keep label text to plain ASCII if P-touch shows odd characters.
+
+If port numbers such as `1/1/1` or `1-2` show up as dates (Excel and P-touch Editor's database link both guess
+column types from a CSV, and a CSV cannot say a column is text), choose **Excel workbook .xlsx** as the file
+format. Every cell in it is stored as text in a Text-formatted column, so it reads back exactly as written. The
+port table and cable list exports offer the same `.xlsx` format.
 
 ## Development
 

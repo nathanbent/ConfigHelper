@@ -1203,6 +1203,30 @@ test('bundled P-touch templates match templates/ and carry no personal data', ()
   });
 });
 
+test('xlsx export keeps port numbers as text', () => {
+  const zlib = require('zlib');
+  const rows = [['Line1', 'Line2', 'Line3'], ['1/1/1', '7th/8th - Rack C', 'EPS-7TH8TH-RACKC-SW1'], ['1/1/31', '', 'a<b & "c"']];
+  const buf = Buffer.from(NP.xlsx(rows));
+  assert.equal(buf.readUInt32LE(0), 0x04034b50);
+  // walk the stored entries
+  const files = {};
+  let at = 0;
+  while (buf.readUInt32LE(at) === 0x04034b50) {
+    const size = buf.readUInt32LE(at + 18), nl = buf.readUInt16LE(at + 26), name = buf.subarray(at + 30, at + 30 + nl).toString();
+    const data = buf.subarray(at + 30 + nl, at + 30 + nl + size);
+    assert.equal(buf.readUInt32LE(at + 14), zlib.crc32(data), name);
+    files[name] = data.toString();
+    at += 30 + nl + size;
+  }
+  assert.deepEqual(Object.keys(files).sort(), ['[Content_Types].xml', '_rels/.rels', 'xl/_rels/workbook.xml.rels', 'xl/styles.xml', 'xl/workbook.xml', 'xl/worksheets/sheet1.xml']);
+  const sheet = files['xl/worksheets/sheet1.xml'];
+  assert.match(sheet, /<c r="A2" s="1" t="inlineStr"><is><t>1\/1\/1<\/t><\/is><\/c>/);
+  assert.match(sheet, /<c r="C3" s="1" t="inlineStr"><is><t>a&lt;b &amp; "c"<\/t>/);
+  assert.match(files['xl/styles.xml'], /numFmtId="49"/);
+  assert.equal(buf.readUInt16LE(buf.length - 12), 6);        // six entries in the central directory
+  assert.ok(NP.formatRows(rows, 'xlsx') instanceof Uint8Array);
+});
+
 test('label templates, CSV and backup round-trip', () => {
   const d = run('ios').dev;
   const p = port(d, 'Gi1/0/2');
