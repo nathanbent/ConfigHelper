@@ -48,6 +48,11 @@
 
   // rows -> a one-sheet .xlsx (Uint8Array) with every cell stored as text in a Text-formatted column, so Excel and
   // P-touch Editor's database link keep "1/1/1" or "1-2" as written instead of reading them as dates or numbers.
+  // Laid out the way Excel itself saves text: a shared-strings table, an explicit sheet size, every row padded to the
+  // full width, and the cell style marked quotePrefix (Excel's leading apostrophe, "this is text, do not convert").
+  // P-touch Editor reads .xlsx through Microsoft's Access Database Engine, which guesses each column's type from its
+  // first rows and does not cope with inline strings; with shared strings every cell is a string cell, so the column
+  // comes in as text.
   NP.xlsx = function (rows) {
     const esc = function (c) {
       return String(c == null ? '' : c).replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '')
@@ -55,15 +60,27 @@
     };
     const col = function (i) { let s = ''; for (i++; i; i = Math.floor((i - 1) / 26)) s = String.fromCharCode(65 + (i - 1) % 26) + s; return s; };
     const width = rows.reduce(function (n, r) { return Math.max(n, r.length); }, 1);
+    const strings = [], index = new Map();
+    let count = 0;
+    const sst = function (c) {
+      const t = esc(c);
+      if (!index.has(t)) { index.set(t, strings.length); strings.push(t); }
+      count++;
+      return index.get(t);
+    };
     const xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
-    const sheet = xml + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    const NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+    const sheetRows = rows.map(function (r, ri) {
+      let cells = '';
+      for (let ci = 0; ci < width; ci++) cells += '<c r="' + col(ci) + (ri + 1) + '" s="1" t="s"><v>' + sst(r[ci]) + '</v></c>';
+      return '<row r="' + (ri + 1) + '" spans="1:' + width + '">' + cells + '</row>';
+    }).join('');
+    const sheet = xml + '<worksheet xmlns="' + NS + '">' +
+      '<dimension ref="A1' + (rows.length ? ':' + col(width - 1) + rows.length : '') + '"/>' +
       '<cols><col min="1" max="' + width + '" width="24" style="1" customWidth="1"/></cols><sheetData>' +
-      rows.map(function (r, ri) {
-        return '<row r="' + (ri + 1) + '">' + r.map(function (c, ci) {
-          const t = esc(c);
-          return '<c r="' + col(ci) + (ri + 1) + '" s="1" t="inlineStr"><is><t' + (/^\s|\s$/.test(t) ? ' xml:space="preserve"' : '') + '>' + t + '</t></is></c>';
-        }).join('') + '</row>';
-      }).join('') + '</sheetData></worksheet>';
+      sheetRows + '</sheetData></worksheet>';
+    const shared = xml + '<sst xmlns="' + NS + '" count="' + count + '" uniqueCount="' + strings.length + '">' +
+      strings.map(function (t) { return '<si><t' + (/^\s|\s$/.test(t) ? ' xml:space="preserve"' : '') + '>' + t + '</t></si>'; }).join('') + '</sst>';
     const enc = new TextEncoder();
     const file = function (name, text) { return { name: name, bytes: enc.encode(text) }; };
     const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
@@ -74,22 +91,25 @@
         '<Default Extension="xml" ContentType="application/xml"/>' +
         '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
         '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+        '<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>' +
         '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'),
       file('_rels/.rels', xml + '<Relationships xmlns="' + PR + '"><Relationship Id="rId1" Type="' + R + '/officeDocument" Target="xl/workbook.xml"/></Relationships>'),
       file('xl/workbook.xml', xml + '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="' + R + '">' +
         '<sheets><sheet name="Labels" sheetId="1" r:id="rId1"/></sheets></workbook>'),
       file('xl/_rels/workbook.xml.rels', xml + '<Relationships xmlns="' + PR + '">' +
         '<Relationship Id="rId1" Type="' + R + '/worksheet" Target="worksheets/sheet1.xml"/>' +
-        '<Relationship Id="rId2" Type="' + R + '/styles" Target="styles.xml"/></Relationships>'),
-      // cellXfs 1 = number format 49, which is Excel's built-in "@" (Text)
+        '<Relationship Id="rId2" Type="' + R + '/styles" Target="styles.xml"/>' +
+        '<Relationship Id="rId3" Type="' + R + '/sharedStrings" Target="sharedStrings.xml"/></Relationships>'),
+      // cellXfs 1 = number format 49, which is Excel's built-in "@" (Text), with the leading-apostrophe flag
       file('xl/styles.xml', xml + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
         '<fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>' +
         '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>' +
         '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
         '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
         '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
-        '<xf numFmtId="49" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs>' +
+        '<xf numFmtId="49" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" quotePrefix="1"/></cellXfs>' +
         '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>'),
+      file('xl/sharedStrings.xml', shared),
       file('xl/worksheets/sheet1.xml', sheet)
     ]);
   };
