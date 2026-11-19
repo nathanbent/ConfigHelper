@@ -173,13 +173,15 @@ These combine with the options above: "set up differently from most" is worked o
 them, so `Description contains AP` plus that choice finds the APs that are not set up like the other APs.
 
 In P-touch Editor, connect the CSV as a database (File > Database > Connect), treat the first row as field
-names, drag the `Line` fields onto the label layout, and print all records. The label CSV is written without
-a byte-order mark; keep label text to plain ASCII if P-touch shows odd characters.
+names, drag the `Line` fields onto the label layout, and print all records. The label CSV is written in Windows
+ANSI (Windows-1252), which is what P-touch Editor expects; characters outside it become `?`.
 
 If port numbers such as `1/1/1` or `1-2` show up as dates (Excel and P-touch Editor's database link both guess
-column types from a CSV, and a CSV cannot say a column is text), choose **Excel workbook .xlsx** as the file
-format. Every cell in it is stored as text in a Text-formatted column, so it reads back exactly as written. The
-port table and cable list exports offer the same `.xlsx` format.
+column types from a CSV, and a CSV cannot say a column is text), choose **Excel 97-2003 .xls** as the file format.
+Every cell in it is stored as text in a Text-formatted column, so it reads back exactly as written. P-touch Editor
+opens `.xls` with a driver built into Windows. It can only open `.xlsx` with a 32-bit Microsoft Access runtime,
+which will not install next to 64-bit Office, so prefer `.xls` for P-touch. The port table and cable list exports
+offer both formats.
 
 ## Development
 

@@ -81,7 +81,7 @@
         'You get': ['A preview, and a file with the `Line1`, `Line2` and `Line3` columns you filled in. In P-touch Editor, connect it as a database and drag the Line fields onto the layout.'],
         'Limits': [
           'Ports unticked in Edit get no label. The character limit cuts a line, not shrinks it.',
-          'The file has no byte-order mark. Keep label text to plain ASCII if P-touch Editor shows odd characters.'
+          'CSV is written in Windows ANSI for P-touch Editor. If 1/1/1 comes in as a date, export as .xls.'
         ],
         'More': ['[Labels and P-touch Editor](' + REPO + '#labels-and-p-touch-editor)']
       }
