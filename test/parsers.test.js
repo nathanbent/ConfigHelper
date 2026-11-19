@@ -1172,6 +1172,37 @@ test('xlsx export keeps port numbers as text', () => {
   assert.ok(NP.formatRows(rows, 'xlsx') instanceof Uint8Array);
 });
 
+test('xls export: compound document with text cells', () => {
+  const rows = [['Line1', 'Line2'], ['1/1/1', 'Rack C é'], ['1-2', '']];
+  const buf = Buffer.from(NP.xls(rows));
+  assert.equal(buf.subarray(0, 8).toString('hex'), 'd0cf11e0a1b11ae1');
+  assert.equal(buf.length % 512, 0);
+  const dir = 512 * (1 + buf.readUInt32LE(48));
+  assert.equal(buf.subarray(dir + 128, dir + 144).toString('utf16le'), 'Workbook');
+  const start = buf.readUInt32LE(dir + 128 + 116), size = buf.readUInt32LE(dir + 128 + 120);
+  assert.ok(size >= 4096);
+  const wb = buf.subarray(512 * (1 + start), 512 * (1 + start) + size);
+  // walk the BIFF records
+  const recs = [];
+  for (let at = 0; at + 4 <= wb.length && (recs.length === 0 || wb.readUInt16LE(at) !== 0);) {
+    const type = wb.readUInt16LE(at), len = wb.readUInt16LE(at + 2);
+    recs.push({ type: type, data: wb.subarray(at + 4, at + 4 + len) });
+    at += 4 + len;
+  }
+  const sst = recs.find(function (r) { return r.type === 0x00FC; }).data;
+  const strings = [];
+  for (let at = 8; at < sst.length;) { const n = sst.readUInt16LE(at); strings.push(sst.subarray(at + 3, at + 3 + 2 * n).toString('utf16le')); at += 3 + 2 * n; }
+  const cells = recs.filter(function (r) { return r.type === 0x00FD; }).map(function (r) { return [r.data.readUInt16LE(0), r.data.readUInt16LE(2), r.data.readUInt16LE(4), strings[r.data.readUInt32LE(6)]]; });
+  assert.deepEqual(cells, [[0, 0, 16, 'Line1'], [0, 1, 16, 'Line2'], [1, 0, 16, '1/1/1'], [1, 1, 16, 'Rack C é'], [2, 0, 16, '1-2']]);
+  const xfs = recs.filter(function (r) { return r.type === 0x00E0; });
+  assert.equal(xfs[16].data.readUInt16LE(2), 49);           // the cells' style is Text (@)
+  assert.ok(NP.formatRows(rows, 'xls') instanceof Uint8Array);
+});
+
+test('label CSV is encoded as Windows-1252', () => {
+  assert.deepEqual(Array.from(NP.ansi('a é – € 中')), [0x61, 0x20, 0xE9, 0x20, 0x96, 0x20, 0x80, 0x20, 0x3F]);
+});
+
 test('label templates, CSV and backup round-trip', () => {
   const d = run('ios').dev;
   const p = port(d, 'Gi1/0/2');

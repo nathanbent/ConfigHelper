@@ -14,13 +14,26 @@
     }).join('\r\n') + '\r\n';
   };
 
+  // text -> Windows-1252 bytes (P-touch Editor reads a CSV as ANSI, not UTF-8); characters it has no byte for become ?
+  NP.ansi = function (text) {
+    const hi = '\u20ac\u0081\u201a\u0192\u201e\u2026\u2020\u2021\u02c6\u2030\u0160\u2039\u0152\u008d\u017d\u008f' +
+      '\u0090\u2018\u2019\u201c\u201d\u2022\u2013\u2014\u02dc\u2122\u0161\u203a\u0153\u009d\u017e\u0178';
+    const out = new Uint8Array(text.length);
+    for (let i = 0; i < text.length; i++) {
+      const c = text.charCodeAt(i), k = hi.indexOf(text[i]);
+      out[i] = k >= 0 ? 0x80 + k : c < 0x80 || (c >= 0xA0 && c <= 0xFF) ? c : 0x3F;
+    }
+    return out;
+  };
+
   // rows (first row = header) -> text in one of the export formats
   NP.formats = {
     csv: { label: 'CSV (Excel, Sheets)', ext: 'csv', mime: 'text/csv' },
     tsv: { label: 'Tab-separated text', ext: 'txt', mime: 'text/plain' },
     md: { label: 'Markdown table (wiki, tickets)', ext: 'md', mime: 'text/markdown' },
     json: { label: 'JSON', ext: 'json', mime: 'application/json' },
-    xlsx: { label: 'Excel workbook (.xlsx, cells kept as text)', ext: 'xlsx', mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
+    xlsx: { label: 'Excel workbook (.xlsx, cells kept as text)', ext: 'xlsx', mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
+    xls: { label: 'Excel 97-2003 (.xls, cells kept as text, P-touch Editor)', ext: 'xls', mime: 'application/vnd.ms-excel' }
   };
   NP.mdTable = function (rows) {
     const cell = function (c) { return String(c == null ? '' : c).replace(/\|/g, '\\|').replace(/[\r\n]+/g, ' '); };
@@ -36,6 +49,7 @@
     }
     if (fmt === 'md') return NP.mdTable(rows);
     if (fmt === 'xlsx') return NP.xlsx(rows);
+    if (fmt === 'xls') return NP.xls(rows);
     if (fmt === 'json') {
       return JSON.stringify(rows.slice(1).map(function (r) {
         const o = {};
@@ -112,6 +126,136 @@
       file('xl/sharedStrings.xml', shared),
       file('xl/worksheets/sheet1.xml', sheet)
     ]);
+  };
+
+  // rows -> an Excel 97-2003 workbook (.xls, Uint8Array): one sheet, every non-empty cell a string cell in a
+  // Text-formatted (@) column. P-touch Editor opens .xls through the Jet driver built into Windows, so it works
+  // where .xlsx cannot (P-touch's 32-bit Access runtime will not install next to 64-bit Office). Jet types a column
+  // from the cells' own types, and these are all strings, so "1/1/1" stays text.
+  // BIFF8 records inside a compound document (the OLE2 container); the stream is padded to 4096 bytes so it never
+  // goes into the container's mini stream.
+  NP.xls = function (rows) {
+    const out = [];
+    let pos = 0;
+    const rec = function (type, bytes) {
+      const b = new Uint8Array(4 + bytes.length);
+      b[0] = type & 255; b[1] = type >> 8; b[2] = bytes.length & 255; b[3] = bytes.length >> 8;
+      b.set(bytes, 4); out.push(b); pos += b.length;
+    };
+    const B = function () {        // B(['u16', 1], ['u32', 2], ['u8', 3], ['bytes', Uint8Array]) -> bytes
+      const parts = [];
+      Array.prototype.forEach.call(arguments, function (a) {
+        const n = a[0] === 'u8' ? 1 : a[0] === 'u16' ? 2 : a[0] === 'u32' ? 4 : 0;
+        if (n) { const b = new Uint8Array(n); for (let i = 0; i < n; i++) b[i] = (a[1] >>> (8 * i)) & 255; parts.push(b); }
+        else parts.push(a[1]);
+      });
+      const len = parts.reduce(function (s, p) { return s + p.length; }, 0), b = new Uint8Array(len);
+      let at = 0; parts.forEach(function (p) { b.set(p, at); at += p.length; });
+      return b;
+    };
+    const utf16 = function (t) { const b = new Uint8Array(t.length * 2); for (let i = 0; i < t.length; i++) { b[2 * i] = t.charCodeAt(i) & 255; b[2 * i + 1] = t.charCodeAt(i) >> 8; } return b; };
+    const shortStr = function (t) { return B(['u8', t.length], ['u8', 1], ['bytes', utf16(t)]); };
+    const clean = function (c) { return String(c == null ? '' : c).replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '').slice(0, 4000); };
+
+    // shared strings
+    const strings = [], index = new Map();
+    let total = 0;
+    const cells = [];
+    const width = Math.min(256, rows.reduce(function (n, r) { return Math.max(n, r.length); }, 1));
+    const nrows = Math.min(65536, rows.length);
+    for (let ri = 0; ri < nrows; ri++) {
+      for (let ci = 0; ci < width; ci++) {
+        const t = clean(rows[ri][ci]);
+        if (!t) continue;
+        if (!index.has(t)) { index.set(t, strings.length); strings.push(t); }
+        total++;
+        cells.push([ri, ci, index.get(t)]);
+      }
+    }
+
+    const bof = function (dt) { return B(['u16', 0x0600], ['u16', dt], ['u16', 0x0DBB], ['u16', 0x07CC], ['u32', 0], ['u32', 6]); };
+    rec(0x0809, bof(0x0005));
+    rec(0x0042, B(['u16', 1200]));                                                  // CODEPAGE: UTF-16
+    rec(0x003D, B(['u16', 0], ['u16', 0], ['u16', 0x4000], ['u16', 0x2000], ['u16', 0x38], ['u16', 0], ['u16', 0], ['u16', 1], ['u16', 600]));
+    for (let i = 0; i < 5; i++) {                                                   // FONT x5 (Arial 10)
+      rec(0x0031, B(['u16', 200], ['u16', 0], ['u16', 0x7FFF], ['u16', 400], ['u16', 0], ['u8', 0], ['u8', 0], ['u8', 0], ['u8', 0], ['bytes', shortStr('Arial')]));
+    }
+    const xf = function (fmt, flags, used) {
+      return B(['u16', 0], ['u16', fmt], ['u16', flags], ['u8', 0x20], ['u8', 0], ['u8', 0], ['u8', used], ['u32', 0], ['u32', 0], ['u16', 0x20C0]);
+    };
+    for (let i = 0; i < 15; i++) rec(0x00E0, xf(0, 0xFFF5, i ? 0xF4 : 0));           // style XFs 0-14
+    rec(0x00E0, xf(0, 0x0001, 0));                                                  // XF 15: default cell
+    rec(0x00E0, xf(49, 0x0001, 0x04));                                              // XF 16: Text (@)
+    rec(0x0293, B(['u16', 0x8000], ['u8', 0], ['u8', 0xFF]));                         // STYLE: Normal
+    const sheetName = 'Labels';
+    const boundAt = pos;
+    rec(0x0085, B(['u32', 0], ['u8', 0], ['u8', 0], ['bytes', shortStr(sheetName)]));   // offset patched below
+    // SST, split into CONTINUE records at string boundaries (each string fits in one record: at most 4000 chars)
+    let chunk = [B(['u32', total], ['u32', strings.length])], size = 8, type = 0x00FC;
+    const flush = function () { rec(type, B.apply(null, chunk.map(function (c) { return ['bytes', c]; }))); type = 0x003C; chunk = []; size = 0; };
+    strings.forEach(function (t) {
+      const s = B(['u16', t.length], ['u8', 1], ['bytes', utf16(t)]);
+      if (size + s.length > 8224) flush();
+      chunk.push(s); size += s.length;
+    });
+    flush();
+    rec(0x000A, new Uint8Array(0));                                                 // EOF (globals)
+
+    const sheetAt = pos;
+    rec(0x0809, bof(0x0010));
+    rec(0x0200, B(['u32', 0], ['u32', nrows], ['u16', 0], ['u16', width], ['u16', 0]));    // DIMENSIONS
+    rec(0x007D, B(['u16', 0], ['u16', width - 1], ['u16', 24 * 256], ['u16', 16], ['u16', 0], ['u16', 0]));   // COLINFO: Text
+    cells.forEach(function (c) { rec(0x00FD, B(['u16', c[0]], ['u16', c[1]], ['u16', 16], ['u32', c[2]])); });   // LABELSST
+    rec(0x023E, B(['u16', 0x06B6], ['u16', 0], ['u16', 0], ['u32', 64], ['u16', 0], ['u16', 0], ['u32', 0]));   // WINDOW2
+    rec(0x000A, new Uint8Array(0));
+
+    let wb = B.apply(null, out.map(function (b) { return ['bytes', b]; }));
+    wb.set(B(['u32', sheetAt]), boundAt + 4);
+    if (wb.length < 4096) { const p = new Uint8Array(4096); p.set(wb); wb = p; }
+    return NP.cfb('Workbook', wb);
+  };
+
+  // One stream in a compound document (OLE2, version 3, 512-byte sectors): header, FAT, one directory sector, data.
+  // The stream must be at least 4096 bytes (no mini stream here).
+  NP.cfb = function (name, data) {
+    const SEC = 512, FREE = 0xFFFFFFFF, END = 0xFFFFFFFE, FATSECT = 0xFFFFFFFD;
+    const nData = Math.ceil(data.length / SEC);
+    let nFat = 1;
+    while (nFat * 128 < nFat + 1 + nData) nFat++;
+    if (nFat > 109) throw new Error('Too much data for one .xls file');
+    const dirSec = nFat, dataSec = nFat + 1, nSec = nFat + 1 + nData;
+    const buf = new Uint8Array(SEC * (1 + nFat * 1 + 1 + nData));
+    const dv = new DataView(buf.buffer);
+    [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1].forEach(function (b, i) { buf[i] = b; });
+    dv.setUint16(24, 0x003E, true); dv.setUint16(26, 3, true); dv.setUint16(28, 0xFFFE, true);
+    dv.setUint16(30, 9, true); dv.setUint16(32, 6, true);
+    dv.setUint32(44, nFat, true); dv.setUint32(48, dirSec, true); dv.setUint32(56, 4096, true);
+    dv.setUint32(60, END, true); dv.setUint32(64, 0, true); dv.setUint32(68, END, true); dv.setUint32(72, 0, true);
+    for (let i = 0; i < 109; i++) dv.setUint32(76 + 4 * i, i < nFat ? i : FREE, true);
+    const sec = function (i) { return SEC * (1 + i); };
+    // FAT
+    for (let i = 0; i < nFat * 128; i++) {
+      let v = FREE;
+      if (i < nFat) v = FATSECT;
+      else if (i === dirSec) v = END;
+      else if (i >= dataSec && i < nSec) v = i === nSec - 1 ? END : i + 1;
+      dv.setUint32(sec(0) + 4 * i, v, true);
+    }
+    // directory: root, the stream, two unused entries
+    const entry = function (at, nm, type, child, start, size) {
+      for (let i = 0; i < nm.length; i++) dv.setUint16(at + 2 * i, nm.charCodeAt(i), true);
+      dv.setUint16(at + 64, nm ? 2 * (nm.length + 1) : 0, true);
+      buf[at + 66] = type; buf[at + 67] = 1;
+      dv.setUint32(at + 68, FREE, true); dv.setUint32(at + 72, FREE, true); dv.setUint32(at + 76, child, true);
+      dv.setUint32(at + 116, start, true); dv.setUint32(at + 120, size, true);
+    };
+    const d = sec(dirSec);
+    entry(d, 'Root Entry', 5, 1, END, 0);
+    entry(d + 128, name, 2, FREE, dataSec, data.length);
+    entry(d + 256, '', 0, FREE, 0, 0);
+    entry(d + 384, '', 0, FREE, 0, 0);
+    buf.set(data, sec(dataSec));
+    return buf;
   };
 
   NP.vendorLabel = function (dev) {
