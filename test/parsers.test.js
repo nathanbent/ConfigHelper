@@ -1158,12 +1158,17 @@ test('xlsx export keeps port numbers as text', () => {
     files[name] = data.toString();
     at += 30 + nl + size;
   }
-  assert.deepEqual(Object.keys(files).sort(), ['[Content_Types].xml', '_rels/.rels', 'xl/_rels/workbook.xml.rels', 'xl/styles.xml', 'xl/workbook.xml', 'xl/worksheets/sheet1.xml']);
+  assert.deepEqual(Object.keys(files).sort(), ['[Content_Types].xml', '_rels/.rels', 'xl/_rels/workbook.xml.rels', 'xl/sharedStrings.xml', 'xl/styles.xml', 'xl/workbook.xml', 'xl/worksheets/sheet1.xml']);
   const sheet = files['xl/worksheets/sheet1.xml'];
-  assert.match(sheet, /<c r="A2" s="1" t="inlineStr"><is><t>1\/1\/1<\/t><\/is><\/c>/);
-  assert.match(sheet, /<c r="C3" s="1" t="inlineStr"><is><t>a&lt;b &amp; "c"<\/t>/);
-  assert.match(files['xl/styles.xml'], /numFmtId="49"/);
-  assert.equal(buf.readUInt16LE(buf.length - 12), 6);        // six entries in the central directory
+  const sst = [...files['xl/sharedStrings.xml'].matchAll(/<si><t[^>]*>([^<]*)<\/t><\/si>/g)].map(function (m) { return m[1]; });
+  const cell = function (ref) { const m = sheet.match(new RegExp('<c r="' + ref + '" s="1" t="s"><v>(\\d+)</v></c>')); return m && sst[+m[1]]; };
+  assert.equal(cell('A2'), '1/1/1');
+  assert.equal(cell('C3'), 'a&lt;b &amp; "c"');
+  assert.equal(cell('B3'), '');                              // empty cells are text too
+  assert.match(sheet, /<dimension ref="A1:C3"\/>/);
+  assert.match(files['xl/styles.xml'], /numFmtId="49"[^>]*quotePrefix="1"/);
+  assert.match(files['[Content_Types].xml'], /sharedStrings/);
+  assert.equal(buf.readUInt16LE(buf.length - 12), 7);        // seven entries in the central directory
   assert.ok(NP.formatRows(rows, 'xlsx') instanceof Uint8Array);
 });
 
